@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 22/06/2026
+> Última actualización: 22/06/2026 (agregadas secciones de Adjuntos y de Facturación/ARCA)
 
 ---
 
@@ -185,7 +185,94 @@ El color comunica **qué tipo de cosa es** (no la profundidad). La profundidad s
 
 ---
 
-## 10. Decisiones pendientes
+## 10. Adjuntos y documentos (planos, sólidos, PDF)
+
+### Dónde viven los archivos
+
+- Los archivos pesados **nunca** van dentro de PostgreSQL. La base guarda solo
+  **metadatos + una referencia**; el archivo vive en almacenamiento de objetos.
+- **Almacenamiento elegido: Supabase Storage.** Razones: ya es parte del stack, usa el
+  mismo sistema de auth/permisos (RLS) que el resto de la app, y el volumen actual
+  (~50 GB) entra en el plan Pro sin costo extra.
+- **Diseño agnóstico del lugar físico.** Como la base guarda una referencia y no el
+  archivo, se puede migrar a otro storage (ej: Cloudflare R2) sin tocar el modelo de
+  datos. R2 queda como carta para un escenario futuro puntual (ej: Portal de Clientes
+  sirviendo muchas descargas, donde el egress gratis de R2 pesaría). Hoy no se justifica.
+
+### Tabla `adjuntos` (polimórfica)
+
+Mismo patrón que `notas`: `parent_type` (proyecto / item / conjunto / subconjunto /
+producto / proceso) + `parent_id` + metadatos (nombre, tipo, tamaño, referencia al
+archivo, quién lo subió, fecha).
+
+### Versionado de planos (revisiones)
+
+Se separa el **documento lógico** de sus **versiones**:
+
+- Un documento ("Plano del eje principal") es una identidad estable adjunta a una entidad.
+- Cada documento tiene una o varias **versiones** (Rev A, B, C...). Cada versión guarda:
+  letra/número de revisión, archivo, quién la subió, cuándo, y comentario opcional de qué
+  cambió.
+- Al subir una modificación **no se pisa el archivo**: se crea una versión nueva, que pasa
+  a ser la **vigente**; la anterior queda **histórica/obsoleta** pero accesible.
+- **Historial inmutable**: las revisiones viejas no se borran ni se editan (registro de
+  trazabilidad, coherente con la auditoría).
+- **UI**: se muestra prominente la revisión vigente, con historial desplegable de las
+  anteriores. Las obsoletas van **visualmente atenuadas / marcadas como obsoleto** (evitar
+  fabricar contra un plano viejo). Misma lógica visual que los bloques completados
+  desaturados del tablero.
+- Asunción: un documento lógico = un archivo por revisión (no un set de varios planos).
+
+### Permisos
+
+- La capacidad de subir/revisar adjuntos es un **permiso por rol** (no por usuario).
+- Esquema tentativo: Oficina Técnica sube documentos y crea revisiones; Operarios solo ven
+  y descargan la vigente; Admin/Maestro todo.
+- Se arranca con **un solo permiso** ("gestionar adjuntos"); se separa "subir nuevo" vs
+  "revisar existente" solo si más adelante hace falta.
+
+### Para el radar (no decidir ahora)
+
+- Notificar a quien trabaja en un item cuando se sube una revisión nueva (cae en el futuro
+  sistema de notificaciones).
+- Previsualización: los PDF se ven en el navegador; los nativos de SolidWorks/AutoCAD solo
+  se guardan y se descargan (no hay preview).
+
+---
+
+## 11. Facturación / ARCA — preparación futura
+
+> **Estado: NO se implementa ahora.** Hoy la facturación se hace en TacticaSoft. Esta
+> sección solo deja la arquitectura preparada para el escenario futuro de "ERP/CRM
+> integrado completo", donde el sistema reemplace la parte comercial/fiscal de TacticaSoft.
+> Se considera un horizonte lejano.
+
+### Cómo se haría el día que se implemente
+
+- **Vía intermediario, no contra ARCA en crudo.** Servicios tipo TusFacturasAPP o AfipSDK
+  exponen una API REST/JSON que envuelve los web services SOAP de ARCA (WSAA + WSFE),
+  manejan los certificados, generan CAE + QR + PDF, y mantienen la integración al día con
+  los cambios normativos. Evita el grueso del trabajo y, sobre todo, del mantenimiento.
+- **Requiere capa de servidor (Edge Functions).** La integración fiscal NO puede correr en
+  el navegador: el certificado / API key son secretos de servidor. React llamaría a una
+  Edge Function de Supabase, y esa función llama al intermediario. Esto vale para ARCA y
+  para cualquier otra cosa que necesite secretos del lado servidor → es el primer caso que
+  introduce esta capa en la arquitectura.
+
+### Qué dejar listo desde el inicio (sin programar la integración)
+
+- **Comprobantes como entidad de primera clase.** Tabla `comprobantes` (facturas, notas de
+  crédito/débito) con campos fiscales previstos: CAE, vencimiento de CAE, punto de venta,
+  tipo de comprobante, alícuotas de IVA, CUIT receptor, etc. Al principio se cargan
+  manualmente con el número que sale de TacticaSoft (igual que ya se hace hoy con remitos);
+  el día que se integre ARCA, los campos ya existen.
+- **`empresas` con datos fiscales completos** (CUIT, razón social, condición frente al IVA).
+  Ya contemplado en la sección de convenciones.
+- **Lugar previsto para Edge Functions** en la estructura del repo (no se crea ahora).
+
+---
+
+## 12. Decisiones pendientes
 
 - [ ] **Notas:** hasta qué niveles de la matriz soportar notas (hoy `notas` es polimórfica
       con `parent_type` = proyecto / item / producto; falta decidir si se extiende a
