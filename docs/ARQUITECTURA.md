@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 22/06/2026 (agregadas secciones de Adjuntos y de Facturación/ARCA)
+> Última actualización: 22/06/2026 (agregado principio de modelo de dominio propio + adaptadores)
 
 ---
 
@@ -54,6 +54,25 @@ conexiones externas tipo DBeaver/TablePlus o migraciones masivas, no en el día 
 4. **Base de datos nueva.** Arranca limpia con la arquitectura nueva. Se migran solo
    "datos maestros" (empresas, contactos, máquinas, materiales, matriz de productos);
    los proyectos viejos se migran al final, antes del switch definitivo.
+5. **Modelo de dominio propio + capa adaptadora (principio fundacional).** La app modela
+   **el negocio del taller**, no los conceptos de ningún sistema externo. Nuestro idioma
+   (Proyecto, Item, Proceso, estados como "Solicitud"/"Cotizado"/"Confirmado", etc.) lo
+   define cómo trabaja Velasco, no cómo lo llama TacticaSoft, Oppen u Odoo. Toda
+   integración con un sistema externo pasa por una **capa traductora (adaptador /
+   anticorrupción)** que mapea los conceptos del ERP a los nuestros. La app nunca conoce
+   el vocabulario del ERP; solo el adaptador lo conoce.
+   - Cambiar de ERP = reescribir **un adaptador**, no la app.
+   - El mapeo no siempre es 1:1 (un "Pedido" nuestro puede ser 2 entidades en otro ERP, o
+     al revés). Esa fricción es trabajo real, pero queda **contenida en el adaptador**.
+   - **Modelo de dos sistemas:** la parte administrativa/comercial/fiscal puede vivir en un
+     ERP con API abierta (candidato: Oppen, cuando se migre de Táctica); la parte operativa
+     (proyectos, tablero, procesos, planificación) es esta app, porque ningún ERP
+     generalista resuelve bien la producción de un taller a medida. Se conectan por API a
+     través del adaptador.
+   - Hoy TacticaSoft no expone una API abierta (solo conectores cerrados a plataformas
+     puntuales). La extracción realista de datos hoy es exportación periódica a CSV/Excel +
+     import (mismo canal que ya se usa para Power BI). Confirmar con el proveedor si existe
+     API/acceso a base no publicado.
 
 ---
 
