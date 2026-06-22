@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 22/06/2026 (agregada sección de Adjuntos y documentos)
+> Última actualización: 22/06/2026 (agregadas secciones de Adjuntos y de Facturación/ARCA)
 
 ---
 
@@ -240,7 +240,39 @@ Se separa el **documento lógico** de sus **versiones**:
 
 ---
 
-## 11. Decisiones pendientes
+## 11. Facturación / ARCA — preparación futura
+
+> **Estado: NO se implementa ahora.** Hoy la facturación se hace en TacticaSoft. Esta
+> sección solo deja la arquitectura preparada para el escenario futuro de "ERP/CRM
+> integrado completo", donde el sistema reemplace la parte comercial/fiscal de TacticaSoft.
+> Se considera un horizonte lejano.
+
+### Cómo se haría el día que se implemente
+
+- **Vía intermediario, no contra ARCA en crudo.** Servicios tipo TusFacturasAPP o AfipSDK
+  exponen una API REST/JSON que envuelve los web services SOAP de ARCA (WSAA + WSFE),
+  manejan los certificados, generan CAE + QR + PDF, y mantienen la integración al día con
+  los cambios normativos. Evita el grueso del trabajo y, sobre todo, del mantenimiento.
+- **Requiere capa de servidor (Edge Functions).** La integración fiscal NO puede correr en
+  el navegador: el certificado / API key son secretos de servidor. React llamaría a una
+  Edge Function de Supabase, y esa función llama al intermediario. Esto vale para ARCA y
+  para cualquier otra cosa que necesite secretos del lado servidor → es el primer caso que
+  introduce esta capa en la arquitectura.
+
+### Qué dejar listo desde el inicio (sin programar la integración)
+
+- **Comprobantes como entidad de primera clase.** Tabla `comprobantes` (facturas, notas de
+  crédito/débito) con campos fiscales previstos: CAE, vencimiento de CAE, punto de venta,
+  tipo de comprobante, alícuotas de IVA, CUIT receptor, etc. Al principio se cargan
+  manualmente con el número que sale de TacticaSoft (igual que ya se hace hoy con remitos);
+  el día que se integre ARCA, los campos ya existen.
+- **`empresas` con datos fiscales completos** (CUIT, razón social, condición frente al IVA).
+  Ya contemplado en la sección de convenciones.
+- **Lugar previsto para Edge Functions** en la estructura del repo (no se crea ahora).
+
+---
+
+## 12. Decisiones pendientes
 
 - [ ] **Notas:** hasta qué niveles de la matriz soportar notas (hoy `notas` es polimórfica
       con `parent_type` = proyecto / item / producto; falta decidir si se extiende a
