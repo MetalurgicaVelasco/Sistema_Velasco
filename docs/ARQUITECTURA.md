@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 22/06/2026 (agregado principio de modelo de dominio propio + adaptadores)
+> Última actualización: 22/06/2026 (corregido modelo de estados a dos niveles proyecto/item, §8.2)
 
 ---
 
@@ -181,8 +181,15 @@ Proyecto → Item → Proceso
 - En el HTML actual los items son **planos** (todos hermanos).
 - En React, el item del proyecto gana un campo **Tipo** (Conjunto / Producto), permitiendo
   estructura anidada dentro del proyecto.
-- Un proyecto tiene un campo de **estado** (consulta → cotizado → confirmado → en producción
-  → entregado → cerrado). Es el mismo registro que cambia de estado, no se duplica.
+- **El avance se modela en dos niveles distintos (no confundir):**
+  - **Estado del proyecto** = estado *comercial / de coordinación*. Valores reales en uso:
+    `Proyectando, Solicitud, Pedido, Mantenimiento, Cerrado, Anulado, Perdido` (con
+    `Cerrado` teniendo sub-estado `Enviado / Terminado / Stockeado`). Es el mismo registro
+    que cambia de estado, no se duplica.
+  - **Estado del item** = avance *físico* de la pieza en el taller:
+    `Espera MP, Llegó MP, Proceso, Enviar a TT, TT, Llegó TT, Terminado, Enviado,
+    Stockeado, Anulado`.
+  - El detalle del significado de cada estado vive en `NEGOCIO.md` (sección 4).
 - Los **procesos** del item son los que se convierten en bloques/actividades del Tablero.
 
 ---
