@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 22/06/2026 (corregido modelo de estados a dos niveles proyecto/item, §8.2)
+> Última actualización: 22/06/2026 (agregada estructura del repo por feature, §12)
 
 ---
 
@@ -298,12 +298,42 @@ Se separa el **documento lógico** de sus **versiones**:
 
 ---
 
-## 12. Decisiones pendientes
+## 12. Estructura del repo (organización del código)
+
+El código de la app se organiza **por funcionalidad (feature)**, no por tipo de archivo.
+Cada módulo del sistema vive en su propia carpeta con todo lo suyo adentro (componentes,
+lógica, tipos), y lo genuinamente compartido vive en una zona común.
+
+```
+src/
+  features/
+    proyectos/
+    tablero/
+    matriz/
+    ...
+  shared/
+    components/   (modales, botones, las 4 franjas de la UI, etc.)
+    lib/          (cliente de Supabase, helpers de fecha/formato)
+    types/        (tipos compartidos)
+  App.tsx, main.tsx   (raíz que arma y conecta todo)
+```
+
+**Por qué por feature:** el árbol se lee como el sistema mismo, escala sin ensuciar
+(sumar un módulo = sumar una carpeta), y mapea limpio a la migración pantalla por pantalla
+del HTML viejo. Sobre todo, ataca de raíz la deuda técnica que se está dejando atrás: lo
+común (modal de confirmación, "marcar proceso como hecho", helpers de fecha) vive **una
+sola vez** en `shared/` en lugar de duplicarse entre páginas como pasaba en el HTML.
+
+> La forma exacta de las carpetas se afina al construir. `shared/` es también el lugar
+> natural para la futura capa de Edge Functions (ver sección 11) cuando se introduzca.
+
+---
+
+## 13. Decisiones pendientes
 
 - [ ] **Notas:** hasta qué niveles de la matriz soportar notas (hoy `notas` es polimórfica
       con `parent_type` = proyecto / item / producto; falta decidir si se extiende a
       conjunto, subconjunto, sector, equipo). Pendiente de definir.
-- [ ] **Estructura de carpetas del repo** (organización por features vs. por tipo de archivo).
 - [ ] **Librerías a sumar** (drag-and-drop para el tablero, calendario, date picker, etc.).
 - [ ] **Códigos hexadecimal** de los colores pastel.
 - [ ] **Script de migración** de datos maestros desde la Supabase vieja a la nueva.
