@@ -1,30 +1,220 @@
-// Lista de las 12 secciones del sistema.
-// El emoji es provisorio (después se reemplaza por imágenes).
+import { useState } from 'react'
+
+// Cada sección tiene su lista de módulos.
+// `disponible: true`  -> módulo clickeable (lleva a "en construcción").
+// `disponible: false` -> módulo en gris, no clickeable.
+// Los emojis son provisorios (después se reemplazan por imágenes/iconos).
 const SECCIONES = [
-  { id: 'empresas', emoji: '🏢', titulo: 'Empresas' },
-  { id: 'produccion', emoji: '🔧', titulo: 'Producción' },
-  { id: 'ventas', emoji: '💰', titulo: 'Ventas' },
-  { id: 'compras', emoji: '🛒', titulo: 'Compras' },
-  { id: 'inventarios', emoji: '📦', titulo: 'Inventarios' },
-  { id: 'rrhh', emoji: '👥', titulo: 'RRHH' },
-  { id: 'activos', emoji: '🏭', titulo: 'Activos' },
-  { id: 'fondos', emoji: '🏦', titulo: 'Fondos' },
-  { id: 'contabilidad', emoji: '📊', titulo: 'Contabilidad' },
-  { id: 'configuraciones', emoji: '⚙️', titulo: 'Configuraciones' },
-  { id: 'actividades', emoji: '✅', titulo: 'Actividades' },
-  { id: 'portal', emoji: '🌐', titulo: 'Portal Clientes' },
+  {
+    id: 'empresas',
+    emoji: '🏢',
+    titulo: 'Empresas',
+    modulos: [
+      { id: 'empresas', emoji: '🏢', titulo: 'Empresas', disponible: true },
+      { id: 'sectores-equipos', emoji: '🗂️', titulo: 'Sectores/Equipos', disponible: true },
+      { id: 'contactos', emoji: '📇', titulo: 'Contactos', disponible: true },
+      { id: 'transportes', emoji: '🚚', titulo: 'Transportes', disponible: true },
+      { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: true },
+    ],
+  },
+  {
+    id: 'produccion',
+    emoji: '🔧',
+    titulo: 'Producción',
+    modulos: [
+      { id: 'proyectos', emoji: '📋', titulo: 'Proyectos', disponible: true },
+      { id: 'productos', emoji: '🔩', titulo: 'Productos', disponible: true },
+      { id: 'procesos', emoji: '⚙️', titulo: 'Procesos', disponible: true },
+      { id: 'tablero', emoji: '📅', titulo: 'Tablero', disponible: true },
+      { id: 'matriz', emoji: '🧩', titulo: 'Matriz de Productos', disponible: true },
+      { id: 'mantenimientos', emoji: '🔧', titulo: 'Mantenimientos', disponible: true },
+      { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: true },
+    ],
+  },
+  {
+    id: 'ventas',
+    emoji: '🤝',
+    titulo: 'Ventas',
+    modulos: [
+      { id: 'solicitudes', emoji: '📝', titulo: 'Solicitudes', disponible: false },
+      { id: 'presupuestos', emoji: '📄', titulo: 'Presupuestos', disponible: false },
+      { id: 'pedidos', emoji: '📋', titulo: 'Pedidos', disponible: false },
+      { id: 'facturas', emoji: '🧾', titulo: 'Facturas', disponible: false },
+      { id: 'remitos', emoji: '📦', titulo: 'Remitos', disponible: false },
+      { id: 'recibos', emoji: '💳', titulo: 'Recibos', disponible: false },
+      { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: false },
+    ],
+  },
+  {
+    id: 'compras',
+    emoji: '🛒',
+    titulo: 'Compras',
+    modulos: [
+      { id: 'ordenes-compra', emoji: '📝', titulo: 'Órdenes de Compra', disponible: false },
+      { id: 'compras', emoji: '🛒', titulo: 'Compras', disponible: false },
+      { id: 'pagos', emoji: '💳', titulo: 'Pagos', disponible: false },
+      { id: 'recepcion', emoji: '📥', titulo: 'Recepción', disponible: false },
+      { id: 'recibos-proveedor', emoji: '🧾', titulo: 'Recibos Proveedor', disponible: false },
+      { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: false },
+    ],
+  },
+  {
+    id: 'inventarios',
+    emoji: '📦',
+    titulo: 'Inventarios',
+    modulos: [
+      { id: 'matriz', emoji: '🧩', titulo: 'Matriz de Productos', disponible: true },
+      { id: 'stock', emoji: '📦', titulo: 'Stock', disponible: true },
+      { id: 'depositos', emoji: '🏬', titulo: 'Depósitos', disponible: true },
+      { id: 'movimientos', emoji: '🔄', titulo: 'Movimientos', disponible: true },
+      { id: 'reservas', emoji: '🔖', titulo: 'Reservas', disponible: true },
+      { id: 'materiales', emoji: '🧱', titulo: 'Materiales', disponible: true },
+      { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: true },
+    ],
+  },
+  {
+    id: 'rrhh',
+    emoji: '👷',
+    titulo: 'RRHH',
+    modulos: [
+      { id: 'personal', emoji: '👤', titulo: 'Personal', disponible: true },
+      { id: 'vacaciones', emoji: '🏖️', titulo: 'Vacaciones', disponible: true },
+      { id: 'asistencia', emoji: '🕐', titulo: 'Asistencia', disponible: true },
+      { id: 'liquidaciones', emoji: '💵', titulo: 'Liquidaciones', disponible: true },
+      { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: true },
+    ],
+  },
+  {
+    id: 'activos',
+    emoji: '🏭',
+    titulo: 'Activos',
+    modulos: [
+      { id: 'propiedades', emoji: '🏠', titulo: 'Propiedades', disponible: false },
+      { id: 'maquinas', emoji: '🛠️', titulo: 'Máquinas', disponible: true },
+      { id: 'mantenimientos', emoji: '🔧', titulo: 'Mantenimientos', disponible: true },
+      { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: true },
+    ],
+  },
+  {
+    id: 'fondos',
+    emoji: '💰',
+    titulo: 'Fondos',
+    modulos: [
+      { id: 'cuentas', emoji: '🏦', titulo: 'Cuentas', disponible: false },
+      { id: 'movimientos', emoji: '🔄', titulo: 'Movimientos', disponible: false },
+    ],
+  },
+  {
+    id: 'contabilidad',
+    emoji: '📊',
+    titulo: 'Contabilidad',
+    modulos: [
+      { id: 'plan-cuentas', emoji: '📒', titulo: 'Plan de Cuentas', disponible: false },
+      { id: 'asientos', emoji: '✍️', titulo: 'Asientos', disponible: false },
+      { id: 'libros', emoji: '📚', titulo: 'Libros', disponible: false },
+      { id: 'balances', emoji: '⚖️', titulo: 'Balances', disponible: false },
+    ],
+  },
+  {
+    id: 'configuraciones',
+    emoji: '⚙️',
+    titulo: 'Configuraciones',
+    modulos: [
+      { id: 'monedas', emoji: '💱', titulo: 'Monedas', disponible: true },
+      { id: 'talonarios', emoji: '🎫', titulo: 'Talonarios', disponible: false },
+      { id: 'usuarios', emoji: '👤', titulo: 'Usuarios', disponible: true },
+      { id: 'roles', emoji: '🔑', titulo: 'Roles', disponible: true },
+    ],
+  },
+  {
+    id: 'actividades',
+    emoji: '✅',
+    titulo: 'Actividades',
+    modulos: [
+      { id: 'registro-operarios', emoji: '📝', titulo: 'Registro de Operarios', disponible: true },
+      { id: 'actividades-personal', emoji: '✅', titulo: 'Actividades Personal', disponible: true },
+      { id: 'logistica', emoji: '🚚', titulo: 'Logística', disponible: true },
+      { id: 'tablero', emoji: '📅', titulo: 'Tablero', disponible: true },
+    ],
+  },
+  {
+    id: 'portal',
+    emoji: '🌐',
+    titulo: 'Portal Clientes',
+    modulos: [
+      { id: 'solicitudes', emoji: '📝', titulo: 'Solicitudes', disponible: false },
+      { id: 'presupuestos', emoji: '📄', titulo: 'Presupuestos', disponible: false },
+      { id: 'pedidos', emoji: '📋', titulo: 'Pedidos', disponible: false },
+      { id: 'facturas', emoji: '🧾', titulo: 'Facturas', disponible: false },
+      { id: 'remitos', emoji: '📦', titulo: 'Remitos', disponible: false },
+      { id: 'recibos', emoji: '💳', titulo: 'Recibos', disponible: false },
+    ],
+  },
 ]
 
 function BarraSecciones() {
+  // Qué sección está activa (arranca en ninguna).
+  const [seccionActivaId, setSeccionActivaId] = useState<string | null>(null)
+  // Qué módulo está abierto (arranca en ninguno).
+  const [moduloActivoId, setModuloActivoId] = useState<string | null>(null)
+
+  const seccionActiva = SECCIONES.find((s) => s.id === seccionActivaId)
+  const moduloActivo = seccionActiva?.modulos.find((m) => m.id === moduloActivoId)
+
+  // Al cambiar de sección, se cierra el módulo que estuviera abierto.
+  function elegirSeccion(id: string) {
+    setSeccionActivaId(id)
+    setModuloActivoId(null)
+  }
+
   return (
-    <nav className="barra-secciones">
-      {SECCIONES.map((seccion) => (
-        <button key={seccion.id} className="seccion-boton" type="button">
-          <span className="seccion-emoji">{seccion.emoji}</span>
-          <span className="seccion-titulo">{seccion.titulo}</span>
-        </button>
-      ))}
-    </nav>
+    <div className="navegacion">
+      {/* Fila 1: secciones */}
+      <nav className="barra-secciones">
+        {SECCIONES.map((seccion) => (
+          <button
+            key={seccion.id}
+            type="button"
+            className={
+              'seccion-boton' + (seccion.id === seccionActivaId ? ' activa' : '')
+            }
+            onClick={() => elegirSeccion(seccion.id)}
+          >
+            <span className="seccion-emoji">{seccion.emoji}</span>
+            <span className="seccion-titulo">{seccion.titulo}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Fila 2: módulos de la sección activa */}
+      {seccionActiva && (
+        <nav className="barra-modulos">
+          {seccionActiva.modulos.map((modulo) => (
+            <button
+              key={modulo.id}
+              type="button"
+              className={
+                'modulo-boton' + (modulo.id === moduloActivoId ? ' activo' : '')
+              }
+              disabled={!modulo.disponible}
+              onClick={() => setModuloActivoId(modulo.id)}
+            >
+              <span className="modulo-emoji">{modulo.emoji}</span>
+              <span className="modulo-titulo">{modulo.titulo}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {/* Área de contenido: por ahora, "en construcción" del módulo abierto */}
+      {moduloActivo && (
+        <div className="contenido">
+          <div className="contenido-emoji">🚧</div>
+          <div className="contenido-titulo">{moduloActivo.titulo}</div>
+          <div className="contenido-texto">En construcción</div>
+        </div>
+      )}
+    </div>
   )
 }
 

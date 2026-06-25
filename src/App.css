@@ -2,6 +2,7 @@
   font-family: system-ui, sans-serif;
 }
 
+/* ---- Fila 1: barra de secciones ---- */
 .barra-secciones {
   display: flex;
   gap: 4px;
@@ -29,6 +30,11 @@
   background: #e4e4e7;
 }
 
+.seccion-boton.activa {
+  background: #e0e7ff;
+  color: #1e3a8a;
+}
+
 .seccion-emoji {
   font-size: 24px;
 }
@@ -36,4 +42,79 @@
 .seccion-titulo {
   font-size: 12px;
   white-space: nowrap;
+}
+
+/* ---- Fila 2: barra de módulos (botones más chicos que las secciones) ---- */
+.barra-modulos {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #fafafa;
+  border-bottom: 1px solid #e4e4e7;
+  overflow-x: auto;
+}
+
+.modulo-boton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 60px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  color: #52525b;
+}
+
+.modulo-boton:hover {
+  background: #e4e4e7;
+}
+
+.modulo-boton.activo {
+  background: #e0e7ff;
+  color: #1e3a8a;
+}
+
+/* Módulo en gris (no disponible): apagado y no clickeable */
+.modulo-boton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.modulo-boton:disabled:hover {
+  background: transparent;
+}
+
+.modulo-emoji {
+  font-size: 16px;
+}
+
+.modulo-titulo {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* ---- Área de contenido (por ahora, "en construcción") ---- */
+.contenido {
+  padding: 48px 24px;
+  text-align: center;
+  color: #71717a;
+}
+
+.contenido-emoji {
+  font-size: 48px;
+}
+
+.contenido-titulo {
+  font-size: 20px;
+  font-weight: 600;
+  color: #3f3f46;
+  margin-top: 8px;
+}
+
+.contenido-texto {
+  font-size: 14px;
+  margin-top: 4px;
 }
