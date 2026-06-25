@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './shared/lib/supabaseClient'
 import BarraSecciones from './shared/components/BarraSecciones'
+import Encabezado from './shared/components/Encabezado'
 import Login from './shared/components/Login'
 import './App.css'
 
@@ -40,6 +41,7 @@ function App() {
 
   return (
     <div className="app">
+      <Encabezado email={sesion.user.email} />
       <BarraSecciones />
     </div>
   )

@@ -204,3 +204,43 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ---- Encabezado (nombre del sistema + usuario + cerrar sesión) ---- */
+.encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+.encabezado-titulo {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.encabezado-derecha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.encabezado-email {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.encabezado-salir {
+  padding: 5px 12px;
+  font-size: 13px;
+  color: #f1f5f9;
+  background: transparent;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.encabezado-salir:hover {
+  background: #334155;
+}
