@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 22/06/2026 (agregada estructura del repo por feature, §12)
+> Última actualización: 22/06/2026 (expandidas §5 vista detallada y §6 mapa de secciones/módulos)
 
 ---
 
@@ -98,15 +98,49 @@ conexiones externas tipo DBeaver/TablePlus o migraciones masivas, no en el día 
 ## 5. Estructura de la interfaz — vista tipo TácticaSoft
 
 Vista principal de los módulos: **4 franjas horizontales apiladas** (cada una ocupa el
-ancho completo de la pantalla y una fracción de la altura), de arriba hacia abajo:
+ancho completo de la pantalla y una fracción de la altura), de arriba hacia abajo. Alturas
+de referencia (se afinan al maquetar; alguna franja podría volverse ajustable/colapsable):
 
-1. **Filtros** — franja angosta arriba.
-2. **Lista** (ej: lista de proyectos) — franja media.
-3. **Detalle** del elemento seleccionado — franja media.
-4. **Enlazados** (presupuestos, pedidos, remitos, facturas, etc.) — franja angosta abajo.
+| Franja | Contenido | Altura aprox. |
+|---|---|---|
+| 1 | **Filtros** | 15% |
+| 2 | **Lista** (ej: proyectos) | 35% |
+| 3 | **Detalle** del seleccionado | 35% |
+| 4 | **Enlazados** | 15% |
 
-Interacciones:
-- **Doble click**: navega a otro módulo limpiando filtros.
+- **Franja 1 — Filtros:** muchos campos de filtro (los que hoy existen en la vista de
+  proyectos del HTML).
+- **Franja 2 — Lista:** los registros que cumplen los filtros. Columnas (ej. Proyectos):
+  Nº Proyecto, Nº Pedido, Cliente, Descripción, Estado, Fecha Creación, Plazo de Entrega,
+  Moneda, Importe, OC Cliente, Contacto, Responsable, Creado por, IVA, Notas.
+- **Franja 3 — Detalle:** los items del registro seleccionado. Columnas (ej.): Nº Item,
+  Tipo, Cant. Pedida, Cant. Remitida, Descripción, Estado, Plazo, Urgencia, Fecha Remitido,
+  Código de Matriz, Sector, Equipo, Stock disponible, Stock en producción.
+  - **Despliegue según sección** (un mismo módulo se ve distinto según dónde se mira):
+    - En **Ventas**, los items se ven **planos** (las filas tal cual, sin explotar). A
+      Ventas le importa qué se vende, no la estructura de fabricación.
+    - En **Producción**, la franja **sí permite explotar** la jerarquía: conjunto →
+      subconjuntos anidados (a cualquier profundidad) → productos → procesos.
+  - Política de uso: ser estrictos y no pasar de **1 nivel de subconjunto** en la práctica,
+    aunque el modelo recursivo (§8) soporte más si aparecen.
+- **Franja 4 — Enlazados:** pestañas con los conceptos vinculados al registro seleccionado
+  (Presupuestos, Pedidos, Facturas, Remitos, Recibos, Órdenes de Compra, Compras, Pagos,
+  Recepciones, Logística, etc.). Cada pestaña lista los conceptos de ese tipo enlazados al
+  registro.
+
+### Navegación encadenada por enlazados
+
+Gesto central del sistema: **doble click en un concepto enlazado** →
+1. lleva a su **módulo nativo**,
+2. **limpia todos los filtros** previos,
+3. aplica el filtro del **identificador** de ese concepto, para que quede solo ese.
+
+Desde ahí, sus propios enlazados aparecen en la franja 4, y se puede volver a saltar.
+Ejemplo: Proyecto → (doble click en una OC) → Compras > Órdenes de Compra filtrado por esa
+OC → (doble click en su pago) → Compras > Pagos filtrado por ese pago. Se "viaja" por la
+red de conceptos enlazados, siempre con el mismo gesto.
+
+Otras interacciones:
 - **Click derecho**: acciones contextuales.
 - **Tooltips** en las franjas de lista y detalle.
 
@@ -115,14 +149,50 @@ Interacciones:
 ## 6. Secciones y módulos
 
 El sistema se organiza en **secciones** que agrupan **módulos**. Un mismo módulo puede
-aparecer en varias secciones con distinta configuración (ej: Remitos muestra importes en
+aparecer en varias secciones con distinta configuración (ej: Pedidos muestra importes en
 Ventas, pero no en Producción).
 
-Secciones previstas: **Empresas, Ventas, Compras, Producción, Inventario, RRHH, Activos,
-Fondos, Contabilidad, Actividades, Portal Clientes.**
+### Mapa completo (esqueleto prototipo)
 
-En una primera etapa, la mayoría de los módulos avanzados quedan visibles pero
-deshabilitados.
+- **Ventas:** Solicitudes, Presupuestos, Pedidos, Facturas, Remitos, Recibos (con
+  comprobante adjunto), Dashboard.
+- **Compras:** Órdenes de Compra, Compras, Pagos (CCA), Recepción, Recibos Proveedor,
+  Dashboard.
+- **Empresas:** Empresas, Sectores/Equipos, Contactos, Transportes (en duda), Dashboard.
+- **Inventarios:** Matriz de Productos, Stock (la matriz, solo con productos configurados
+  para controlar stock), Depósitos, Movimientos, Reservas, Materiales, Dashboard.
+- **RRHH:** Personal, Vacaciones, Asistencia, Liquidaciones, Dashboard.
+- **Activos:** Propiedades, Máquinas, Mantenimientos, Dashboard.
+- **Producción:** Proyectos, Productos, Procesos, Tablero, Matriz de Productos,
+  Mantenimientos, Dashboard. *(Es la sección representada en la maqueta de la vista
+  detallada.)*
+- **Fondos:** Cuentas, Movimientos.
+- **Contabilidad:** Plan de Cuentas, Asientos, Libros, Balances.
+- **Configuraciones:** Monedas, Talonarios, Usuarios, Roles.
+- **Actividades:** Registro de Operarios, Actividades Personal, Logística, Tablero.
+- **Portal Clientes:** Solicitudes, Presupuestos, Pedidos, Facturas, Remitos, Recibos.
+
+### Dos niveles de presencia
+
+Cada sección/módulo está en uno de dos estados de cara a la interfaz:
+
+1. **Funcional:** se visualiza y se usa.
+2. **Solo visible:** se ve el botón de la sección o módulo, pero no se accede (sirve para
+   que se entienda el esqueleto completo del sistema). Es indistinto si por detrás la tabla
+   existe o no: de cara a la UI, es un botón que no lleva a ningún lado.
+
+Alcance de la primera etapa (a hoy): se desarrolla **Empresas** primero. Quedan **solo
+visibles** —sin desarrollar— Ventas y Compras completas, Contabilidad completa, Fondos
+completa, Portal Clientes completo, Talonarios (en Configuraciones) y Propiedades (en
+Activos), entre otros.
+
+### Sobre Actividades (vista de operarios) — idea, no se desarrolla ahora
+
+Único ámbito que ven los operarios. Objetivo: que cada operario tenga el **listado de
+tareas del día** y pueda ver las de los días siguientes. Flujo previsto: el operario llega
+al taller, abre este módulo en una tablet o PC, y ahí tiene toda la info para trabajar e ir
+**registrando lo que hace**. Los módulos internos de esta sección todavía no están
+definidos; se hilan más adelante.
 
 ---
 
