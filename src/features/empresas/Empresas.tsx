@@ -39,6 +39,11 @@ function Empresas() {
   const [guardandoEdit, setGuardandoEdit] = useState(false)
   const [errorEdit, setErrorEdit] = useState<string | null>(null)
 
+  // --- Borrado (modal de confirmación) ---
+  const [empresaBorrando, setEmpresaBorrando] = useState<Empresa | null>(null)
+  const [borrando, setBorrando] = useState(false)
+  const [errorBorrar, setErrorBorrar] = useState<string | null>(null)
+
   async function cargarEmpresas() {
     setCargando(true)
     setError(null)
@@ -97,7 +102,6 @@ function Empresas() {
     cargarEmpresas()
   }
 
-  // Abre el modal y carga los datos de la empresa elegida en los campos de edición.
   function abrirEdicion(empresa: Empresa) {
     setEmpresaEditando(empresa)
     setEditNombre(empresa.nombre)
@@ -120,7 +124,6 @@ function Empresas() {
 
     setGuardandoEdit(true)
 
-    // .eq('id', ...) -> actualiza SOLO la fila de esta empresa.
     const { error } = await supabase
       .from('empresas')
       .update({
@@ -140,7 +143,29 @@ function Empresas() {
       return
     }
 
-    setEmpresaEditando(null) // cierra el modal
+    setEmpresaEditando(null)
+    cargarEmpresas()
+  }
+
+  async function confirmarBorrado() {
+    if (!empresaBorrando) return
+    setErrorBorrar(null)
+    setBorrando(true)
+
+    // .eq('id', ...) -> borra SOLO esta empresa.
+    const { error } = await supabase
+      .from('empresas')
+      .delete()
+      .eq('id', empresaBorrando.id)
+
+    setBorrando(false)
+
+    if (error) {
+      setErrorBorrar('No se pudo borrar la empresa.')
+      return
+    }
+
+    setEmpresaBorrando(null) // cierra el modal
     cargarEmpresas()
   }
 
@@ -230,12 +255,22 @@ function Empresas() {
               >
                 Editar
               </button>
+              <button
+                type="button"
+                className="empresas-borrar"
+                onClick={() => {
+                  setEmpresaBorrando(empresa)
+                  setErrorBorrar(null)
+                }}
+              >
+                Borrar
+              </button>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Modal de edición: se muestra solo si hay una empresa en edición */}
+      {/* Modal de edición */}
       {empresaEditando && (
         <Modal
           titulo={`Editar: ${empresaEditando.nombre}`}
@@ -311,6 +346,41 @@ function Empresas() {
                 disabled={guardandoEdit}
               >
                 {guardandoEdit ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal de confirmación de borrado (reutiliza el mismo Modal) */}
+      {empresaBorrando && (
+        <Modal
+          titulo="Borrar empresa"
+          onCerrar={() => setEmpresaBorrando(null)}
+        >
+          <div className="empresa-form-modal">
+            <p>
+              ¿Seguro que querés borrar <strong>{empresaBorrando.nombre}</strong>?
+              Esta acción no se puede deshacer.
+            </p>
+
+            {errorBorrar && <p className="empresa-form-error">{errorBorrar}</p>}
+
+            <div className="empresa-modal-acciones">
+              <button
+                type="button"
+                className="empresa-boton-secundario"
+                onClick={() => setEmpresaBorrando(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="empresa-boton-peligro"
+                onClick={confirmarBorrado}
+                disabled={borrando}
+              >
+                {borrando ? 'Borrando…' : 'Borrar'}
               </button>
             </div>
           </div>

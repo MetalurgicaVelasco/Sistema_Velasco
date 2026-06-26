@@ -477,3 +477,38 @@
 .empresa-boton-secundario:hover {
   background: #e4e4e7;
 }
+
+/* ---- Botón borrar en la fila + botón peligro en el modal ---- */
+.empresas-borrar {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.empresas-borrar:hover {
+  background: #fef2f2;
+}
+
+.empresa-boton-peligro {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #dc2626;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.empresa-boton-peligro:hover {
+  background: #b91c1c;
+}
+
+.empresa-boton-peligro:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
