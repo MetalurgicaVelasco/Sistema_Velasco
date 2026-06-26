@@ -21,15 +21,15 @@ archivo para el detalle; este CLAUDE.md es solo el resumen operativo.
 
 ## Comandos
 
-> A completar cuando se scaffoldee el proyecto Vite. Tentativos:
 - Instalar dependencias: `npm install`
 - Servidor de desarrollo: `npm run dev`
 - Build de producción: `npm run build`
 
 ## Estructura del proyecto
 
-> A completar cuando se defina (decisión pendiente: organización por features vs. por
-> tipo de archivo).
+Organización **por feature**: cada módulo en su carpeta dentro de `src/features/`, y lo
+compartido en `src/shared/` (`components/`, `lib/`, `types/`). Detalle en
+`docs/ARQUITECTURA.md` (§12).
 
 ## Convenciones de base de datos
 
@@ -53,3 +53,8 @@ modelar nada "como en Táctica".**
   nuevos y el porqué de las decisiones, no solo el qué.
 - Editar por cambios puntuales (diffs) está bien, es lo normal acá. Si se pide ver un
   archivo completo para entenderlo, mostralo.
+
+## Git / commits
+
+- **No firmar los commits.** No agregar la línea `Co-Authored-By` ni ninguna firma de
+  Claude en los mensajes de commit. Solo el mensaje descriptivo.

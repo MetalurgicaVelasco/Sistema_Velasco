@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 22/06/2026 (expandidas §5 vista detallada y §6 mapa de secciones/módulos)
+> Última actualización: 26/06/2026 (agregados lineamientos de modales en §5)
 
 ---
 
@@ -143,6 +143,20 @@ red de conceptos enlazados, siempre con el mismo gesto.
 Otras interacciones:
 - **Click derecho**: acciones contextuales.
 - **Tooltips** en las franjas de lista y detalle.
+
+### Lineamientos de modales (aplican a TODOS los modales del sistema)
+
+1. **Botón de cerrar (X) siempre visible:** el header del modal queda fijo arriba; solo
+   scrollea el cuerpo. La X nunca desaparece, aun con contenido largo.
+2. **No se cierran al clickear afuera:** el modal solo se cierra con la X o con sus botones
+   (Cancelar / Guardar / etc.). Evita perder lo que se está cargando por un click al lado.
+3. **Arrastrables (pendiente):** todos los modales deben poder moverse, para ver lo que hay
+   detrás sin cerrarlos. Se implementa una vez en el `Modal` reutilizable de `shared/` y
+   todos lo heredan. *(Aún no implementado.)*
+
+Implementación: hay un componente `Modal` reutilizable en `shared/components/` que encapsula
+estos comportamientos; los módulos solo le pasan el contenido. Los puntos 1 y 2 ya están;
+el 3 queda pendiente.
 
 ---
 
