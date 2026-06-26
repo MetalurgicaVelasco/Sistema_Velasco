@@ -4,6 +4,7 @@ import { supabase } from './shared/lib/supabaseClient'
 import BarraSecciones from './shared/components/BarraSecciones'
 import Encabezado from './shared/components/Encabezado'
 import Login from './shared/components/Login'
+import Empresas from './features/empresas/Empresas' // TEMPORAL: para probar
 import './App.css'
 
 function App() {
@@ -43,6 +44,9 @@ function App() {
     <div className="app">
       <Encabezado email={sesion.user.email} />
       <BarraSecciones />
+      {/* TEMPORAL: mostramos Empresas acá para probarlo.
+          En el próximo paso lo conectamos al botón de la barra y lo sacamos. */}
+      <Empresas />
     </div>
   )
 }
