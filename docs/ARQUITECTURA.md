@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 26/06/2026 (agregados requisitos de franjas/tablas y composición de franjas en §5)
+> Última actualización: 26/06/2026 (§7: auditoría completa, ciclo de vida y modos de acceso a auditoría)
 
 ---
 
@@ -239,13 +239,70 @@ definidos; se hilan más adelante.
 
 ---
 
-## 7. Roles, permisos y auditoría
+## 7. Roles, permisos, auditoría y ciclo de vida de los registros
+
+### Roles y permisos
 
 - Cada usuario tiene un **Rol**.
 - Los permisos (qué módulos ve / edita) se definen **por rol**, no por usuario.
 - Existe un **Rol Maestro** con acceso total, salvo la configuración del Admin Principal.
-- **Auditoría**: el sistema registra quién cambió qué y cuándo.
 - Auth mediante **Supabase Auth**.
+
+### Auditoría — historial completo de revisiones
+
+Requisito troncal: el sistema deja **trazabilidad completa de todos los cambios**. No solo
+el último cambio, sino el **historial entero**: qué cambió, valor anterior y nuevo, quién
+lo hizo y cuándo. Debe poder consultarse las **revisiones anteriores** de cualquier
+registro.
+
+- **Implementación recomendada: triggers de Postgres** (en Supabase) que registran cada
+  cambio automáticamente en una tabla de auditoría. Ventaja: no depende de que el código de
+  la app "se acuerde" de loguear en cada operación; la base lo hace siempre, no se escapa
+  ningún cambio.
+- Tabla de auditoría con: tabla afectada, id del registro, acción (insert/update/delete),
+  campo/valores anterior y nuevo, usuario y timestamp. (Diseño exacto a definir al
+  implementar.)
+- Coherente con el versionado inmutable de planos (§10): los registros históricos no se
+  editan ni se borran.
+
+> Estado: **no implementado todavía**. Es un sistema en sí mismo; se construye en su etapa.
+> Pero define cómo se modela cada tabla desde ahora.
+
+**Cómo se accede a las auditorías (los tres modos conviven, leen la misma tabla):**
+- **A — Pestaña "Auditoría" por registro:** una pestaña más en las franjas (3 o 4) que
+  muestra el historial *de ese registro* (estilo TacticaSoft). Responde "¿qué pasó con esta
+  empresa?".
+- **B — Vista global de auditoría:** muestra *todos* los cambios del sistema, filtrable por
+  usuario, fecha y tabla. Responde "¿qué tocó tal usuario ayer?".
+- **C — Historial inline por campo:** al editar, un acceso muestra los valores anteriores de
+  *ese campo*. Útil para campos sensibles (ej: límite de cuenta corriente).
+
+> Decisión pendiente: el acceso global (B) ¿es un módulo "Auditoría" repetido dentro de cada
+> sección, o una sección "Auditoría" aparte que centraliza todo? A definir (mirar también
+> cómo lo organiza TacticaSoft).
+
+### Ciclo de vida de los registros — borrar vs. bloquear
+
+Regla troncal para proteger la integridad histórica: **una entidad enlazada a cualquier
+registro (proyecto, solicitud, venta, compra, etc.) no se borra físicamente.** Estados:
+
+- **Activo:** se ve y se puede seleccionar/usar normalmente.
+- **Bloqueado:** ya no se puede seleccionar para registros nuevos, pero **sigue visible**
+  (porque está enlazado a históricos que deben seguir teniendo sentido).
+- **Oculto:** un bloqueado que además se esconde de la vista por defecto, pero **sigue
+  existiendo** en la base por trazabilidad.
+
+**Borrar vs. bloquear (conviven):**
+- **Borrado físico:** permitido **solo si la entidad nunca se enlazó a nada** (ej: una
+  empresa cargada por error que no tiene proyectos/ventas/compras). Sirve para limpiar
+  basura.
+- **Bloqueo:** si la entidad **ya tiene enlaces**, no se borra; se bloquea (y opcionalmente
+  se oculta).
+- Se puede apoyar en **FKs con `ON DELETE RESTRICT`**: la base misma impide borrar una fila
+  referenciada, garantizando la regla a nivel de datos.
+
+> Estado: **no implementado todavía**. El botón "Borrar" actual de Empresas evolucionará a
+> esta lógica (borrar si no tiene enlaces, bloquear si los tiene).
 
 ---
 

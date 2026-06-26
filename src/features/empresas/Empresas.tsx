@@ -12,7 +12,24 @@ type Empresa = {
   es_transporte: boolean
 }
 
-// Texto de roles a partir de los booleanos.
+// Pestañas de cada franja (id interno + etiqueta visible).
+const TABS_DETALLE = [
+  { id: 'general', label: 'General' },
+  { id: 'contactos', label: 'Contactos' },
+  { id: 'direcciones', label: 'Direcciones' },
+  { id: 'transportes', label: 'Transportes' },
+]
+
+const TABS_ENLAZADOS = [
+  { id: 'proyectos', label: 'Proyectos' },
+  { id: 'pedidos', label: 'Pedidos' },
+  { id: 'facturas', label: 'Facturas' },
+  { id: 'remitos', label: 'Remitos' },
+  { id: 'ordenes-compra', label: 'Órdenes de compra' },
+  { id: 'recibos', label: 'Recibos' },
+  { id: 'pagos', label: 'Pagos' },
+]
+
 function rolesTexto(e: Empresa): string {
   const r: string[] = []
   if (e.es_cliente) r.push('Cliente')
@@ -27,13 +44,14 @@ function Empresas() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // --- Selección (para la franja de detalle) ---
+  // --- Selección ---
   const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null)
   const empresaSeleccionada =
     empresas.find((e) => e.id === seleccionadaId) ?? null
 
-  // --- Pestaña activa de la franja de enlazados ---
-  const [tabEnlazados, setTabEnlazados] = useState('contactos')
+  // --- Pestañas activas ---
+  const [tabDetalle, setTabDetalle] = useState('general')
+  const [tabEnlazados, setTabEnlazados] = useState('proyectos')
 
   // --- Modal "Nueva empresa" ---
   const [mostrarNuevo, setMostrarNuevo] = useState(false)
@@ -65,18 +83,15 @@ function Empresas() {
   async function cargarEmpresas() {
     setCargando(true)
     setError(null)
-
     const { data, error } = await supabase
       .from('empresas')
       .select('id, nombre, codigo, cuit, es_cliente, es_proveedor, es_transporte')
       .order('nombre')
-
     if (error) {
       setError('No se pudieron cargar las empresas.')
       setCargando(false)
       return
     }
-
     setEmpresas(data ?? [])
     setCargando(false)
   }
@@ -85,7 +100,6 @@ function Empresas() {
     cargarEmpresas()
   }, [])
 
-  // --- Crear ---
   function abrirNuevo() {
     setNombre('')
     setCodigo('')
@@ -121,7 +135,6 @@ function Empresas() {
     cargarEmpresas()
   }
 
-  // --- Editar ---
   function abrirEdicion(empresa: Empresa) {
     setEmpresaEditando(empresa)
     setEditNombre(empresa.nombre)
@@ -161,7 +174,6 @@ function Empresas() {
     cargarEmpresas()
   }
 
-  // --- Borrar ---
   async function confirmarBorrado() {
     if (!empresaBorrando) return
     setErrorBorrar(null)
@@ -182,7 +194,7 @@ function Empresas() {
 
   return (
     <div className="empresas-franjas">
-      {/* ---------- Franja 1: Filtros (por ahora, solo la acción de crear) ---------- */}
+      {/* ---------- Franja 1: Filtros (por ahora, solo crear) ---------- */}
       <div className="franja franja-filtros">
         <div className="franja-filtros-barra">
           <button type="button" className="empresa-boton" onClick={abrirNuevo}>
@@ -230,47 +242,71 @@ function Empresas() {
         )}
       </div>
 
-      {/* ---------- Franja 3: Detalle ---------- */}
+      {/* ---------- Franja 3: Detalle (pestañas, "General" = datos) ---------- */}
       <div className="franja franja-detalle">
         {empresaSeleccionada ? (
-          <div className="detalle">
-            <div className="detalle-header">
-              <h3 className="detalle-titulo">{empresaSeleccionada.nombre}</h3>
-              <div className="detalle-acciones">
+          <>
+            <div className="enlazados-tabs">
+              {TABS_DETALLE.map((tab) => (
                 <button
+                  key={tab.id}
                   type="button"
-                  className="empresas-editar"
-                  onClick={() => abrirEdicion(empresaSeleccionada)}
+                  className={
+                    'enlazados-tab' + (tab.id === tabDetalle ? ' activa' : '')
+                  }
+                  onClick={() => setTabDetalle(tab.id)}
                 >
-                  Editar
+                  {tab.label}
                 </button>
-                <button
-                  type="button"
-                  className="empresas-borrar"
-                  onClick={() => {
-                    setEmpresaBorrando(empresaSeleccionada)
-                    setErrorBorrar(null)
-                  }}
-                >
-                  Borrar
-                </button>
-              </div>
+              ))}
             </div>
-            <div className="detalle-campos">
-              <div>
-                <span className="detalle-label">Código</span>
-                <span>{empresaSeleccionada.codigo ?? '—'}</span>
-              </div>
-              <div>
-                <span className="detalle-label">CUIT</span>
-                <span>{empresaSeleccionada.cuit ?? '—'}</span>
-              </div>
-              <div>
-                <span className="detalle-label">Roles</span>
-                <span>{rolesTexto(empresaSeleccionada)}</span>
-              </div>
+            <div className="enlazados-contenido">
+              {tabDetalle === 'general' ? (
+                <div className="detalle">
+                  <div className="detalle-header">
+                    <h3 className="detalle-titulo">
+                      {empresaSeleccionada.nombre}
+                    </h3>
+                    <div className="detalle-acciones">
+                      <button
+                        type="button"
+                        className="empresas-editar"
+                        onClick={() => abrirEdicion(empresaSeleccionada)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="empresas-borrar"
+                        onClick={() => {
+                          setEmpresaBorrando(empresaSeleccionada)
+                          setErrorBorrar(null)
+                        }}
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                  </div>
+                  <div className="detalle-campos">
+                    <div>
+                      <span className="detalle-label">Código</span>
+                      <span>{empresaSeleccionada.codigo ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="detalle-label">CUIT</span>
+                      <span>{empresaSeleccionada.cuit ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="detalle-label">Roles</span>
+                      <span>{rolesTexto(empresaSeleccionada)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                'Esta sección se construye más adelante.'
+              )}
             </div>
-          </div>
+          </>
         ) : (
           <div className="empresas-estado">
             Seleccioná una empresa para ver su detalle.
@@ -278,19 +314,19 @@ function Empresas() {
         )}
       </div>
 
-      {/* ---------- Franja 4: Enlazados ---------- */}
+      {/* ---------- Franja 4: Enlazados (comerciales) ---------- */}
       <div className="franja franja-enlazados">
         <div className="enlazados-tabs">
-          {['contactos', 'direcciones', 'transportes', 'proyectos'].map((tab) => (
+          {TABS_ENLAZADOS.map((tab) => (
             <button
-              key={tab}
+              key={tab.id}
               type="button"
               className={
-                'enlazados-tab' + (tab === tabEnlazados ? ' activa' : '')
+                'enlazados-tab' + (tab.id === tabEnlazados ? ' activa' : '')
               }
-              onClick={() => setTabEnlazados(tab)}
+              onClick={() => setTabEnlazados(tab.id)}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>
