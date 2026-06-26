@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
+import Modal from '../../shared/components/Modal'
 
 type Empresa = {
   id: number
   nombre: string
   codigo: string | null
+  cuit: string | null
+  es_cliente: boolean
+  es_proveedor: boolean
+  es_transporte: boolean
 }
 
 function Empresas() {
@@ -23,14 +28,24 @@ function Empresas() {
   const [guardando, setGuardando] = useState(false)
   const [errorForm, setErrorForm] = useState<string | null>(null)
 
-  // Pide las empresas a Supabase (la usamos al cargar y después de crear).
+  // --- Edición (modal) ---
+  const [empresaEditando, setEmpresaEditando] = useState<Empresa | null>(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editCodigo, setEditCodigo] = useState('')
+  const [editCuit, setEditCuit] = useState('')
+  const [editEsCliente, setEditEsCliente] = useState(false)
+  const [editEsProveedor, setEditEsProveedor] = useState(false)
+  const [editEsTransporte, setEditEsTransporte] = useState(false)
+  const [guardandoEdit, setGuardandoEdit] = useState(false)
+  const [errorEdit, setErrorEdit] = useState<string | null>(null)
+
   async function cargarEmpresas() {
     setCargando(true)
     setError(null)
 
     const { data, error } = await supabase
       .from('empresas')
-      .select('id, nombre, codigo')
+      .select('id, nombre, codigo, cuit, es_cliente, es_proveedor, es_transporte')
       .order('nombre')
 
     if (error) {
@@ -50,7 +65,6 @@ function Empresas() {
   async function crearEmpresa() {
     setErrorForm(null)
 
-    // Validación mínima: el nombre es obligatorio.
     if (nombre.trim() === '') {
       setErrorForm('El nombre es obligatorio.')
       return
@@ -58,7 +72,6 @@ function Empresas() {
 
     setGuardando(true)
 
-    // Escribimos la empresa nueva en la base.
     const { error } = await supabase.from('empresas').insert({
       nombre: nombre.trim(),
       codigo: codigo.trim() || null,
@@ -75,13 +88,59 @@ function Empresas() {
       return
     }
 
-    // Limpiamos el formulario y refrescamos la lista.
     setNombre('')
     setCodigo('')
     setCuit('')
     setEsCliente(false)
     setEsProveedor(false)
     setEsTransporte(false)
+    cargarEmpresas()
+  }
+
+  // Abre el modal y carga los datos de la empresa elegida en los campos de edición.
+  function abrirEdicion(empresa: Empresa) {
+    setEmpresaEditando(empresa)
+    setEditNombre(empresa.nombre)
+    setEditCodigo(empresa.codigo ?? '')
+    setEditCuit(empresa.cuit ?? '')
+    setEditEsCliente(empresa.es_cliente)
+    setEditEsProveedor(empresa.es_proveedor)
+    setEditEsTransporte(empresa.es_transporte)
+    setErrorEdit(null)
+  }
+
+  async function guardarEdicion() {
+    if (!empresaEditando) return
+    setErrorEdit(null)
+
+    if (editNombre.trim() === '') {
+      setErrorEdit('El nombre es obligatorio.')
+      return
+    }
+
+    setGuardandoEdit(true)
+
+    // .eq('id', ...) -> actualiza SOLO la fila de esta empresa.
+    const { error } = await supabase
+      .from('empresas')
+      .update({
+        nombre: editNombre.trim(),
+        codigo: editCodigo.trim() || null,
+        cuit: editCuit.trim() || null,
+        es_cliente: editEsCliente,
+        es_proveedor: editEsProveedor,
+        es_transporte: editEsTransporte,
+      })
+      .eq('id', empresaEditando.id)
+
+    setGuardandoEdit(false)
+
+    if (error) {
+      setErrorEdit('No se pudieron guardar los cambios.')
+      return
+    }
+
+    setEmpresaEditando(null) // cierra el modal
     cargarEmpresas()
   }
 
@@ -163,10 +222,99 @@ function Empresas() {
               {empresa.codigo && (
                 <span className="empresas-codigo">{empresa.codigo}</span>
               )}
-              <span>{empresa.nombre}</span>
+              <span className="empresas-nombre">{empresa.nombre}</span>
+              <button
+                type="button"
+                className="empresas-editar"
+                onClick={() => abrirEdicion(empresa)}
+              >
+                Editar
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Modal de edición: se muestra solo si hay una empresa en edición */}
+      {empresaEditando && (
+        <Modal
+          titulo={`Editar: ${empresaEditando.nombre}`}
+          onCerrar={() => setEmpresaEditando(null)}
+        >
+          <div className="empresa-form-modal">
+            <label className="empresa-campo">
+              Nombre *
+              <input
+                className="empresa-input"
+                value={editNombre}
+                onChange={(e) => setEditNombre(e.target.value)}
+              />
+            </label>
+            <label className="empresa-campo">
+              Código
+              <input
+                className="empresa-input"
+                value={editCodigo}
+                onChange={(e) => setEditCodigo(e.target.value)}
+              />
+            </label>
+            <label className="empresa-campo">
+              CUIT
+              <input
+                className="empresa-input"
+                value={editCuit}
+                onChange={(e) => setEditCuit(e.target.value)}
+              />
+            </label>
+
+            <div className="empresa-roles">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editEsCliente}
+                  onChange={(e) => setEditEsCliente(e.target.checked)}
+                />
+                Cliente
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editEsProveedor}
+                  onChange={(e) => setEditEsProveedor(e.target.checked)}
+                />
+                Proveedor
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editEsTransporte}
+                  onChange={(e) => setEditEsTransporte(e.target.checked)}
+                />
+                Transporte
+              </label>
+            </div>
+
+            {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
+
+            <div className="empresa-modal-acciones">
+              <button
+                type="button"
+                className="empresa-boton-secundario"
+                onClick={() => setEmpresaEditando(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="empresa-boton"
+                onClick={guardarEdicion}
+                disabled={guardandoEdit}
+              >
+                {guardandoEdit ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )
