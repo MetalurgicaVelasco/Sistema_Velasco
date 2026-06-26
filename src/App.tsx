@@ -2,40 +2,58 @@ import { useState, useEffect } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './shared/lib/supabaseClient'
 import BarraSecciones from './shared/components/BarraSecciones'
+import type { Seleccion } from './shared/components/BarraSecciones'
 import Encabezado from './shared/components/Encabezado'
 import Login from './shared/components/Login'
-import Empresas from './features/empresas/Empresas' // TEMPORAL: para probar
+import Empresas from './features/empresas/Empresas'
 import './App.css'
 
 function App() {
-  // La sesión actual: null = nadie logueado.
   const [sesion, setSesion] = useState<Session | null>(null)
-  // Mientras consultamos a Supabase por primera vez, mostramos "cargando".
   const [cargando, setCargando] = useState(true)
+  // Qué módulo eligió el usuario en la barra (null = ninguno todavía).
+  const [seleccion, setSeleccion] = useState<Seleccion | null>(null)
 
   useEffect(() => {
-    // 1) Al arrancar la app, preguntamos si ya hay una sesión activa.
     supabase.auth.getSession().then(({ data }) => {
       setSesion(data.session)
       setCargando(false)
     })
 
-    // 2) Nos quedamos escuchando cambios (login / logout) para reaccionar.
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_evento, nuevaSesion) => {
         setSesion(nuevaSesion)
       },
     )
 
-    // 3) Al desmontar, dejamos de escuchar (buena práctica de limpieza).
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  // Decide qué mostrar en la zona de contenido según lo elegido en la barra.
+  function renderContenido() {
+    if (!seleccion) {
+      return <div className="bienvenida">Elegí un módulo para empezar</div>
+    }
+
+    // Por ahora, el único módulo construido es Empresas (sección Empresas).
+    if (seleccion.seccionId === 'empresas' && seleccion.moduloId === 'empresas') {
+      return <Empresas />
+    }
+
+    // Todos los demás módulos: "en construcción".
+    return (
+      <div className="contenido">
+        <div className="contenido-emoji">🚧</div>
+        <div className="contenido-titulo">{seleccion.moduloTitulo}</div>
+        <div className="contenido-texto">En construcción</div>
+      </div>
+    )
+  }
 
   if (cargando) {
     return <div className="app-cargando">Cargando…</div>
   }
 
-  // Portero: sin sesión -> login; con sesión -> la app.
   if (!sesion) {
     return <Login />
   }
@@ -43,10 +61,8 @@ function App() {
   return (
     <div className="app">
       <Encabezado email={sesion.user.email} />
-      <BarraSecciones />
-      {/* TEMPORAL: mostramos Empresas acá para probarlo.
-          En el próximo paso lo conectamos al botón de la barra y lo sacamos. */}
-      <Empresas />
+      <BarraSecciones onSeleccion={setSeleccion} />
+      {renderContenido()}
     </div>
   )
 }

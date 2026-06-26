@@ -1,10 +1,19 @@
 import { useState } from 'react'
 
-// Cada sección tiene su lista de módulos.
-// `disponible: true`  -> módulo clickeable (lleva a "en construcción").
+// Tipos de los datos de navegación.
+type Modulo = { id: string; emoji: string; titulo: string; disponible: boolean }
+type Seccion = { id: string; emoji: string; titulo: string; modulos: Modulo[] }
+
+// Lo que BarraSecciones le "avisa" a App cuando se elige un módulo.
+export type Seleccion = {
+  seccionId: string
+  moduloId: string
+  moduloTitulo: string
+}
+
+// `disponible: true`  -> módulo clickeable.
 // `disponible: false` -> módulo en gris, no clickeable.
-// Los emojis son provisorios (después se reemplazan por imágenes/iconos).
-const SECCIONES = [
+const SECCIONES: Seccion[] = [
   {
     id: 'empresas',
     emoji: '🏢',
@@ -152,19 +161,32 @@ const SECCIONES = [
   },
 ]
 
-function BarraSecciones() {
-  // Qué sección está activa (arranca en ninguna).
+// `onSeleccion` es la función que nos pasa App: la llamamos para avisarle
+// qué se eligió (o null cuando se cambia de sección y todavía no hay módulo).
+function BarraSecciones({
+  onSeleccion,
+}: {
+  onSeleccion: (seleccion: Seleccion | null) => void
+}) {
   const [seccionActivaId, setSeccionActivaId] = useState<string | null>(null)
-  // Qué módulo está abierto (arranca en ninguno).
   const [moduloActivoId, setModuloActivoId] = useState<string | null>(null)
 
   const seccionActiva = SECCIONES.find((s) => s.id === seccionActivaId)
-  const moduloActivo = seccionActiva?.modulos.find((m) => m.id === moduloActivoId)
 
-  // Al cambiar de sección, se cierra el módulo que estuviera abierto.
   function elegirSeccion(id: string) {
     setSeccionActivaId(id)
     setModuloActivoId(null)
+    onSeleccion(null) // cambiar de sección limpia el contenido -> bienvenida
+  }
+
+  function elegirModulo(modulo: Modulo) {
+    if (!seccionActiva) return
+    setModuloActivoId(modulo.id)
+    onSeleccion({
+      seccionId: seccionActiva.id,
+      moduloId: modulo.id,
+      moduloTitulo: modulo.titulo,
+    })
   }
 
   return (
@@ -197,22 +219,13 @@ function BarraSecciones() {
                 'modulo-boton' + (modulo.id === moduloActivoId ? ' activo' : '')
               }
               disabled={!modulo.disponible}
-              onClick={() => setModuloActivoId(modulo.id)}
+              onClick={() => elegirModulo(modulo)}
             >
               <span className="modulo-emoji">{modulo.emoji}</span>
               <span className="modulo-titulo">{modulo.titulo}</span>
             </button>
           ))}
         </nav>
-      )}
-
-      {/* Área de contenido: por ahora, "en construcción" del módulo abierto */}
-      {moduloActivo && (
-        <div className="contenido">
-          <div className="contenido-emoji">🚧</div>
-          <div className="contenido-titulo">{moduloActivo.titulo}</div>
-          <div className="contenido-texto">En construcción</div>
-        </div>
       )}
     </div>
   )

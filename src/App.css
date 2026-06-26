@@ -293,3 +293,12 @@
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+/* ---- Pantalla de bienvenida (cuando no hay módulo elegido) ---- */
+.bienvenida {
+  padding: 48px 24px;
+  text-align: center;
+  color: #71717a;
+  font-size: 16px;
+  font-family: system-ui, sans-serif;
+}
