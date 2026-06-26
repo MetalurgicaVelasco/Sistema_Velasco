@@ -11,7 +11,6 @@ import './App.css'
 function App() {
   const [sesion, setSesion] = useState<Session | null>(null)
   const [cargando, setCargando] = useState(true)
-  // Qué módulo eligió el usuario en la barra (null = ninguno todavía).
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null)
 
   useEffect(() => {
@@ -29,18 +28,15 @@ function App() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  // Decide qué mostrar en la zona de contenido según lo elegido en la barra.
   function renderContenido() {
     if (!seleccion) {
       return <div className="bienvenida">Elegí un módulo para empezar</div>
     }
 
-    // Por ahora, el único módulo construido es Empresas (sección Empresas).
     if (seleccion.seccionId === 'empresas' && seleccion.moduloId === 'empresas') {
       return <Empresas />
     }
 
-    // Todos los demás módulos: "en construcción".
     return (
       <div className="contenido">
         <div className="contenido-emoji">🚧</div>
@@ -62,7 +58,7 @@ function App() {
     <div className="app">
       <Encabezado email={sesion.user.email} />
       <BarraSecciones onSeleccion={setSeleccion} />
-      {renderContenido()}
+      <main className="contenido-area">{renderContenido()}</main>
     </div>
   )
 }

@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 26/06/2026 (agregados lineamientos de modales en §5)
+> Última actualización: 26/06/2026 (agregados requisitos de franjas/tablas y composición de franjas en §5)
 
 ---
 
@@ -157,6 +157,35 @@ Otras interacciones:
 Implementación: hay un componente `Modal` reutilizable en `shared/components/` que encapsula
 estos comportamientos; los módulos solo le pasan el contenido. Los puntos 1 y 2 ya están;
 el 3 queda pendiente.
+
+### Requisitos de las franjas y tablas (pendientes, son features dedicados)
+
+Aplican a la vista de 4 franjas de todos los módulos:
+
+1. **Filtros sin distinción de tildes:** todo filtro de tipo "contiene" debe ser
+   insensible a acentos (buscar "America" encuentra "América Pampa Agroindustrial").
+   También insensible a mayúsculas/minúsculas. *(Pendiente.)*
+2. **Franjas con altura ajustable:** se puede arrastrar el borde entre franjas para
+   redistribuir el alto. Mínimo **15%** por franja. *(Pendiente.)*
+3. **Columnas configurables por tabla:** ancho ajustable (arrastrando), reordenables, y un
+   menú por **click derecho** en los encabezados para elegir/ordenar columnas. Para esto se
+   evaluará una **librería de tablas madura** (candidata: TanStack Table) en vez de
+   construirlo a mano, para no generar deuda técnica. *(Pendiente.)*
+4. **Persistencia de preferencias de UI por usuario y módulo:** las personalizaciones
+   (alturas de franjas, anchos/orden de columnas) se guardan en una **tabla de Supabase**
+   (no en el navegador), para que sigan al usuario entre sus distintos dispositivos. Cada
+   módulo guarda las suyas sin afectar a los demás. *(Pendiente.)*
+
+**Criterio general:** preferir librerías maduras antes que reinventar funcionalidad
+compleja, evaluando caso por caso, para evitar deuda técnica.
+
+### Composición de las franjas (Empresas)
+
+- **Franja 3 (Detalle):** datos propios de la empresa + sus conceptos que son *parte de*
+  ella: **Contactos, Direcciones, Transportes**.
+- **Franja 4 (Enlazados):** conceptos comerciales *vinculados* a la empresa: Proyectos,
+  Pedidos, Facturas, Remitos, Órdenes de Compra, Recibos, Pagos, etc. (se llenan a medida
+  que existan esos módulos).
 
 ---
 

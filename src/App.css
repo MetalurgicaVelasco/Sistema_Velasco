@@ -1,12 +1,21 @@
 .app {
   font-family: system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.contenido-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ---- Fila 1: barra de secciones ---- */
 .barra-secciones {
   display: flex;
   gap: 4px;
-  padding: 8px;
+  padding: 4px 8px;
   background: #f4f4f5;
   border-bottom: 1px solid #d4d4d8;
   overflow-x: auto;
@@ -16,9 +25,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   min-width: 80px;
-  padding: 8px 10px;
+  padding: 3px 10px;
   background: transparent;
   border: none;
   border-radius: 6px;
@@ -56,13 +65,12 @@
 
 .modulo-boton {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
-  min-width: 60px;
-  padding: 4px 8px;
-  background: transparent;
-  border: none;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid #d4d4d8;
   border-radius: 5px;
   cursor: pointer;
   color: #52525b;
@@ -252,52 +260,155 @@
   background: #334155;
 }
 
-/* ---- Empresas ---- */
-.empresas {
-  padding: 24px;
-  font-family: system-ui, sans-serif;
+/* ---- Empresas: vista de 4 franjas ---- */
+.empresas-franjas {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.empresas-titulo {
-  font-size: 18px;
-  color: #3f3f46;
-  margin: 0 0 12px;
+.franja {
+  min-height: 0;
+  overflow: auto;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.franja-filtros {
+  flex: 15 1 0;
+}
+
+.franja-lista {
+  flex: 35 1 0;
+}
+
+.franja-detalle {
+  flex: 35 1 0;
+}
+
+.franja-enlazados {
+  flex: 15 1 0;
+  border-bottom: none;
+}
+
+.franja-filtros-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
 }
 
 .empresas-estado,
 .empresas-vacio {
-  padding: 16px 0;
+  padding: 16px;
   color: #71717a;
 }
 
-.empresas-lista {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* ---- Tabla (franja lista) ---- */
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
-.empresas-item {
+.tabla thead th {
+  position: sticky;
+  top: 0;
+  background: #f4f4f5;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #52525b;
+  border-bottom: 1px solid #d4d4d8;
+}
+
+.tabla-fila {
+  cursor: pointer;
+}
+
+.tabla-fila td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f1f3;
+  color: #3f3f46;
+}
+
+.tabla-fila:hover td {
+  background: #fafafa;
+}
+
+.tabla-fila.seleccionada td {
+  background: #eef2ff;
+}
+
+/* ---- Detalle (franja 3) ---- */
+.detalle {
+  padding: 16px;
+}
+
+.detalle-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #fafafa;
-  border: 1px solid #e4e4e7;
-  border-radius: 6px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.detalle-titulo {
+  margin: 0;
+  font-size: 16px;
+  color: #3f3f46;
+}
+
+.detalle-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.detalle-campos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
   font-size: 14px;
   color: #3f3f46;
 }
 
-.empresas-codigo {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6366f1;
-  background: #eef2ff;
-  padding: 2px 6px;
-  border-radius: 4px;
+.detalle-campos > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detalle-label {
+  font-size: 11px;
+  color: #a1a1aa;
+  text-transform: uppercase;
+}
+
+/* ---- Enlazados (franja 4) ---- */
+.enlazados-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+}
+
+.enlazados-tab {
+  padding: 5px 12px;
+  font-size: 13px;
+  text-transform: capitalize;
+  color: #52525b;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.enlazados-tab.activa {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+.enlazados-contenido {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #71717a;
 }
 
 /* ---- Formulario de creación de empresa ---- */

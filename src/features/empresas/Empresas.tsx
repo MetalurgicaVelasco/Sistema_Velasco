@@ -12,13 +12,31 @@ type Empresa = {
   es_transporte: boolean
 }
 
+// Texto de roles a partir de los booleanos.
+function rolesTexto(e: Empresa): string {
+  const r: string[] = []
+  if (e.es_cliente) r.push('Cliente')
+  if (e.es_proveedor) r.push('Proveedor')
+  if (e.es_transporte) r.push('Transporte')
+  return r.join(', ') || '—'
+}
+
 function Empresas() {
   // --- Listado ---
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // --- Formulario de creación ---
+  // --- Selección (para la franja de detalle) ---
+  const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null)
+  const empresaSeleccionada =
+    empresas.find((e) => e.id === seleccionadaId) ?? null
+
+  // --- Pestaña activa de la franja de enlazados ---
+  const [tabEnlazados, setTabEnlazados] = useState('contactos')
+
+  // --- Modal "Nueva empresa" ---
+  const [mostrarNuevo, setMostrarNuevo] = useState(false)
   const [nombre, setNombre] = useState('')
   const [codigo, setCodigo] = useState('')
   const [cuit, setCuit] = useState('')
@@ -28,7 +46,7 @@ function Empresas() {
   const [guardando, setGuardando] = useState(false)
   const [errorForm, setErrorForm] = useState<string | null>(null)
 
-  // --- Edición (modal) ---
+  // --- Modal edición ---
   const [empresaEditando, setEmpresaEditando] = useState<Empresa | null>(null)
   const [editNombre, setEditNombre] = useState('')
   const [editCodigo, setEditCodigo] = useState('')
@@ -39,7 +57,7 @@ function Empresas() {
   const [guardandoEdit, setGuardandoEdit] = useState(false)
   const [errorEdit, setErrorEdit] = useState<string | null>(null)
 
-  // --- Borrado (modal de confirmación) ---
+  // --- Modal borrado ---
   const [empresaBorrando, setEmpresaBorrando] = useState<Empresa | null>(null)
   const [borrando, setBorrando] = useState(false)
   const [errorBorrar, setErrorBorrar] = useState<string | null>(null)
@@ -67,16 +85,25 @@ function Empresas() {
     cargarEmpresas()
   }, [])
 
+  // --- Crear ---
+  function abrirNuevo() {
+    setNombre('')
+    setCodigo('')
+    setCuit('')
+    setEsCliente(false)
+    setEsProveedor(false)
+    setEsTransporte(false)
+    setErrorForm(null)
+    setMostrarNuevo(true)
+  }
+
   async function crearEmpresa() {
     setErrorForm(null)
-
     if (nombre.trim() === '') {
       setErrorForm('El nombre es obligatorio.')
       return
     }
-
     setGuardando(true)
-
     const { error } = await supabase.from('empresas').insert({
       nombre: nombre.trim(),
       codigo: codigo.trim() || null,
@@ -85,23 +112,16 @@ function Empresas() {
       es_proveedor: esProveedor,
       es_transporte: esTransporte,
     })
-
     setGuardando(false)
-
     if (error) {
       setErrorForm('No se pudo crear la empresa.')
       return
     }
-
-    setNombre('')
-    setCodigo('')
-    setCuit('')
-    setEsCliente(false)
-    setEsProveedor(false)
-    setEsTransporte(false)
+    setMostrarNuevo(false)
     cargarEmpresas()
   }
 
+  // --- Editar ---
   function abrirEdicion(empresa: Empresa) {
     setEmpresaEditando(empresa)
     setEditNombre(empresa.nombre)
@@ -116,14 +136,11 @@ function Empresas() {
   async function guardarEdicion() {
     if (!empresaEditando) return
     setErrorEdit(null)
-
     if (editNombre.trim() === '') {
       setErrorEdit('El nombre es obligatorio.')
       return
     }
-
     setGuardandoEdit(true)
-
     const { error } = await supabase
       .from('empresas')
       .update({
@@ -135,142 +152,232 @@ function Empresas() {
         es_transporte: editEsTransporte,
       })
       .eq('id', empresaEditando.id)
-
     setGuardandoEdit(false)
-
     if (error) {
       setErrorEdit('No se pudieron guardar los cambios.')
       return
     }
-
     setEmpresaEditando(null)
     cargarEmpresas()
   }
 
+  // --- Borrar ---
   async function confirmarBorrado() {
     if (!empresaBorrando) return
     setErrorBorrar(null)
     setBorrando(true)
-
-    // .eq('id', ...) -> borra SOLO esta empresa.
     const { error } = await supabase
       .from('empresas')
       .delete()
       .eq('id', empresaBorrando.id)
-
     setBorrando(false)
-
     if (error) {
       setErrorBorrar('No se pudo borrar la empresa.')
       return
     }
-
-    setEmpresaBorrando(null) // cierra el modal
+    if (seleccionadaId === empresaBorrando.id) setSeleccionadaId(null)
+    setEmpresaBorrando(null)
     cargarEmpresas()
   }
 
   return (
-    <div className="empresas">
-      <h2 className="empresas-titulo">Empresas</h2>
-
-      {/* Formulario de creación */}
-      <div className="empresa-form">
-        <input
-          className="empresa-input"
-          placeholder="Nombre *"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-        />
-        <input
-          className="empresa-input"
-          placeholder="Código"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-        />
-        <input
-          className="empresa-input"
-          placeholder="CUIT"
-          value={cuit}
-          onChange={(e) => setCuit(e.target.value)}
-        />
-
-        <div className="empresa-roles">
-          <label>
-            <input
-              type="checkbox"
-              checked={esCliente}
-              onChange={(e) => setEsCliente(e.target.checked)}
-            />
-            Cliente
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={esProveedor}
-              onChange={(e) => setEsProveedor(e.target.checked)}
-            />
-            Proveedor
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={esTransporte}
-              onChange={(e) => setEsTransporte(e.target.checked)}
-            />
-            Transporte
-          </label>
+    <div className="empresas-franjas">
+      {/* ---------- Franja 1: Filtros (por ahora, solo la acción de crear) ---------- */}
+      <div className="franja franja-filtros">
+        <div className="franja-filtros-barra">
+          <button type="button" className="empresa-boton" onClick={abrirNuevo}>
+            + Nueva empresa
+          </button>
         </div>
-
-        {errorForm && <p className="empresa-form-error">{errorForm}</p>}
-
-        <button
-          type="button"
-          className="empresa-boton"
-          onClick={crearEmpresa}
-          disabled={guardando}
-        >
-          {guardando ? 'Guardando…' : 'Crear empresa'}
-        </button>
       </div>
 
-      {/* Listado */}
-      {cargando ? (
-        <div className="empresas-estado">Cargando empresas…</div>
-      ) : error ? (
-        <div className="empresas-estado">{error}</div>
-      ) : empresas.length === 0 ? (
-        <p className="empresas-vacio">Todavía no hay empresas cargadas.</p>
-      ) : (
-        <ul className="empresas-lista">
-          {empresas.map((empresa) => (
-            <li key={empresa.id} className="empresas-item">
-              {empresa.codigo && (
-                <span className="empresas-codigo">{empresa.codigo}</span>
-              )}
-              <span className="empresas-nombre">{empresa.nombre}</span>
-              <button
-                type="button"
-                className="empresas-editar"
-                onClick={() => abrirEdicion(empresa)}
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                className="empresas-borrar"
-                onClick={() => {
-                  setEmpresaBorrando(empresa)
-                  setErrorBorrar(null)
-                }}
-              >
-                Borrar
-              </button>
-            </li>
+      {/* ---------- Franja 2: Lista ---------- */}
+      <div className="franja franja-lista">
+        {cargando ? (
+          <div className="empresas-estado">Cargando empresas…</div>
+        ) : error ? (
+          <div className="empresas-estado">{error}</div>
+        ) : empresas.length === 0 ? (
+          <p className="empresas-vacio">Todavía no hay empresas cargadas.</p>
+        ) : (
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>CUIT</th>
+                <th>Roles</th>
+              </tr>
+            </thead>
+            <tbody>
+              {empresas.map((empresa) => (
+                <tr
+                  key={empresa.id}
+                  className={
+                    'tabla-fila' +
+                    (empresa.id === seleccionadaId ? ' seleccionada' : '')
+                  }
+                  onClick={() => setSeleccionadaId(empresa.id)}
+                >
+                  <td>{empresa.codigo ?? '—'}</td>
+                  <td>{empresa.nombre}</td>
+                  <td>{empresa.cuit ?? '—'}</td>
+                  <td>{rolesTexto(empresa)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* ---------- Franja 3: Detalle ---------- */}
+      <div className="franja franja-detalle">
+        {empresaSeleccionada ? (
+          <div className="detalle">
+            <div className="detalle-header">
+              <h3 className="detalle-titulo">{empresaSeleccionada.nombre}</h3>
+              <div className="detalle-acciones">
+                <button
+                  type="button"
+                  className="empresas-editar"
+                  onClick={() => abrirEdicion(empresaSeleccionada)}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="empresas-borrar"
+                  onClick={() => {
+                    setEmpresaBorrando(empresaSeleccionada)
+                    setErrorBorrar(null)
+                  }}
+                >
+                  Borrar
+                </button>
+              </div>
+            </div>
+            <div className="detalle-campos">
+              <div>
+                <span className="detalle-label">Código</span>
+                <span>{empresaSeleccionada.codigo ?? '—'}</span>
+              </div>
+              <div>
+                <span className="detalle-label">CUIT</span>
+                <span>{empresaSeleccionada.cuit ?? '—'}</span>
+              </div>
+              <div>
+                <span className="detalle-label">Roles</span>
+                <span>{rolesTexto(empresaSeleccionada)}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="empresas-estado">
+            Seleccioná una empresa para ver su detalle.
+          </div>
+        )}
+      </div>
+
+      {/* ---------- Franja 4: Enlazados ---------- */}
+      <div className="franja franja-enlazados">
+        <div className="enlazados-tabs">
+          {['contactos', 'direcciones', 'transportes', 'proyectos'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={
+                'enlazados-tab' + (tab === tabEnlazados ? ' activa' : '')
+              }
+              onClick={() => setTabEnlazados(tab)}
+            >
+              {tab}
+            </button>
           ))}
-        </ul>
+        </div>
+        <div className="enlazados-contenido">
+          {empresaSeleccionada
+            ? 'Esta sección se construye más adelante.'
+            : 'Seleccioná una empresa.'}
+        </div>
+      </div>
+
+      {/* ---------- Modal: Nueva empresa ---------- */}
+      {mostrarNuevo && (
+        <Modal titulo="Nueva empresa" onCerrar={() => setMostrarNuevo(false)}>
+          <div className="empresa-form-modal">
+            <label className="empresa-campo">
+              Nombre *
+              <input
+                className="empresa-input"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+              />
+            </label>
+            <label className="empresa-campo">
+              Código
+              <input
+                className="empresa-input"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+              />
+            </label>
+            <label className="empresa-campo">
+              CUIT
+              <input
+                className="empresa-input"
+                value={cuit}
+                onChange={(e) => setCuit(e.target.value)}
+              />
+            </label>
+            <div className="empresa-roles">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={esCliente}
+                  onChange={(e) => setEsCliente(e.target.checked)}
+                />
+                Cliente
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={esProveedor}
+                  onChange={(e) => setEsProveedor(e.target.checked)}
+                />
+                Proveedor
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={esTransporte}
+                  onChange={(e) => setEsTransporte(e.target.checked)}
+                />
+                Transporte
+              </label>
+            </div>
+            {errorForm && <p className="empresa-form-error">{errorForm}</p>}
+            <div className="empresa-modal-acciones">
+              <button
+                type="button"
+                className="empresa-boton-secundario"
+                onClick={() => setMostrarNuevo(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="empresa-boton"
+                onClick={crearEmpresa}
+                disabled={guardando}
+              >
+                {guardando ? 'Guardando…' : 'Crear empresa'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
-      {/* Modal de edición */}
+      {/* ---------- Modal: Editar ---------- */}
       {empresaEditando && (
         <Modal
           titulo={`Editar: ${empresaEditando.nombre}`}
@@ -301,7 +408,6 @@ function Empresas() {
                 onChange={(e) => setEditCuit(e.target.value)}
               />
             </label>
-
             <div className="empresa-roles">
               <label>
                 <input
@@ -328,9 +434,7 @@ function Empresas() {
                 Transporte
               </label>
             </div>
-
             {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
-
             <div className="empresa-modal-acciones">
               <button
                 type="button"
@@ -352,20 +456,15 @@ function Empresas() {
         </Modal>
       )}
 
-      {/* Modal de confirmación de borrado (reutiliza el mismo Modal) */}
+      {/* ---------- Modal: Borrar ---------- */}
       {empresaBorrando && (
-        <Modal
-          titulo="Borrar empresa"
-          onCerrar={() => setEmpresaBorrando(null)}
-        >
+        <Modal titulo="Borrar empresa" onCerrar={() => setEmpresaBorrando(null)}>
           <div className="empresa-form-modal">
             <p>
               ¿Seguro que querés borrar <strong>{empresaBorrando.nombre}</strong>?
               Esta acción no se puede deshacer.
             </p>
-
             {errorBorrar && <p className="empresa-form-error">{errorBorrar}</p>}
-
             <div className="empresa-modal-acciones">
               <button
                 type="button"
