@@ -630,3 +630,16 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ---- Sub-tabla dentro de una pestaña (ej: contactos) ---- */
+.subtabla-barra {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 8px;
+}
+
+.tabla-acciones {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}

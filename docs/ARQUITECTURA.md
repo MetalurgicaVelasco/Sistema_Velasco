@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 27/06/2026 (§5: lineamiento de densidad visual de tablas)
+> Última actualización: 27/06/2026 (§5: relación contacto→dirección; densidad visual de tablas)
 
 ---
 
@@ -202,6 +202,14 @@ mucho espacio vertical. Estándar para todas las tablas del sistema:
 - **Franja 4 (Enlazados):** conceptos comerciales *vinculados* a la empresa: Proyectos,
   Pedidos, Facturas, Remitos, Órdenes de Compra, Recibos, Pagos, etc. (se llenan a medida
   que existan esos módulos).
+
+**Relación contacto → dirección (pendiente, requiere Direcciones primero):** un contacto
+puede referenciar **una dirección de su propia empresa** (campo `direccion_id`, FK a
+`empresa_direcciones`; no texto libre). En el modal del contacto, un selector lista las
+direcciones de la empresa, más un botón "+ Nueva dirección" que permite cargar una dirección
+nueva (que se guarda en la empresa) sin salir del modal del contacto, y volver con esa
+dirección ya seleccionable. El borrado de una dirección referenciada por un contacto sigue el
+ciclo de vida de §7 (no se borra si está enlazada; se bloquea).
 
 ---
 

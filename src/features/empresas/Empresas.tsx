@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
+import ContactosEmpresa from './ContactosEmpresa'
 
 type Empresa = {
   id: number
@@ -302,6 +303,8 @@ function Empresas() {
                     </div>
                   </div>
                 </div>
+              ) : tabDetalle === 'contactos' ? (
+                <ContactosEmpresa empresaId={empresaSeleccionada.id} />
               ) : (
                 'Esta sección se construye más adelante.'
               )}
