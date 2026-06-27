@@ -643,3 +643,88 @@
   gap: 6px;
   justify-content: flex-end;
 }
+
+/* ---- Campos en fila (calle+número, piso+depto+CP) ---- */
+.empresa-campo-fila {
+  display: flex;
+  gap: 8px;
+}
+
+.empresa-campo-fila .empresa-campo {
+  flex: 1;
+}
+
+.empresa-campo-chico {
+  flex: 0 0 90px !important;
+}
+
+.localidad-elegida {
+  color: #4f46e5;
+}
+
+/* ---- Selector geográfico (provincia + localidad) ---- */
+.selector-geo {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.selector-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selector-lista {
+  height: 150px;
+  overflow-y: auto;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.selector-item {
+  text-align: left;
+  padding: 4px 10px;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #f1f1f3;
+  cursor: pointer;
+  color: #3f3f46;
+}
+
+.selector-item:hover {
+  background: #f4f4f5;
+}
+
+.selector-item.activa {
+  background: #eef2ff;
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+/* ---- Selector geográfico: título de columna y país ---- */
+.selector-geo-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selector-titulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: #52525b;
+}
+
+.cp-auto {
+  background: #f4f4f5;
+  color: #52525b;
+}
+
+.cp-hint {
+  font-size: 12px;
+  color: #a16207;
+}
