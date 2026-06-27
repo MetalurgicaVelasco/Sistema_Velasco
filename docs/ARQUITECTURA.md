@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 27/06/2026 (§5: relación contacto→dirección; densidad visual de tablas)
+> Última actualización: 27/06/2026 (§5: catálogo geográfico normalizado; relación contacto→dirección)
 
 ---
 
@@ -210,6 +210,20 @@ direcciones de la empresa, más un botón "+ Nueva dirección" que permite carga
 nueva (que se guarda en la empresa) sin salir del modal del contacto, y volver con esa
 dirección ya seleccionable. El borrado de una dirección referenciada por un contacto sigue el
 ciclo de vida de §7 (no se borra si está enlazada; se bloquea).
+
+**Catálogo geográfico (normalizado, sin texto libre):** las direcciones no guardan país /
+provincia / localidad como texto, sino que **referencian** un catálogo jerárquico compartido
+por todo el sistema: `paises` → `provincias` (FK país) → `localidades` (FK provincia).
+`empresa_direcciones` apunta a `localidad_id` (de ahí salen provincia y país por la cadena).
+- **Sin texto libre:** para elegir un país/provincia/localidad tiene que existir en el
+  catálogo; si no está, primero se carga en el catálogo. Esto evita variantes ("Gral. Pico"
+  vs "General Pico") y mantiene los datos limpios para filtros y reportes.
+- **Precargado de fuente oficial:** se importa de Georef (datos.gob.ar, IGN/INDEC): país
+  Argentina, las 24 provincias y todas las localidades del país. No se cargan a mano (salvo
+  algún caso puntual que falte).
+- **Selector estilo Táctica:** columnas País / Provincia / Localidad, cada una con filtro
+  "contiene" insensible a tildes y mayúsculas; se elige de la lista.
+- Hoy solo Argentina; el modelo permite sumar otros países si aparecen.
 
 ---
 
