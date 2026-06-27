@@ -308,6 +308,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  line-height: 1.3;
 }
 
 .tabla thead th {
@@ -315,7 +316,7 @@
   top: 0;
   background: #f4f4f5;
   text-align: left;
-  padding: 8px 12px;
+  padding: 3px 12px;
   font-size: 12px;
   color: #52525b;
   border-bottom: 1px solid #d4d4d8;
@@ -326,15 +327,22 @@
 }
 
 .tabla-fila td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #f1f1f3;
+  padding: 3px 12px;
+  border-bottom: 1px solid #eaeaec;
   color: #3f3f46;
 }
 
-.tabla-fila:hover td {
-  background: #fafafa;
+/* Zebra: filas pares en gris muy claro. */
+.tabla-fila:nth-child(even) td {
+  background: #f9fafb;
 }
 
+/* Hover: va DESPUÉS de la zebra para ganarle en empate de especificidad. */
+.tabla-fila:hover td {
+  background: #f0f0f3;
+}
+
+/* Seleccionada: va al final para mantenerse aunque se hoveree. */
 .tabla-fila.seleccionada td {
   background: #eef2ff;
 }
@@ -386,11 +394,11 @@
 .enlazados-tabs {
   display: flex;
   gap: 4px;
-  padding: 8px 12px 0;
+  padding: 3px 12px 0;
 }
 
 .enlazados-tab {
-  padding: 5px 12px;
+  padding: 2px 12px 3px;
   font-size: 13px;
   color: #52525b;
   background: transparent;

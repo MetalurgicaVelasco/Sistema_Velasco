@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 26/06/2026 (§7: auditoría completa, ciclo de vida y modos de acceso a auditoría)
+> Última actualización: 27/06/2026 (§5: lineamiento de densidad visual de tablas)
 
 ---
 
@@ -178,6 +178,22 @@ Aplican a la vista de 4 franjas de todos los módulos:
 
 **Criterio general:** preferir librerías maduras antes que reinventar funcionalidad
 compleja, evaluando caso por caso, para evitar deuda técnica.
+
+### Densidad visual de las tablas (lineamiento, aplicar al construir la tabla definitiva)
+
+Objetivo: **que entre más información en pantalla**. Hoy las filas y encabezados desperdician
+mucho espacio vertical. Estándar para todas las tablas del sistema:
+
+- **Encabezados de columna:** alto ≈ 80% texto, 10% arriba, 10% abajo (hoy ≈ 33/33/33).
+  Reducir el padding vertical de los `th`.
+- **Filas de datos:** mismo criterio (≈ 80% ocupado por el texto, poco aire arriba/abajo;
+  hoy ≈ 35%).
+- **Línea divisoria** entre cada fila.
+- **Filas alternadas** blanco / gris claro (zebra striping), para seguir una fila con la
+  vista.
+
+> Se aplica cuando se construya la tabla definitiva (probablemente con TanStack Table),
+> para no maquetar a mano algo que la librería va a regenerar.
 
 ### Composición de las franjas (Empresas)
 
