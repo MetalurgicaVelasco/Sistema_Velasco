@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
+import { contiene } from '../../shared/lib/texto'
+import MenuContextual from '../../shared/components/MenuContextual'
 import Modal from '../../shared/components/Modal'
 import ContactosEmpresa from './ContactosEmpresa'
 import DireccionesEmpresa from './DireccionesEmpresa'
@@ -256,6 +258,95 @@ function Empresas() {
   const empresaSeleccionada =
     empresas.find((e) => e.id === seleccionadaId) ?? null
 
+  // Filtros (franja 1)
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroCodigo, setFiltroCodigo] = useState('')
+  const [filtroNombre, setFiltroNombre] = useState('')
+  const [filtroRazon, setFiltroRazon] = useState('')
+  const [filtroApellido, setFiltroApellido] = useState('')
+  const [filtroRoles, setFiltroRoles] = useState({
+    cliente: false,
+    proveedor: false,
+    transporte: false,
+  })
+
+  // Snapshot de contactos (empresa_id + apellido) para filtrar por apellido.
+  const [contactos, setContactos] = useState<
+    { empresa_id: number; apellido: string | null }[]
+  >([])
+
+  const hayFiltros =
+    busqueda.trim() !== '' ||
+    filtroCodigo.trim() !== '' ||
+    filtroNombre.trim() !== '' ||
+    filtroRazon.trim() !== '' ||
+    filtroApellido.trim() !== '' ||
+    filtroRoles.cliente ||
+    filtroRoles.proveedor ||
+    filtroRoles.transporte
+
+  function limpiarFiltros() {
+    setBusqueda('')
+    setFiltroCodigo('')
+    setFiltroNombre('')
+    setFiltroRazon('')
+    setFiltroApellido('')
+    setFiltroRoles({ cliente: false, proveedor: false, transporte: false })
+  }
+
+  function toggleRol(rol: 'cliente' | 'proveedor' | 'transporte') {
+    setFiltroRoles((prev) => ({ ...prev, [rol]: !prev[rol] }))
+  }
+
+  // IDs de empresas que tienen un contacto con apellido que matchea.
+  // Se calcula una vez (no por empresa) para no recorrer los contactos de más.
+  const apellido = filtroApellido.trim()
+  const idsPorApellido =
+    apellido === ''
+      ? null
+      : new Set(
+          contactos
+            .filter((c) => contiene(c.apellido ?? '', apellido))
+            .map((c) => c.empresa_id),
+        )
+
+  const empresasFiltradas = empresas.filter((e) => {
+    // Buscador general: nombre, código o CUIT (sin tildes)
+    const texto = busqueda.trim()
+    const pasaTexto =
+      texto === '' ||
+      contiene(e.nombre, texto) ||
+      contiene(e.codigo ?? '', texto) ||
+      contiene(e.cuit ?? '', texto)
+
+    // Campos por separado (cada uno sobre su columna)
+    const pasaCodigo =
+      filtroCodigo.trim() === '' || contiene(e.codigo ?? '', filtroCodigo)
+    const pasaNombre =
+      filtroNombre.trim() === '' || contiene(e.nombre, filtroNombre)
+    const pasaRazon =
+      filtroRazon.trim() === '' || contiene(e.razon_social ?? '', filtroRazon)
+    const pasaApellido = idsPorApellido === null || idsPorApellido.has(e.id)
+
+    // Roles: si no hay ninguno tildado, pasan todas. Si hay, lógica O.
+    const algunRol =
+      filtroRoles.cliente || filtroRoles.proveedor || filtroRoles.transporte
+    const pasaRoles =
+      !algunRol ||
+      (filtroRoles.cliente && e.es_cliente) ||
+      (filtroRoles.proveedor && e.es_proveedor) ||
+      (filtroRoles.transporte && e.es_transporte)
+
+    return (
+      pasaTexto &&
+      pasaCodigo &&
+      pasaNombre &&
+      pasaRazon &&
+      pasaApellido &&
+      pasaRoles
+    )
+  })
+
   const [tabDetalle, setTabDetalle] = useState('general')
   const [tabEnlazados, setTabEnlazados] = useState('proyectos')
 
@@ -291,8 +382,17 @@ function Empresas() {
     setCargando(false)
   }
 
+  // Snapshot de contactos para el filtro por apellido.
+  async function cargarContactos() {
+    const { data } = await supabase
+      .from('empresa_contactos')
+      .select('empresa_id, apellido')
+    setContactos(data ?? [])
+  }
+
   useEffect(() => {
     cargarEmpresas()
+    cargarContactos()
   }, [])
 
   function abrirNuevo() {
@@ -367,23 +467,97 @@ function Empresas() {
 
   return (
     <div className="empresas-franjas">
-      {/* Franja 1: Filtros (por ahora, solo crear) */}
+      {/* Franja 1: Filtros */}
       <div className="franja franja-filtros">
-        <div className="franja-filtros-barra">
-          <button type="button" className="empresa-boton" onClick={abrirNuevo}>
-            + Nueva empresa
-          </button>
+        <div className="filtros-barra">
+          <input
+            className="filtro-busqueda"
+            placeholder="Buscar por nombre, código o CUIT…"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+          <div className="filtros-campos">
+            <input
+              className="filtro-campo"
+              placeholder="Código"
+              value={filtroCodigo}
+              onChange={(e) => setFiltroCodigo(e.target.value)}
+            />
+            <input
+              className="filtro-campo"
+              placeholder="Nombre"
+              value={filtroNombre}
+              onChange={(e) => setFiltroNombre(e.target.value)}
+            />
+            <input
+              className="filtro-campo"
+              placeholder="Razón social"
+              value={filtroRazon}
+              onChange={(e) => setFiltroRazon(e.target.value)}
+            />
+            <input
+              className="filtro-campo"
+              placeholder="Apellido contacto"
+              value={filtroApellido}
+              onChange={(e) => setFiltroApellido(e.target.value)}
+            />
+          </div>
+          <div className="filtro-roles">
+            <button
+              type="button"
+              className={
+                'filtro-chip' + (filtroRoles.cliente ? ' activo' : '')
+              }
+              onClick={() => toggleRol('cliente')}
+            >
+              Cliente
+            </button>
+            <button
+              type="button"
+              className={
+                'filtro-chip' + (filtroRoles.proveedor ? ' activo' : '')
+              }
+              onClick={() => toggleRol('proveedor')}
+            >
+              Proveedor
+            </button>
+            <button
+              type="button"
+              className={
+                'filtro-chip' + (filtroRoles.transporte ? ' activo' : '')
+              }
+              onClick={() => toggleRol('transporte')}
+            >
+              Transporte
+            </button>
+          </div>
+          {hayFiltros && (
+            <button
+              type="button"
+              className="filtro-limpiar"
+              onClick={limpiarFiltros}
+            >
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 
       {/* Franja 2: Lista */}
       <div className="franja franja-lista">
+        <MenuContextual
+          items={[{ label: 'Nueva empresa', onSelect: abrirNuevo }]}
+        >
         {cargando ? (
           <div className="empresas-estado">Cargando empresas…</div>
         ) : error ? (
           <div className="empresas-estado">{error}</div>
         ) : empresas.length === 0 ? (
           <p className="empresas-vacio">Todavía no hay empresas cargadas.</p>
+        ) : empresasFiltradas.length === 0 ? (
+          <p className="empresas-vacio">
+            Ninguna empresa coincide con los filtros.
+          </p>
         ) : (
           <table className="tabla">
             <thead>
@@ -395,7 +569,7 @@ function Empresas() {
               </tr>
             </thead>
             <tbody>
-              {empresas.map((empresa) => (
+              {empresasFiltradas.map((empresa) => (
                 <tr
                   key={empresa.id}
                   className={
@@ -413,6 +587,7 @@ function Empresas() {
             </tbody>
           </table>
         )}
+        </MenuContextual>
       </div>
 
       {/* Franja 3: Detalle */}

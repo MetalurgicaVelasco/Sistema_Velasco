@@ -92,6 +92,14 @@ export function etiquetaDireccion(d: Direccion): string {
   return tipo + resto || `Dirección #${d.id}`
 }
 
+// Igual que la anterior pero SIN el tipo (para cuando el tipo va en su
+// propia columna). Ej: "Av. San Martín 123, General Pico"
+export function etiquetaDireccionSinTipo(d: Direccion): string {
+  const calle = [d.calle, d.numero].filter(Boolean).join(' ')
+  const loc = d.localidades?.nombre ?? ''
+  return [calle, loc].filter(Boolean).join(', ') || `Dirección #${d.id}`
+}
+
 // Si la localidad no tenía CP y se cargó uno, lo guardamos EN la localidad.
 export async function guardarCpLocalidadSiHace(f: DireccionForm) {
   if (f.cpFaltante && f.localidadId && f.cp.trim() !== '') {

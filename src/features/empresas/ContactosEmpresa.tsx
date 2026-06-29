@@ -2,68 +2,79 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
+import SelectorConAlta from '../../shared/components/SelectorConAlta'
+import type { Opcion } from '../../shared/components/SelectorConAlta'
 import ModalNuevaDireccion from './ModalNuevaDireccion'
-import { etiquetaDireccion } from './direccionForm'
+import { etiquetaDireccion, etiquetaDireccionSinTipo } from './direccionForm'
 import type { Direccion } from './direccionForm'
 
 type Contacto = {
   id: number
   nombre: string
+  apellido: string | null
   puesto: string | null
-  area: string | null
   email: string | null
   telefono: string | null
   celular: string | null
   observaciones: string | null
   direccion_id: number | null
+  area_id: number | null
+  sector_id: number | null
 }
 
-// Forma del formulario.
 type ContactoForm = {
   nombre: string
+  apellido: string
   puesto: string
-  area: string
   email: string
   telefono: string
   celular: string
   observaciones: string
   direccionId: number | null
+  areaId: number | null
+  sectorId: number | null
 }
 
 const FORM_VACIO: ContactoForm = {
   nombre: '',
+  apellido: '',
   puesto: '',
-  area: '',
   email: '',
   telefono: '',
   celular: '',
   observaciones: '',
   direccionId: null,
+  areaId: null,
+  sectorId: null,
 }
 
 function contactoAForm(c: Contacto): ContactoForm {
   return {
     nombre: c.nombre,
+    apellido: c.apellido ?? '',
     puesto: c.puesto ?? '',
-    area: c.area ?? '',
     email: c.email ?? '',
     telefono: c.telefono ?? '',
     celular: c.celular ?? '',
     observaciones: c.observaciones ?? '',
     direccionId: c.direccion_id,
+    areaId: c.area_id,
+    sectorId: c.sector_id,
   }
 }
 
 function formAGuardar(f: ContactoForm) {
   return {
     nombre: f.nombre.trim(),
+    apellido: f.apellido.trim() || null,
     puesto: f.puesto.trim() || null,
-    area: f.area.trim() || null,
     email: f.email.trim() || null,
     telefono: f.telefono.trim() || null,
     celular: f.celular.trim() || null,
     observaciones: f.observaciones.trim() || null,
     direccion_id: f.direccionId,
+    area_id: f.areaId,
+    sector_id: f.sectorId,
   }
 }
 
@@ -73,22 +84,41 @@ function CamposContacto({
   setValor,
   direcciones,
   onNuevaDireccion,
+  areas,
+  sectores,
+  onAgregarArea,
+  onAgregarSector,
 }: {
   valor: ContactoForm
   setValor: (v: ContactoForm) => void
   direcciones: Direccion[]
   onNuevaDireccion: () => void
+  areas: Opcion[]
+  sectores: Opcion[]
+  onAgregarArea: (nombre: string) => Promise<Opcion | null>
+  onAgregarSector: (nombre: string) => Promise<Opcion | null>
 }) {
   return (
     <>
-      <label className="empresa-campo">
-        Nombre *
-        <input
-          className="empresa-input"
-          value={valor.nombre}
-          onChange={(e) => setValor({ ...valor, nombre: e.target.value })}
-        />
-      </label>
+      <div className="empresa-campo-fila">
+        <label className="empresa-campo">
+          Nombre *
+          <input
+            className="empresa-input"
+            value={valor.nombre}
+            onChange={(e) => setValor({ ...valor, nombre: e.target.value })}
+          />
+        </label>
+        <label className="empresa-campo">
+          Apellido
+          <input
+            className="empresa-input"
+            value={valor.apellido}
+            onChange={(e) => setValor({ ...valor, apellido: e.target.value })}
+          />
+        </label>
+      </div>
+
       <label className="empresa-campo">
         Puesto
         <input
@@ -97,17 +127,31 @@ function CamposContacto({
           onChange={(e) => setValor({ ...valor, puesto: e.target.value })}
         />
       </label>
-      <label className="empresa-campo">
-        Área
-        <input
-          className="empresa-input"
-          value={valor.area}
-          onChange={(e) => setValor({ ...valor, area: e.target.value })}
-        />
-      </label>
 
-      <label className="empresa-campo">
-        Dirección
+      <div className="empresa-campo">
+        <span>Área</span>
+        <SelectorConAlta
+          valor={valor.areaId}
+          opciones={areas}
+          onCambiar={(id) => setValor({ ...valor, areaId: id })}
+          onAgregar={onAgregarArea}
+          placeholderNuevo="Nueva área"
+        />
+      </div>
+
+      <div className="empresa-campo">
+        <span>Sector</span>
+        <SelectorConAlta
+          valor={valor.sectorId}
+          opciones={sectores}
+          onCambiar={(id) => setValor({ ...valor, sectorId: id })}
+          onAgregar={onAgregarSector}
+          placeholderNuevo="Nuevo sector"
+        />
+      </div>
+
+      <div className="empresa-campo">
+        <span>Dirección</span>
         <div className="contacto-direccion-fila">
           <select
             className="empresa-input"
@@ -134,7 +178,7 @@ function CamposContacto({
             + Nueva
           </button>
         </div>
-      </label>
+      </div>
 
       <label className="empresa-campo">
         Email
@@ -178,6 +222,8 @@ function CamposContacto({
 function ContactosEmpresa({ empresaId }: { empresaId: number }) {
   const [contactos, setContactos] = useState<Contacto[]>([])
   const [direcciones, setDirecciones] = useState<Direccion[]>([])
+  const [areas, setAreas] = useState<Opcion[]>([])
+  const [sectores, setSectores] = useState<Opcion[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -207,10 +253,10 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
     const { data, error } = await supabase
       .from('empresa_contactos')
       .select(
-        'id, nombre, puesto, area, email, telefono, celular, observaciones, direccion_id',
+        'id, nombre, apellido, puesto, email, telefono, celular, observaciones, direccion_id, area_id, sector_id',
       )
       .eq('empresa_id', empresaId)
-      .order('nombre')
+      .order('apellido')
     if (error) {
       setError('No se pudieron cargar los contactos.')
       setCargando(false)
@@ -220,7 +266,6 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
     setCargando(false)
   }
 
-  // Direcciones de la empresa (para el selector y para etiquetar la columna).
   async function cargarDirecciones() {
     const { data } = await supabase
       .from('empresa_direcciones')
@@ -232,10 +277,33 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
     setDirecciones((data as unknown as Direccion[]) ?? [])
   }
 
-  // Se recarga cada vez que cambia la empresa seleccionada.
+  // Sectores de esta empresa.
+  async function cargarSectores() {
+    const { data } = await supabase
+      .from('empresa_sectores')
+      .select('id, nombre')
+      .eq('empresa_id', empresaId)
+      .order('nombre')
+    setSectores(data ?? [])
+  }
+
+  // Áreas: catálogo global (mismas para todas las empresas).
+  async function cargarAreas() {
+    const { data } = await supabase
+      .from('contacto_areas')
+      .select('id, nombre')
+      .order('nombre')
+    setAreas(data ?? [])
+  }
+
+  useEffect(() => {
+    cargarAreas()
+  }, [])
+
   useEffect(() => {
     cargarContactos()
     cargarDirecciones()
+    cargarSectores()
   }, [empresaId])
 
   function abrirNuevo() {
@@ -307,8 +375,35 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
     cargarContactos()
   }
 
-  // Cuando se crea una dirección desde el modal de contacto: la sumamos a la
-  // lista y la dejamos seleccionada en el formulario que esté abierto.
+  // Alta al vuelo de un área (catálogo global).
+  async function onAgregarArea(nombre: string): Promise<Opcion | null> {
+    const { data, error } = await supabase
+      .from('contacto_areas')
+      .insert({ nombre })
+      .select('id, nombre')
+      .single()
+    if (error || !data) return null
+    setAreas((prev) =>
+      [...prev, data].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    )
+    return data
+  }
+
+  // Alta al vuelo de un sector (de esta empresa).
+  async function onAgregarSector(nombre: string): Promise<Opcion | null> {
+    const { data, error } = await supabase
+      .from('empresa_sectores')
+      .insert({ empresa_id: empresaId, nombre })
+      .select('id, nombre')
+      .single()
+    if (error || !data) return null
+    setSectores((prev) =>
+      [...prev, data].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    )
+    return data
+  }
+
+  // Al crear una dirección desde el modal de contacto.
   function onDireccionCreada(nueva: Direccion) {
     setDirecciones((prev) => [...prev, nueva])
     if (mostrarNuevo) {
@@ -317,6 +412,15 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
       setFormEdit((f) => ({ ...f, direccionId: nueva.id }))
     }
     setMostrarNuevaDireccion(false)
+  }
+
+  const camposComunes = {
+    direcciones,
+    onNuevaDireccion: () => setMostrarNuevaDireccion(true),
+    areas,
+    sectores,
+    onAgregarArea,
+    onAgregarSector,
   }
 
   return (
@@ -335,9 +439,12 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Apellido</th>
               <th>Puesto</th>
               <th>Área</th>
+              <th>Sector</th>
               <th>Dirección</th>
+              <th>Tipo de dirección</th>
               <th>Email</th>
               <th>Teléfono</th>
               <th>Celular</th>
@@ -347,12 +454,17 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
           <tbody>
             {contactos.map((c) => {
               const dir = direcciones.find((d) => d.id === c.direccion_id)
+              const area = areas.find((a) => a.id === c.area_id)
+              const sector = sectores.find((s) => s.id === c.sector_id)
               return (
                 <tr key={c.id} className="tabla-fila">
                   <td>{c.nombre}</td>
+                  <td>{c.apellido ?? '—'}</td>
                   <td>{c.puesto ?? '—'}</td>
-                  <td>{c.area ?? '—'}</td>
-                  <td>{dir ? etiquetaDireccion(dir) : '—'}</td>
+                  <td>{area?.nombre ?? '—'}</td>
+                  <td>{sector?.nombre ?? '—'}</td>
+                  <td>{dir ? etiquetaDireccionSinTipo(dir) : '—'}</td>
+                  <td>{dir?.tipo ?? '—'}</td>
                   <td>{c.email ?? '—'}</td>
                   <td>{c.telefono ?? '—'}</td>
                   <td>{c.celular ?? '—'}</td>
@@ -390,8 +502,7 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
             <CamposContacto
               valor={formNuevo}
               setValor={setFormNuevo}
-              direcciones={direcciones}
-              onNuevaDireccion={() => setMostrarNuevaDireccion(true)}
+              {...camposComunes}
             />
             {errorNuevo && <p className="empresa-form-error">{errorNuevo}</p>}
             <div className="empresa-modal-acciones">
@@ -425,8 +536,7 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
             <CamposContacto
               valor={formEdit}
               setValor={setFormEdit}
-              direcciones={direcciones}
-              onNuevaDireccion={() => setMostrarNuevaDireccion(true)}
+              {...camposComunes}
             />
             {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
             <div className="empresa-modal-acciones">

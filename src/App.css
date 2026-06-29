@@ -869,3 +869,100 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* ---- Filtros (franja 1 de Empresas) ---- */
+.filtros-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 14px;
+}
+
+.filtro-busqueda {
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+  padding: 4px 10px;
+  font-size: 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+}
+
+.filtro-busqueda:focus {
+  outline: 2px solid #c7d2fe;
+  border-color: #6366f1;
+}
+
+.filtros-campos {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filtro-campo {
+  width: 130px;
+  padding: 3px 8px;
+  font-size: 13px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+}
+
+.filtro-campo:focus {
+  outline: 2px solid #c7d2fe;
+  border-color: #6366f1;
+}
+
+.filtro-roles {
+  display: flex;
+  gap: 6px;
+}
+
+.filtro-chip {
+  padding: 3px 12px;
+  font-size: 13px;
+  color: #52525b;
+  background: #fff;
+  border: 1px solid #d4d4d8;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.filtro-chip:hover {
+  background: #f4f4f5;
+}
+
+.filtro-chip.activo {
+  color: #4f46e5;
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  font-weight: 500;
+}
+
+.filtro-limpiar {
+  font-size: 13px;
+  color: #6366f1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ---- Selector con alta al vuelo (Área / Sector) ---- */
+.selector-alta {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.selector-alta select,
+.selector-alta input {
+  flex: 1;
+  min-width: 0;
+}
+
+.selector-alta .empresa-boton,
+.selector-alta .empresa-boton-secundario {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
