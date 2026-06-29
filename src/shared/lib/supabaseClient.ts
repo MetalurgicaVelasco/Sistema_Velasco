@@ -14,6 +14,6 @@ import { createClient } from '@supabase/supabase-js'
 //    - SUPABASE_PUBLISHABLE_KEY  -> la "publishable key" (anon / public)
 
 const SUPABASE_URL = 'https://cllnvomonvpswctbaqgg.supabase.co'
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_o4_CsCNEJHR3jV09zkYKxQ_HoSnx83F'
+const SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbG52b21vbnZwc3djdGJhcWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMDMyMzksImV4cCI6MjA5NzY3OTIzOX0.OShZi1ORbSkiKNNLUAyuPlj8DHSUEhFf1nuasNjBNXs'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)

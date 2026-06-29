@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
+import MenuContextual from '../../shared/components/MenuContextual'
 
 type Contacto = {
   id: number
@@ -248,12 +249,9 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
 
   return (
     <div className="subtabla">
-      <div className="subtabla-barra">
-        <button type="button" className="empresa-boton" onClick={abrirNuevo}>
-          + Nuevo contacto
-        </button>
-      </div>
-
+      <MenuContextual
+        items={[{ label: 'Nuevo contacto', onSelect: abrirNuevo }]}
+      >
       {cargando ? (
         <div className="empresas-estado">Cargando contactos…</div>
       ) : error ? (
@@ -306,6 +304,7 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
           </tbody>
         </table>
       )}
+      </MenuContextual>
 
       {/* Modal: nuevo contacto */}
       {mostrarNuevo && (

@@ -3,18 +3,65 @@ import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import ContactosEmpresa from './ContactosEmpresa'
 import DireccionesEmpresa from './DireccionesEmpresa'
+import LogoEmpresa from './LogoEmpresa'
 
 type Empresa = {
   id: number
   nombre: string
   codigo: string | null
   cuit: string | null
+  razon_social: string | null
+  condicion_iva: string | null
+  condicion_iibb: string | null
+  numero_iibb: string | null
+  es_cliente: boolean
+  es_proveedor: boolean
+  es_transporte: boolean
+  foto_url: string | null
+}
+
+type EmpresaForm = {
+  nombre: string
+  codigo: string
+  cuit: string
+  razon_social: string
+  condicion_iva: string
+  condicion_iibb: string
+  numero_iibb: string
   es_cliente: boolean
   es_proveedor: boolean
   es_transporte: boolean
 }
 
-// Pestañas de cada franja (id interno + etiqueta visible).
+const FORM_VACIO: EmpresaForm = {
+  nombre: '',
+  codigo: '',
+  cuit: '',
+  razon_social: '',
+  condicion_iva: '',
+  condicion_iibb: '',
+  numero_iibb: '',
+  es_cliente: false,
+  es_proveedor: false,
+  es_transporte: false,
+}
+
+const CONDICIONES_IVA = [
+  'Responsable Inscripto',
+  'Monotributista',
+  'Exento',
+  'Consumidor Final',
+  'No Responsable',
+  'IVA No Alcanzado',
+]
+
+const CONDICIONES_IIBB = [
+  'Local',
+  'Convenio Multilateral',
+  'Exento',
+  'No inscripto',
+]
+
 const TABS_DETALLE = [
   { id: 'general', label: 'General' },
   { id: 'contactos', label: 'Contactos' },
@@ -40,44 +87,188 @@ function rolesTexto(e: Empresa): string {
   return r.join(', ') || '—'
 }
 
+function empresaAForm(e: Empresa): EmpresaForm {
+  return {
+    nombre: e.nombre,
+    codigo: e.codigo ?? '',
+    cuit: e.cuit ?? '',
+    razon_social: e.razon_social ?? '',
+    condicion_iva: e.condicion_iva ?? '',
+    condicion_iibb: e.condicion_iibb ?? '',
+    numero_iibb: e.numero_iibb ?? '',
+    es_cliente: e.es_cliente,
+    es_proveedor: e.es_proveedor,
+    es_transporte: e.es_transporte,
+  }
+}
+
+function formAGuardar(f: EmpresaForm) {
+  return {
+    nombre: f.nombre.trim(),
+    codigo: f.codigo.trim() || null,
+    cuit: f.cuit.trim() || null,
+    razon_social: f.razon_social.trim() || null,
+    condicion_iva: f.condicion_iva || null,
+    condicion_iibb: f.condicion_iibb || null,
+    numero_iibb: f.numero_iibb.trim() || null,
+    es_cliente: f.es_cliente,
+    es_proveedor: f.es_proveedor,
+    es_transporte: f.es_transporte,
+  }
+}
+
+// Campos del formulario de empresa (se usan en crear y editar).
+function CamposEmpresa({
+  valor,
+  setValor,
+}: {
+  valor: EmpresaForm
+  setValor: (v: EmpresaForm) => void
+}) {
+  return (
+    <>
+      <div className="empresa-campo-fila">
+        <label className="empresa-campo">
+          Nombre *
+          <input
+            className="empresa-input"
+            value={valor.nombre}
+            onChange={(e) => setValor({ ...valor, nombre: e.target.value })}
+          />
+        </label>
+        <label className="empresa-campo empresa-campo-chico">
+          Código
+          <input
+            className="empresa-input"
+            value={valor.codigo}
+            onChange={(e) => setValor({ ...valor, codigo: e.target.value })}
+          />
+        </label>
+      </div>
+
+      <label className="empresa-campo">
+        Razón social
+        <input
+          className="empresa-input"
+          value={valor.razon_social}
+          onChange={(e) => setValor({ ...valor, razon_social: e.target.value })}
+        />
+      </label>
+
+      <div className="empresa-campo-fila">
+        <label className="empresa-campo">
+          CUIT
+          <input
+            className="empresa-input"
+            value={valor.cuit}
+            onChange={(e) => setValor({ ...valor, cuit: e.target.value })}
+          />
+        </label>
+        <label className="empresa-campo">
+          Condición IVA
+          <select
+            className="empresa-input"
+            value={valor.condicion_iva}
+            onChange={(e) =>
+              setValor({ ...valor, condicion_iva: e.target.value })
+            }
+          >
+            <option value="">—</option>
+            {CONDICIONES_IVA.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="empresa-campo-fila">
+        <label className="empresa-campo">
+          Condición IIBB
+          <select
+            className="empresa-input"
+            value={valor.condicion_iibb}
+            onChange={(e) =>
+              setValor({ ...valor, condicion_iibb: e.target.value })
+            }
+          >
+            <option value="">—</option>
+            {CONDICIONES_IIBB.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="empresa-campo">
+          Número IIBB
+          <input
+            className="empresa-input"
+            value={valor.numero_iibb}
+            onChange={(e) =>
+              setValor({ ...valor, numero_iibb: e.target.value })
+            }
+          />
+        </label>
+      </div>
+
+      <div className="empresa-roles">
+        <label>
+          <input
+            type="checkbox"
+            checked={valor.es_cliente}
+            onChange={(e) => setValor({ ...valor, es_cliente: e.target.checked })}
+          />
+          Cliente
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={valor.es_proveedor}
+            onChange={(e) =>
+              setValor({ ...valor, es_proveedor: e.target.checked })
+            }
+          />
+          Proveedor
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={valor.es_transporte}
+            onChange={(e) =>
+              setValor({ ...valor, es_transporte: e.target.checked })
+            }
+          />
+          Transporte
+        </label>
+      </div>
+    </>
+  )
+}
+
 function Empresas() {
-  // --- Listado ---
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // --- Selección ---
   const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null)
   const empresaSeleccionada =
     empresas.find((e) => e.id === seleccionadaId) ?? null
 
-  // --- Pestañas activas ---
   const [tabDetalle, setTabDetalle] = useState('general')
   const [tabEnlazados, setTabEnlazados] = useState('proyectos')
 
-  // --- Modal "Nueva empresa" ---
   const [mostrarNuevo, setMostrarNuevo] = useState(false)
-  const [nombre, setNombre] = useState('')
-  const [codigo, setCodigo] = useState('')
-  const [cuit, setCuit] = useState('')
-  const [esCliente, setEsCliente] = useState(false)
-  const [esProveedor, setEsProveedor] = useState(false)
-  const [esTransporte, setEsTransporte] = useState(false)
-  const [guardando, setGuardando] = useState(false)
-  const [errorForm, setErrorForm] = useState<string | null>(null)
+  const [formNuevo, setFormNuevo] = useState<EmpresaForm>(FORM_VACIO)
+  const [guardandoNuevo, setGuardandoNuevo] = useState(false)
+  const [errorNuevo, setErrorNuevo] = useState<string | null>(null)
 
-  // --- Modal edición ---
   const [empresaEditando, setEmpresaEditando] = useState<Empresa | null>(null)
-  const [editNombre, setEditNombre] = useState('')
-  const [editCodigo, setEditCodigo] = useState('')
-  const [editCuit, setEditCuit] = useState('')
-  const [editEsCliente, setEditEsCliente] = useState(false)
-  const [editEsProveedor, setEditEsProveedor] = useState(false)
-  const [editEsTransporte, setEditEsTransporte] = useState(false)
+  const [formEdit, setFormEdit] = useState<EmpresaForm>(FORM_VACIO)
   const [guardandoEdit, setGuardandoEdit] = useState(false)
   const [errorEdit, setErrorEdit] = useState<string | null>(null)
 
-  // --- Modal borrado ---
   const [empresaBorrando, setEmpresaBorrando] = useState<Empresa | null>(null)
   const [borrando, setBorrando] = useState(false)
   const [errorBorrar, setErrorBorrar] = useState<string | null>(null)
@@ -87,7 +278,9 @@ function Empresas() {
     setError(null)
     const { data, error } = await supabase
       .from('empresas')
-      .select('id, nombre, codigo, cuit, es_cliente, es_proveedor, es_transporte')
+      .select(
+        'id, nombre, codigo, cuit, razon_social, condicion_iva, condicion_iibb, numero_iibb, es_cliente, es_proveedor, es_transporte, foto_url',
+      )
       .order('nombre')
     if (error) {
       setError('No se pudieron cargar las empresas.')
@@ -103,34 +296,24 @@ function Empresas() {
   }, [])
 
   function abrirNuevo() {
-    setNombre('')
-    setCodigo('')
-    setCuit('')
-    setEsCliente(false)
-    setEsProveedor(false)
-    setEsTransporte(false)
-    setErrorForm(null)
+    setFormNuevo(FORM_VACIO)
+    setErrorNuevo(null)
     setMostrarNuevo(true)
   }
 
   async function crearEmpresa() {
-    setErrorForm(null)
-    if (nombre.trim() === '') {
-      setErrorForm('El nombre es obligatorio.')
+    setErrorNuevo(null)
+    if (formNuevo.nombre.trim() === '') {
+      setErrorNuevo('El nombre es obligatorio.')
       return
     }
-    setGuardando(true)
-    const { error } = await supabase.from('empresas').insert({
-      nombre: nombre.trim(),
-      codigo: codigo.trim() || null,
-      cuit: cuit.trim() || null,
-      es_cliente: esCliente,
-      es_proveedor: esProveedor,
-      es_transporte: esTransporte,
-    })
-    setGuardando(false)
+    setGuardandoNuevo(true)
+    const { error } = await supabase
+      .from('empresas')
+      .insert(formAGuardar(formNuevo))
+    setGuardandoNuevo(false)
     if (error) {
-      setErrorForm('No se pudo crear la empresa.')
+      setErrorNuevo('No se pudo crear la empresa.')
       return
     }
     setMostrarNuevo(false)
@@ -139,33 +322,21 @@ function Empresas() {
 
   function abrirEdicion(empresa: Empresa) {
     setEmpresaEditando(empresa)
-    setEditNombre(empresa.nombre)
-    setEditCodigo(empresa.codigo ?? '')
-    setEditCuit(empresa.cuit ?? '')
-    setEditEsCliente(empresa.es_cliente)
-    setEditEsProveedor(empresa.es_proveedor)
-    setEditEsTransporte(empresa.es_transporte)
+    setFormEdit(empresaAForm(empresa))
     setErrorEdit(null)
   }
 
   async function guardarEdicion() {
     if (!empresaEditando) return
     setErrorEdit(null)
-    if (editNombre.trim() === '') {
+    if (formEdit.nombre.trim() === '') {
       setErrorEdit('El nombre es obligatorio.')
       return
     }
     setGuardandoEdit(true)
     const { error } = await supabase
       .from('empresas')
-      .update({
-        nombre: editNombre.trim(),
-        codigo: editCodigo.trim() || null,
-        cuit: editCuit.trim() || null,
-        es_cliente: editEsCliente,
-        es_proveedor: editEsProveedor,
-        es_transporte: editEsTransporte,
-      })
+      .update(formAGuardar(formEdit))
       .eq('id', empresaEditando.id)
     setGuardandoEdit(false)
     if (error) {
@@ -196,7 +367,7 @@ function Empresas() {
 
   return (
     <div className="empresas-franjas">
-      {/* ---------- Franja 1: Filtros (por ahora, solo crear) ---------- */}
+      {/* Franja 1: Filtros (por ahora, solo crear) */}
       <div className="franja franja-filtros">
         <div className="franja-filtros-barra">
           <button type="button" className="empresa-boton" onClick={abrirNuevo}>
@@ -205,7 +376,7 @@ function Empresas() {
         </div>
       </div>
 
-      {/* ---------- Franja 2: Lista ---------- */}
+      {/* Franja 2: Lista */}
       <div className="franja franja-lista">
         {cargando ? (
           <div className="empresas-estado">Cargando empresas…</div>
@@ -244,7 +415,7 @@ function Empresas() {
         )}
       </div>
 
-      {/* ---------- Franja 3: Detalle (pestañas, "General" = datos) ---------- */}
+      {/* Franja 3: Detalle */}
       <div className="franja franja-detalle">
         {empresaSeleccionada ? (
           <>
@@ -289,7 +460,13 @@ function Empresas() {
                       </button>
                     </div>
                   </div>
-                  <div className="detalle-campos">
+                  <div className="detalle-cuerpo">
+                    <LogoEmpresa
+                      empresaId={empresaSeleccionada.id}
+                      fotoUrl={empresaSeleccionada.foto_url}
+                      onCambio={cargarEmpresas}
+                    />
+                    <div className="detalle-campos">
                     <div>
                       <span className="detalle-label">Código</span>
                       <span>{empresaSeleccionada.codigo ?? '—'}</span>
@@ -299,9 +476,26 @@ function Empresas() {
                       <span>{empresaSeleccionada.cuit ?? '—'}</span>
                     </div>
                     <div>
+                      <span className="detalle-label">Razón social</span>
+                      <span>{empresaSeleccionada.razon_social ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="detalle-label">Condición IVA</span>
+                      <span>{empresaSeleccionada.condicion_iva ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="detalle-label">Condición IIBB</span>
+                      <span>{empresaSeleccionada.condicion_iibb ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="detalle-label">Número IIBB</span>
+                      <span>{empresaSeleccionada.numero_iibb ?? '—'}</span>
+                    </div>
+                    <div>
                       <span className="detalle-label">Roles</span>
                       <span>{rolesTexto(empresaSeleccionada)}</span>
                     </div>
+                  </div>
                   </div>
                 </div>
               ) : tabDetalle === 'contactos' ? (
@@ -320,7 +514,7 @@ function Empresas() {
         )}
       </div>
 
-      {/* ---------- Franja 4: Enlazados (comerciales) ---------- */}
+      {/* Franja 4: Enlazados */}
       <div className="franja franja-enlazados">
         <div className="enlazados-tabs">
           {TABS_ENLAZADOS.map((tab) => (
@@ -343,61 +537,12 @@ function Empresas() {
         </div>
       </div>
 
-      {/* ---------- Modal: Nueva empresa ---------- */}
+      {/* Modal: Nueva empresa */}
       {mostrarNuevo && (
         <Modal titulo="Nueva empresa" onCerrar={() => setMostrarNuevo(false)}>
           <div className="empresa-form-modal">
-            <label className="empresa-campo">
-              Nombre *
-              <input
-                className="empresa-input"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-              />
-            </label>
-            <label className="empresa-campo">
-              Código
-              <input
-                className="empresa-input"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-              />
-            </label>
-            <label className="empresa-campo">
-              CUIT
-              <input
-                className="empresa-input"
-                value={cuit}
-                onChange={(e) => setCuit(e.target.value)}
-              />
-            </label>
-            <div className="empresa-roles">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={esCliente}
-                  onChange={(e) => setEsCliente(e.target.checked)}
-                />
-                Cliente
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={esProveedor}
-                  onChange={(e) => setEsProveedor(e.target.checked)}
-                />
-                Proveedor
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={esTransporte}
-                  onChange={(e) => setEsTransporte(e.target.checked)}
-                />
-                Transporte
-              </label>
-            </div>
-            {errorForm && <p className="empresa-form-error">{errorForm}</p>}
+            <CamposEmpresa valor={formNuevo} setValor={setFormNuevo} />
+            {errorNuevo && <p className="empresa-form-error">{errorNuevo}</p>}
             <div className="empresa-modal-acciones">
               <button
                 type="button"
@@ -410,72 +555,23 @@ function Empresas() {
                 type="button"
                 className="empresa-boton"
                 onClick={crearEmpresa}
-                disabled={guardando}
+                disabled={guardandoNuevo}
               >
-                {guardando ? 'Guardando…' : 'Crear empresa'}
+                {guardandoNuevo ? 'Guardando…' : 'Crear empresa'}
               </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* ---------- Modal: Editar ---------- */}
+      {/* Modal: Editar empresa */}
       {empresaEditando && (
         <Modal
           titulo={`Editar: ${empresaEditando.nombre}`}
           onCerrar={() => setEmpresaEditando(null)}
         >
           <div className="empresa-form-modal">
-            <label className="empresa-campo">
-              Nombre *
-              <input
-                className="empresa-input"
-                value={editNombre}
-                onChange={(e) => setEditNombre(e.target.value)}
-              />
-            </label>
-            <label className="empresa-campo">
-              Código
-              <input
-                className="empresa-input"
-                value={editCodigo}
-                onChange={(e) => setEditCodigo(e.target.value)}
-              />
-            </label>
-            <label className="empresa-campo">
-              CUIT
-              <input
-                className="empresa-input"
-                value={editCuit}
-                onChange={(e) => setEditCuit(e.target.value)}
-              />
-            </label>
-            <div className="empresa-roles">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editEsCliente}
-                  onChange={(e) => setEditEsCliente(e.target.checked)}
-                />
-                Cliente
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editEsProveedor}
-                  onChange={(e) => setEditEsProveedor(e.target.checked)}
-                />
-                Proveedor
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editEsTransporte}
-                  onChange={(e) => setEditEsTransporte(e.target.checked)}
-                />
-                Transporte
-              </label>
-            </div>
+            <CamposEmpresa valor={formEdit} setValor={setFormEdit} />
             {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
             <div className="empresa-modal-acciones">
               <button
@@ -498,7 +594,7 @@ function Empresas() {
         </Modal>
       )}
 
-      {/* ---------- Modal: Borrar ---------- */}
+      {/* Modal: Borrar empresa */}
       {empresaBorrando && (
         <Modal titulo="Borrar empresa" onCerrar={() => setEmpresaBorrando(null)}>
           <div className="empresa-form-modal">

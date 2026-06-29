@@ -308,7 +308,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .tabla thead th {
@@ -316,7 +316,7 @@
   top: 0;
   background: #f4f4f5;
   text-align: left;
-  padding: 3px 12px;
+  padding: 2px 10px;
   font-size: 12px;
   color: #52525b;
   border-bottom: 1px solid #d4d4d8;
@@ -327,9 +327,10 @@
 }
 
 .tabla-fila td {
-  padding: 3px 12px;
+  padding: 1px 10px;
   border-bottom: 1px solid #eaeaec;
   color: #3f3f46;
+  vertical-align: middle;
 }
 
 /* Zebra: filas pares en gris muy claro. */
@@ -413,7 +414,7 @@
 }
 
 .enlazados-contenido {
-  padding: 12px 16px;
+  padding: 5px 14px;
   font-size: 13px;
   color: #71717a;
 }
@@ -632,16 +633,57 @@
 }
 
 /* ---- Sub-tabla dentro de una pestaña (ej: contactos) ---- */
-.subtabla-barra {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 0 8px;
+.menu-ctx-zona {
+  min-height: 60px;
+}
+
+.menu-ctx {
+  position: fixed;
+  z-index: 100;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.menu-ctx li {
+  margin: 0;
+}
+
+.menu-ctx button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #27272a;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menu-ctx button:hover {
+  background: #f4f4f5;
 }
 
 .tabla-acciones {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: flex-end;
+}
+
+/* Acciones dentro de una fila: mismo recuadro de siempre, pero finitos
+   verticalmente para no estirar la altura de la fila. */
+.tabla-acciones .empresas-editar,
+.tabla-acciones .empresas-borrar {
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* ---- Campos en fila (calle+número, piso+depto+CP) ---- */
@@ -727,4 +769,86 @@
 .cp-hint {
   font-size: 12px;
   color: #a16207;
+}
+
+/* ---- Logo de empresa (pestaña General) ---- */
+.detalle-cuerpo {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.logo-empresa {
+  flex-shrink: 0;
+}
+
+.logo-caja {
+  position: relative;
+  width: 150px;
+  height: 110px;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  background: #eef2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.logo-caja:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.logo-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-insertar {
+  padding: 6px 16px;
+  font-size: 14px;
+  color: #3f3f46;
+  background: #fff;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.logo-insertar:hover {
+  background: #f4f4f5;
+}
+
+.logo-quitar {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-quitar:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.logo-paste-hint {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 11px;
+  color: #6366f1;
+  pointer-events: none;
 }

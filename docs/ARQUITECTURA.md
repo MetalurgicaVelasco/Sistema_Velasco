@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 27/06/2026 (§5: catálogo geográfico normalizado; relación contacto→dirección)
+> Última actualización: 29/06/2026 (§5: Transportes/Logística; convención de alta por click derecho)
 
 ---
 
@@ -141,7 +141,12 @@ OC → (doble click en su pago) → Compras > Pagos filtrado por ese pago. Se "v
 red de conceptos enlazados, siempre con el mismo gesto.
 
 Otras interacciones:
-- **Click derecho**: acciones contextuales.
+- **Click derecho**: acciones contextuales. **Convención del sistema:** las cosas nuevas
+  se crean por **click derecho → "Nueva …"** sobre el área correspondiente, no con botones
+  "+ Nuevo" a la vista. Se prioriza recuperar espacio vertical (que es escaso) y unificar el
+  gesto de alta en todo el sistema. Implementado con el componente reutilizable
+  `MenuContextual` (`shared/components`). (Sin texto de ayuda: el gesto se aprende una vez y
+  vale en todos lados.)
 - **Tooltips** en las franjas de lista y detalle.
 
 ### Lineamientos de modales (aplican a TODOS los modales del sistema)
@@ -224,6 +229,29 @@ por todo el sistema: `paises` → `provincias` (FK país) → `localidades` (FK 
 - **Selector estilo Táctica:** columnas País / Provincia / Localidad, cada una con filtro
   "contiene" insensible a tildes y mayúsculas; se elige de la lista.
 - Hoy solo Argentina; el modelo permite sumar otros países si aparecen.
+
+### Transportes / Logística (visión a futuro, en tres niveles)
+
+Idea planteada por Tomás; **no se construye todavía** (falta definir el modelo). Se registra
+para tenerla de norte. Son tres niveles de ambición muy distintos, a no mezclar:
+
+- **Nivel 1 — Transportes usuales de una empresa (acotado, patrón conocido).** Las empresas
+  que prestan el servicio llevan el rol `es_transporte`. Dentro de cada empresa, la solapa
+  **Transportes** (franja 3) lista sus transportes usuales (que son otras empresas con rol
+  Transporte) con **observaciones**: a cargo de quién va el flete (nuestro / del
+  cliente/proveedor), contactos/teléfonos del transporte, días y horarios que maneja, etc.
+  Es el mismo patrón uno-a-muchos de Contactos/Direcciones. **Candidato a construir primero**
+  cuando se retome.
+- **Nivel 2 — Rutas con días y horarios (sub-sistema, va en el módulo Logística).** Modelar
+  las rutas de cada transporte: retiro del taller, y tramos entre ciudades (ej. el Pamper:
+  Santa Rosa↔General Pico, Santa Rosa↔Buenos Aires, Santa Rosa↔Córdoba), cada uno con sus
+  días y horarios/frecuencias. Es un módulo propio, no un campo más. Encaja en **Logística**
+  (sección Actividades, §6).
+- **Nivel 3 — Optimizador de envíos (proyecto en sí mismo, lejano).** Dada una carga
+  (peso/volumen) y la fecha/hora en que estará lista, que el sistema sugiera el medio/combinación
+  más rápida para llegar a destino, usando las rutas, ventanas horarias, transbordos y
+  capacidad. Es un problema de ruteo/optimización; el más complejo de todo lo planteado.
+  Requiere los niveles 1 y 2 andando primero.
 
 ---
 

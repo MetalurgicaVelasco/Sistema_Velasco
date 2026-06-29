@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
+import MenuContextual from '../../shared/components/MenuContextual'
 import SelectorLocalidad from '../../shared/components/SelectorLocalidad'
 
 type Direccion = {
@@ -144,15 +145,6 @@ function CamposDireccion({
       </div>
 
       <div className="empresa-campo">
-        <span>
-          Localidad
-          {valor.localidadId && (
-            <strong className="localidad-elegida">
-              {' '}
-              · {valor.localidadEtiqueta}
-            </strong>
-          )}
-        </span>
         <SelectorLocalidad
           localidadId={valor.localidadId}
           onCambiar={(id, etiqueta, cp) =>
@@ -165,6 +157,11 @@ function CamposDireccion({
             })
           }
         />
+        {valor.localidadId && (
+          <span className="localidad-elegida">
+            Seleccionada: {valor.localidadEtiqueta}
+          </span>
+        )}
       </div>
 
       {/* Código postal: viene de la localidad. Si falta, se carga una vez. */}
@@ -334,12 +331,9 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
 
   return (
     <div className="subtabla">
-      <div className="subtabla-barra">
-        <button type="button" className="empresa-boton" onClick={abrirNuevo}>
-          + Nueva dirección
-        </button>
-      </div>
-
+      <MenuContextual
+        items={[{ label: 'Nueva dirección', onSelect: abrirNuevo }]}
+      >
       {cargando ? (
         <div className="empresas-estado">Cargando direcciones…</div>
       ) : error ? (
@@ -392,6 +386,7 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
           </tbody>
         </table>
       )}
+      </MenuContextual>
 
       {/* Modal: nueva dirección */}
       {mostrarNuevo && (
