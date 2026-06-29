@@ -965,3 +965,158 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* ====== Vista de formulario de Proyecto (card celeste) ====== */
+.pf-vista {
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+.pf-breadcrumb {
+  max-width: 1100px;
+  margin: 0 auto 12px;
+  font-size: 13px;
+  color: #71717a;
+}
+
+/* Card celeste = color que identifica "proyecto" */
+.pf-card {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: #eef4fb;
+  border: 1px solid #cfe0f1;
+  border-radius: 10px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pf-titulo {
+  margin: 0;
+  font-size: 20px;
+  color: #1e293b;
+}
+
+.pf-subtitulo {
+  margin: -8px 0 4px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pf-fila-top {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.pf-foto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 150px;
+  flex-shrink: 0;
+}
+
+.pf-label {
+  font-size: 13px;
+  color: #52525b;
+}
+
+.pf-cliente-estado {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.pf-col-cliente {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf-col-estado {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Advertencia suave (campos que TacticaSoft pide pero acá no bloquean) */
+.pf-warn {
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fef9e7;
+  border: 1px solid #f5e0a3;
+  border-radius: 4px;
+  color: #8a6d1f;
+  font-size: 12px;
+}
+
+.pf-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ---- Buscador de empresa (combobox) ---- */
+.buscador-empresa {
+  position: relative;
+}
+
+.buscador-empresa .empresa-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.buscador-empresa-limpiar {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #71717a;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.buscador-empresa-lista {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.buscador-empresa-lista li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #27272a;
+}
+
+.buscador-empresa-lista li button:hover {
+  background: #f1f5f9;
+}

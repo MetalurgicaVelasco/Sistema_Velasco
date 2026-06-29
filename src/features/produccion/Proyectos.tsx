@@ -1,39 +1,36 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
+import Modal from '../../shared/components/Modal'
+import MenuContextual from '../../shared/components/MenuContextual'
+import VistaProyectoForm from './VistaProyectoForm'
+import { fechaCorta } from './proyectoTipos'
+import type { Proyecto, Empresa, Alicuota } from './proyectoTipos'
 
-// Tipo de un proyecto en la lista (franja 2). Por ahora solo lectura.
-// `empresa` viene de un join a la tabla empresas (el cliente del proyecto).
-type Proyecto = {
-  id: number
-  pedido_nro: string | null
-  descripcion: string
-  urgencia: string
-  estado: string
-  fecha_entrega: string | null
-  empresa: { nombre: string } | null
-}
-
-// Pasa una fecha ISO ('2026-06-29') a formato corto argentino (29/06/2026).
-function fechaCorta(iso: string | null): string {
-  if (!iso) return '—'
-  const [a, m, d] = iso.split('-')
-  return `${d}/${m}/${a}`
-}
+const SELECT_PROYECTO =
+  'id, empresa_id, contacto_id, pedido_nro, descripcion, urgencia, estado, sub_estado_cerrado, fecha_ingreso, fecha_entrega, fecha_limite_cotizar, paso_por_solicitud, observaciones_mail, observaciones_anulacion, cliente_final_empresa_id, cliente_final_texto, importe, moneda, iva_id, oc_cliente, foto_url, empresa:empresas!empresa_id ( nombre )'
 
 function Proyectos() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [alicuotas, setAlicuotas] = useState<Alicuota[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seleccionadoId, setSeleccionadoId] = useState<number | null>(null)
+
+  // null = lista; 'nuevo' = formulario nuevo; Proyecto = formulario editar
+  const [formActivo, setFormActivo] = useState<'nuevo' | Proyecto | null>(null)
+
+  // Borrar
+  const [proyectoBorrando, setProyectoBorrando] = useState<Proyecto | null>(null)
+  const [borrando, setBorrando] = useState(false)
+  const [errorBorrar, setErrorBorrar] = useState<string | null>(null)
 
   async function cargarProyectos() {
     setCargando(true)
     setError(null)
     const { data, error } = await supabase
       .from('proyectos')
-      .select(
-        'id, pedido_nro, descripcion, urgencia, estado, fecha_entrega, empresa:empresas ( nombre )',
-      )
+      .select(SELECT_PROYECTO)
       .order('id', { ascending: false })
     if (error) {
       setError('No se pudieron cargar los proyectos.')
@@ -44,70 +41,156 @@ function Proyectos() {
     setCargando(false)
   }
 
+  async function cargarEmpresas() {
+    const { data } = await supabase
+      .from('empresas')
+      .select('id, nombre')
+      .order('nombre')
+    setEmpresas(data ?? [])
+  }
+
+  async function cargarAlicuotas() {
+    const { data } = await supabase
+      .from('alicuotas_iva')
+      .select('id, porcentaje')
+      .order('porcentaje')
+    setAlicuotas(data ?? [])
+  }
+
   useEffect(() => {
     cargarProyectos()
+    cargarEmpresas()
+    cargarAlicuotas()
   }, [])
 
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
 
+  function volverALista() {
+    setFormActivo(null)
+    cargarProyectos()
+  }
+
+  async function confirmarBorrado() {
+    if (!proyectoBorrando) return
+    setErrorBorrar(null)
+    setBorrando(true)
+    const { error } = await supabase
+      .from('proyectos')
+      .delete()
+      .eq('id', proyectoBorrando.id)
+    setBorrando(false)
+    if (error) {
+      setErrorBorrar('No se pudo borrar el proyecto.')
+      return
+    }
+    if (seleccionadoId === proyectoBorrando.id) setSeleccionadoId(null)
+    setProyectoBorrando(null)
+    cargarProyectos()
+  }
+
+  // Vista de formulario (alta o edición): ocupa todo el módulo.
+  if (formActivo !== null) {
+    return (
+      <VistaProyectoForm
+        proyecto={formActivo === 'nuevo' ? null : formActivo}
+        empresas={empresas}
+        alicuotas={alicuotas}
+        onCerrar={volverALista}
+      />
+    )
+  }
+
+  // Vista de lista (4 franjas).
   return (
     <div className="vista-franjas">
-      {/* Franja 1 — Filtros (placeholder, se desarrolla más adelante) */}
+      {/* Franja 1 — Filtros (placeholder) */}
       <div className="franja franja-filtros">
         <span className="franja-placeholder">Filtros (próximamente)</span>
       </div>
 
       {/* Franja 2 — Lista de proyectos */}
       <div className="franja franja-lista">
-        {cargando ? (
-          <div className="empresas-estado">Cargando proyectos…</div>
-        ) : error ? (
-          <div className="empresas-estado">{error}</div>
-        ) : proyectos.length === 0 ? (
-          <p className="empresas-vacio">No hay proyectos cargados todavía.</p>
-        ) : (
-          <table className="tabla">
-            <thead>
-              <tr>
-                <th>Nº</th>
-                <th>Cliente</th>
-                <th>Descripción</th>
-                <th>Estado</th>
-                <th>Urgencia</th>
-                <th>Pedido</th>
-                <th>Plazo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {proyectos.map((p) => (
-                <tr
-                  key={p.id}
-                  className={
-                    'tabla-fila' +
-                    (p.id === seleccionadoId ? ' seleccionada' : '')
-                  }
-                  onClick={() => setSeleccionadoId(p.id)}
-                >
-                  <td>{p.id}</td>
-                  <td>{p.empresa?.nombre ?? '—'}</td>
-                  <td>{p.descripcion}</td>
-                  <td>{p.estado}</td>
-                  <td>{p.urgencia}</td>
-                  <td>{p.pedido_nro ?? '—'}</td>
-                  <td>{fechaCorta(p.fecha_entrega)}</td>
+        <MenuContextual
+          items={[
+            { label: 'Nuevo proyecto', onSelect: () => setFormActivo('nuevo') },
+          ]}
+        >
+          {cargando ? (
+            <div className="empresas-estado">Cargando proyectos…</div>
+          ) : error ? (
+            <div className="empresas-estado">{error}</div>
+          ) : proyectos.length === 0 ? (
+            <p className="empresas-vacio">No hay proyectos cargados todavía.</p>
+          ) : (
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Nº</th>
+                  <th>Cliente</th>
+                  <th>Descripción</th>
+                  <th>Estado</th>
+                  <th>Urgencia</th>
+                  <th>Pedido</th>
+                  <th>Plazo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {proyectos.map((p) => (
+                  <tr
+                    key={p.id}
+                    className={
+                      'tabla-fila' +
+                      (p.id === seleccionadoId ? ' seleccionada' : '')
+                    }
+                    onClick={() => setSeleccionadoId(p.id)}
+                  >
+                    <td>{p.id}</td>
+                    <td>{p.empresa?.nombre ?? '—'}</td>
+                    <td>{p.descripcion}</td>
+                    <td>{p.estado}</td>
+                    <td>{p.urgencia}</td>
+                    <td>{p.pedido_nro ?? '—'}</td>
+                    <td>{fechaCorta(p.fecha_entrega)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </MenuContextual>
       </div>
 
-      {/* Franja 3 — Detalle: items del proyecto (placeholder por ahora) */}
+      {/* Franja 3 — Detalle del proyecto seleccionado */}
       <div className="franja franja-detalle">
         {seleccionado ? (
-          <span className="franja-placeholder">
-            Items de «{seleccionado.descripcion}» (próximamente)
-          </span>
+          <div className="detalle">
+            <div className="detalle-header">
+              <h3 className="detalle-titulo">
+                #{seleccionado.id} — {seleccionado.descripcion}
+              </h3>
+              <div className="detalle-acciones">
+                <button
+                  type="button"
+                  className="empresas-editar"
+                  onClick={() => setFormActivo(seleccionado)}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="empresas-borrar"
+                  onClick={() => {
+                    setProyectoBorrando(seleccionado)
+                    setErrorBorrar(null)
+                  }}
+                >
+                  Borrar
+                </button>
+              </div>
+            </div>
+            <span className="franja-placeholder">
+              Items del proyecto (próximamente)
+            </span>
+          </div>
         ) : (
           <span className="franja-placeholder">
             Seleccioná un proyecto para ver sus items.
@@ -119,6 +202,38 @@ function Proyectos() {
       <div className="franja franja-enlazados">
         <span className="franja-placeholder">Enlazados (próximamente)</span>
       </div>
+
+      {/* Modal: borrar proyecto */}
+      {proyectoBorrando && (
+        <Modal titulo="Borrar proyecto" onCerrar={() => setProyectoBorrando(null)}>
+          <div className="empresa-form-modal">
+            <p>
+              ¿Seguro que querés borrar el proyecto{' '}
+              <strong>#{proyectoBorrando.id}</strong> (
+              {proyectoBorrando.descripcion})? Se borran también sus items. Esta
+              acción no se puede deshacer.
+            </p>
+            {errorBorrar && <p className="empresa-form-error">{errorBorrar}</p>}
+            <div className="empresa-modal-acciones">
+              <button
+                type="button"
+                className="empresa-boton-secundario"
+                onClick={() => setProyectoBorrando(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="empresa-boton-peligro"
+                onClick={confirmarBorrado}
+                disabled={borrando}
+              >
+                {borrando ? 'Borrando…' : 'Borrar'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
