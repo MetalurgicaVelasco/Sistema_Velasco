@@ -503,33 +503,30 @@ function Empresas() {
             />
           </div>
           <div className="filtro-roles">
-            <button
-              type="button"
-              className={
-                'filtro-chip' + (filtroRoles.cliente ? ' activo' : '')
-              }
-              onClick={() => toggleRol('cliente')}
-            >
+            <label className="filtro-check">
+              <input
+                type="checkbox"
+                checked={filtroRoles.cliente}
+                onChange={() => toggleRol('cliente')}
+              />
               Cliente
-            </button>
-            <button
-              type="button"
-              className={
-                'filtro-chip' + (filtroRoles.proveedor ? ' activo' : '')
-              }
-              onClick={() => toggleRol('proveedor')}
-            >
+            </label>
+            <label className="filtro-check">
+              <input
+                type="checkbox"
+                checked={filtroRoles.proveedor}
+                onChange={() => toggleRol('proveedor')}
+              />
               Proveedor
-            </button>
-            <button
-              type="button"
-              className={
-                'filtro-chip' + (filtroRoles.transporte ? ' activo' : '')
-              }
-              onClick={() => toggleRol('transporte')}
-            >
+            </label>
+            <label className="filtro-check">
+              <input
+                type="checkbox"
+                checked={filtroRoles.transporte}
+                onChange={() => toggleRol('transporte')}
+              />
               Transporte
-            </button>
+            </label>
           </div>
           {hayFiltros && (
             <button

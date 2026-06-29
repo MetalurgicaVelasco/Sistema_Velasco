@@ -915,28 +915,20 @@
 
 .filtro-roles {
   display: flex;
-  gap: 6px;
+  gap: 10px;
 }
 
-.filtro-chip {
-  padding: 3px 12px;
+.filtro-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   color: #52525b;
-  background: #fff;
-  border: 1px solid #d4d4d8;
-  border-radius: 999px;
   cursor: pointer;
 }
 
-.filtro-chip:hover {
-  background: #f4f4f5;
-}
-
-.filtro-chip.activo {
-  color: #4f46e5;
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  font-weight: 500;
+.filtro-check input {
+  cursor: pointer;
 }
 
 .filtro-limpiar {

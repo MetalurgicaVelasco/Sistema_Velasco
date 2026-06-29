@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 29/06/2026 (§5: Transportes/Logística; alta por click derecho; vínculo contacto→dirección implementado)
+> Última actualización: 29/06/2026 (§5: contacto nombre/apellido, catálogos Área/Sector, filtros franja 1)
 
 ---
 
@@ -235,6 +235,32 @@ por todo el sistema: `paises` → `provincias` (FK país) → `localidades` (FK 
 - **Selector estilo Táctica:** columnas País / Provincia / Localidad, cada una con filtro
   "contiene" insensible a tildes y mayúsculas; se elige de la lista.
 - Hoy solo Argentina; el modelo permite sumar otros países si aparecen.
+
+**Contactos — nombre/apellido y catálogos de Área/Sector (implementado):**
+- El contacto se guarda con **Nombre + Apellido separados** (dos campos), no un solo nombre.
+  Permite filtrar empresas por apellido de contacto de forma precisa.
+- **Área (catálogo global):** tabla `contacto_areas`, las **mismas áreas para todas las
+  empresas** (Mantenimiento, Compras, Ventas, Gerencia, Postventa, General, …). El contacto
+  referencia `area_id` (FK, `SET NULL`).
+- **Sector (catálogo por empresa):** tabla `empresa_sectores` (FK `empresa_id`), cada empresa
+  tiene **sus propios** sectores (Rendering, Soja, Girasol, Faena, …). El contacto referencia
+  `sector_id` (FK, `SET NULL`). A futuro probablemente se conecte con el "Sector" de la Matriz
+  de Productos (Cliente → Sector → Equipo, §8.1).
+- **Sin texto libre:** ambos se eligen de un desplegable. El alta de valores nuevos se hace
+  **al vuelo** desde el mismo selector (componente reutilizable `SelectorConAlta`: desplegable
+  + "+ Nuevo" que inserta en el catálogo y deja el valor seleccionado), coherente con el
+  criterio de catálogos normalizados de la geografía.
+
+**Filtros de la franja 1 (Empresas, implementado):**
+- **Buscador general** (un campo que matchea nombre, código o CUIT a la vez) **+ campos por
+  columna** separados: Código, Nombre, Razón social, Apellido de contacto.
+- Todos los filtros se **combinan con Y**; el buscador general es "O" entre sus campos.
+- **Filtro por rol** (Cliente / Proveedor / Transporte) con checkboxes, lógica "O" entre los
+  tildados (ninguno tildado = todas).
+- El filtro por apellido de contacto cruza a `empresa_contactos` (snapshot en memoria).
+- Todo el filtrado es **del lado del cliente** (la lista de empresas está cargada entera);
+  para el volumen del taller es instantáneo. Si el volumen creciera mucho, se pasaría a
+  filtrar en la base. Las comparaciones de texto usan el helper `texto.ts` (sin tildes).
 
 ### Transportes / Logística (visión a futuro, en tres niveles)
 
