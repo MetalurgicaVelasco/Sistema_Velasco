@@ -260,11 +260,18 @@
   background: #334155;
 }
 
-/* ---- Empresas: vista de 4 franjas ---- */
-.empresas-franjas {
+/* ---- Vista de 4 franjas (compartida: Empresas, Producción, …) ---- */
+.vista-franjas {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* Texto tenue para franjas todavía no desarrolladas */
+.franja-placeholder {
+  padding: 16px;
+  color: #a1a1aa;
+  font-size: 14px;
 }
 
 .franja {

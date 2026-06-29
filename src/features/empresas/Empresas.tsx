@@ -466,7 +466,7 @@ function Empresas() {
   }
 
   return (
-    <div className="empresas-franjas">
+    <div className="vista-franjas">
       {/* Franja 1: Filtros */}
       <div className="franja franja-filtros">
         <div className="filtros-barra">
