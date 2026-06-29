@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 29/06/2026 (§5: Transportes/Logística; convención de alta por click derecho)
+> Última actualización: 29/06/2026 (§5: Transportes/Logística; alta por click derecho; vínculo contacto→dirección implementado)
 
 ---
 
@@ -208,13 +208,19 @@ mucho espacio vertical. Estándar para todas las tablas del sistema:
   Pedidos, Facturas, Remitos, Órdenes de Compra, Recibos, Pagos, etc. (se llenan a medida
   que existan esos módulos).
 
-**Relación contacto → dirección (pendiente, requiere Direcciones primero):** un contacto
-puede referenciar **una dirección de su propia empresa** (campo `direccion_id`, FK a
-`empresa_direcciones`; no texto libre). En el modal del contacto, un selector lista las
-direcciones de la empresa, más un botón "+ Nueva dirección" que permite cargar una dirección
-nueva (que se guarda en la empresa) sin salir del modal del contacto, y volver con esa
-dirección ya seleccionable. El borrado de una dirección referenciada por un contacto sigue el
-ciclo de vida de §7 (no se borra si está enlazada; se bloquea).
+**Relación contacto → dirección (implementado):** un contacto puede referenciar **una
+dirección de su propia empresa** (campo `direccion_id`, FK a `empresa_direcciones`; no texto
+libre), de forma **opcional**. En el modal del contacto, un selector lista las direcciones de
+la empresa, más un botón "+ Nueva" que abre el modal de alta de dirección **encima** del de
+contacto (modal sobre modal); al crearla, queda **seleccionada automáticamente** en el
+contacto sin perder lo cargado. El alta de dirección se factorizó en un componente
+reutilizable (`ModalNuevaDireccion` + el módulo `direccionForm`) que usan tanto Direcciones
+como Contactos, para no duplicar el formulario.
+- **Borrado:** la FK es `ON DELETE SET NULL`: si se borra una dirección referenciada por un
+  contacto, el contacto **no se rompe** ni se borra; queda sin dirección. (Esto convive con el
+  ciclo de vida de §7 cuando se implemente el bloqueo de borrado por enlaces.)
+- En la tabla de contactos hay una columna **Dirección** con la etiqueta legible de la
+  dirección vinculada.
 
 **Catálogo geográfico (normalizado, sin texto libre):** las direcciones no guardan país /
 provincia / localidad como texto, sino que **referencian** un catálogo jerárquico compartido

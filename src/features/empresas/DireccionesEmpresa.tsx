@@ -2,205 +2,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
-import SelectorLocalidad from '../../shared/components/SelectorLocalidad'
-
-type Direccion = {
-  id: number
-  tipo: string | null
-  calle: string | null
-  numero: string | null
-  piso: string | null
-  depto: string | null
-  observaciones: string | null
-  localidad_id: string | null
-  localidades: {
-    nombre: string
-    codigo_postal: string | null
-    provincias: { nombre: string } | null
-  } | null
-}
-
-type DireccionForm = {
-  tipo: string
-  calle: string
-  numero: string
-  piso: string
-  depto: string
-  observaciones: string
-  localidadId: string | null
-  localidadEtiqueta: string
-  cp: string // CP de la localidad
-  cpFaltante: boolean // true si la localidad no tenía CP cargado
-}
-
-const FORM_VACIO: DireccionForm = {
-  tipo: '',
-  calle: '',
-  numero: '',
-  piso: '',
-  depto: '',
-  observaciones: '',
-  localidadId: null,
-  localidadEtiqueta: '',
-  cp: '',
-  cpFaltante: false,
-}
-
-function direccionAForm(d: Direccion): DireccionForm {
-  const cp = d.localidades?.codigo_postal ?? ''
-  const etiqueta = d.localidades
-    ? `${d.localidades.nombre}, ${d.localidades.provincias?.nombre ?? ''}`
-    : ''
-  return {
-    tipo: d.tipo ?? '',
-    calle: d.calle ?? '',
-    numero: d.numero ?? '',
-    piso: d.piso ?? '',
-    depto: d.depto ?? '',
-    observaciones: d.observaciones ?? '',
-    localidadId: d.localidad_id,
-    localidadEtiqueta: etiqueta,
-    cp,
-    cpFaltante: !!d.localidad_id && cp === '',
-  }
-}
-
-// Lo que se guarda en la dirección (el CP NO va acá: vive en la localidad).
-function formAGuardar(f: DireccionForm) {
-  return {
-    tipo: f.tipo || null,
-    calle: f.calle.trim() || null,
-    numero: f.numero.trim() || null,
-    piso: f.piso.trim() || null,
-    depto: f.depto.trim() || null,
-    observaciones: f.observaciones.trim() || null,
-    localidad_id: f.localidadId,
-  }
-}
-
-function ubicacionTexto(d: Direccion): string {
-  if (!d.localidades) return '—'
-  const prov = d.localidades.provincias?.nombre ?? ''
-  return `${d.localidades.nombre}${prov ? ', ' + prov : ''}`
-}
-
-function CamposDireccion({
-  valor,
-  setValor,
-}: {
-  valor: DireccionForm
-  setValor: (v: DireccionForm) => void
-}) {
-  return (
-    <>
-      <label className="empresa-campo">
-        Tipo
-        <select
-          className="empresa-input"
-          value={valor.tipo}
-          onChange={(e) => setValor({ ...valor, tipo: e.target.value })}
-        >
-          <option value="">—</option>
-          <option value="Fiscal">Fiscal</option>
-          <option value="Laboral">Laboral</option>
-        </select>
-      </label>
-
-      <div className="empresa-campo-fila">
-        <label className="empresa-campo">
-          Calle
-          <input
-            className="empresa-input"
-            value={valor.calle}
-            onChange={(e) => setValor({ ...valor, calle: e.target.value })}
-          />
-        </label>
-        <label className="empresa-campo empresa-campo-chico">
-          Número
-          <input
-            className="empresa-input"
-            value={valor.numero}
-            onChange={(e) => setValor({ ...valor, numero: e.target.value })}
-          />
-        </label>
-      </div>
-
-      <div className="empresa-campo-fila">
-        <label className="empresa-campo empresa-campo-chico">
-          Piso
-          <input
-            className="empresa-input"
-            value={valor.piso}
-            onChange={(e) => setValor({ ...valor, piso: e.target.value })}
-          />
-        </label>
-        <label className="empresa-campo empresa-campo-chico">
-          Depto
-          <input
-            className="empresa-input"
-            value={valor.depto}
-            onChange={(e) => setValor({ ...valor, depto: e.target.value })}
-          />
-        </label>
-      </div>
-
-      <div className="empresa-campo">
-        <SelectorLocalidad
-          localidadId={valor.localidadId}
-          onCambiar={(id, etiqueta, cp) =>
-            setValor({
-              ...valor,
-              localidadId: id,
-              localidadEtiqueta: etiqueta,
-              cp: cp ?? '',
-              cpFaltante: !cp,
-            })
-          }
-        />
-        {valor.localidadId && (
-          <span className="localidad-elegida">
-            Seleccionada: {valor.localidadEtiqueta}
-          </span>
-        )}
-      </div>
-
-      {/* Código postal: viene de la localidad. Si falta, se carga una vez. */}
-      {valor.localidadId && (
-        <label className="empresa-campo">
-          Código postal
-          {valor.cpFaltante ? (
-            <>
-              <input
-                className="empresa-input"
-                value={valor.cp}
-                placeholder="Cargá el CP de esta localidad"
-                onChange={(e) => setValor({ ...valor, cp: e.target.value })}
-              />
-              <span className="cp-hint">
-                Esta localidad no tiene CP cargado. Lo que pongas queda guardado
-                en la localidad para siempre.
-              </span>
-            </>
-          ) : (
-            <input className="empresa-input cp-auto" value={valor.cp} readOnly />
-          )}
-        </label>
-      )}
-
-      <label className="empresa-campo">
-        Observaciones
-        <textarea
-          className="empresa-input"
-          rows={2}
-          value={valor.observaciones}
-          onChange={(e) =>
-            setValor({ ...valor, observaciones: e.target.value })
-          }
-        />
-      </label>
-    </>
-  )
-}
+import ModalNuevaDireccion from './ModalNuevaDireccion'
+import {
+  CamposDireccion,
+  direccionAForm,
+  formAGuardarDireccion,
+  guardarCpLocalidadSiHace,
+  ubicacionTexto,
+  FORM_VACIO_DIRECCION,
+} from './direccionForm'
+import type { Direccion, DireccionForm } from './direccionForm'
 
 function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
   const [direcciones, setDirecciones] = useState<Direccion[]>([])
@@ -208,14 +19,11 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
   const [error, setError] = useState<string | null>(null)
 
   const [mostrarNuevo, setMostrarNuevo] = useState(false)
-  const [formNuevo, setFormNuevo] = useState<DireccionForm>(FORM_VACIO)
-  const [guardandoNuevo, setGuardandoNuevo] = useState(false)
-  const [errorNuevo, setErrorNuevo] = useState<string | null>(null)
 
   const [direccionEditando, setDireccionEditando] = useState<Direccion | null>(
     null,
   )
-  const [formEdit, setFormEdit] = useState<DireccionForm>(FORM_VACIO)
+  const [formEdit, setFormEdit] = useState<DireccionForm>(FORM_VACIO_DIRECCION)
   const [guardandoEdit, setGuardandoEdit] = useState(false)
   const [errorEdit, setErrorEdit] = useState<string | null>(null)
 
@@ -248,42 +56,6 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
     cargarDirecciones()
   }, [empresaId])
 
-  // Si la localidad no tenía CP y se cargó uno, lo guardamos EN la localidad.
-  async function guardarCpLocalidadSiHace(f: DireccionForm) {
-    if (f.cpFaltante && f.localidadId && f.cp.trim() !== '') {
-      await supabase
-        .from('localidades')
-        .update({ codigo_postal: f.cp.trim() })
-        .eq('id', f.localidadId)
-    }
-  }
-
-  function abrirNuevo() {
-    setFormNuevo(FORM_VACIO)
-    setErrorNuevo(null)
-    setMostrarNuevo(true)
-  }
-
-  async function crearDireccion() {
-    setErrorNuevo(null)
-    if (!formNuevo.localidadId) {
-      setErrorNuevo('Elegí una localidad.')
-      return
-    }
-    setGuardandoNuevo(true)
-    await guardarCpLocalidadSiHace(formNuevo)
-    const { error } = await supabase
-      .from('empresa_direcciones')
-      .insert({ empresa_id: empresaId, ...formAGuardar(formNuevo) })
-    setGuardandoNuevo(false)
-    if (error) {
-      setErrorNuevo('No se pudo crear la dirección.')
-      return
-    }
-    setMostrarNuevo(false)
-    cargarDirecciones()
-  }
-
   function abrirEdicion(d: Direccion) {
     setDireccionEditando(d)
     setFormEdit(direccionAForm(d))
@@ -301,7 +73,7 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
     await guardarCpLocalidadSiHace(formEdit)
     const { error } = await supabase
       .from('empresa_direcciones')
-      .update(formAGuardar(formEdit))
+      .update(formAGuardarDireccion(formEdit))
       .eq('id', direccionEditando.id)
     setGuardandoEdit(false)
     if (error) {
@@ -332,7 +104,7 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
   return (
     <div className="subtabla">
       <MenuContextual
-        items={[{ label: 'Nueva dirección', onSelect: abrirNuevo }]}
+        items={[{ label: 'Nueva dirección', onSelect: () => setMostrarNuevo(true) }]}
       >
       {cargando ? (
         <div className="empresas-estado">Cargando direcciones…</div>
@@ -388,31 +160,16 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
       )}
       </MenuContextual>
 
-      {/* Modal: nueva dirección */}
+      {/* Modal: nueva dirección (componente reutilizable) */}
       {mostrarNuevo && (
-        <Modal titulo="Nueva dirección" onCerrar={() => setMostrarNuevo(false)}>
-          <div className="empresa-form-modal">
-            <CamposDireccion valor={formNuevo} setValor={setFormNuevo} />
-            {errorNuevo && <p className="empresa-form-error">{errorNuevo}</p>}
-            <div className="empresa-modal-acciones">
-              <button
-                type="button"
-                className="empresa-boton-secundario"
-                onClick={() => setMostrarNuevo(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="empresa-boton"
-                onClick={crearDireccion}
-                disabled={guardandoNuevo}
-              >
-                {guardandoNuevo ? 'Guardando…' : 'Crear dirección'}
-              </button>
-            </div>
-          </div>
-        </Modal>
+        <ModalNuevaDireccion
+          empresaId={empresaId}
+          onCerrar={() => setMostrarNuevo(false)}
+          onCreada={() => {
+            setMostrarNuevo(false)
+            cargarDirecciones()
+          }}
+        />
       )}
 
       {/* Modal: editar dirección */}

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
+import ModalNuevaDireccion from './ModalNuevaDireccion'
+import { etiquetaDireccion } from './direccionForm'
+import type { Direccion } from './direccionForm'
 
 type Contacto = {
   id: number
@@ -12,9 +15,10 @@ type Contacto = {
   telefono: string | null
   celular: string | null
   observaciones: string | null
+  direccion_id: number | null
 }
 
-// Forma del formulario (todos los campos como texto).
+// Forma del formulario.
 type ContactoForm = {
   nombre: string
   puesto: string
@@ -23,6 +27,7 @@ type ContactoForm = {
   telefono: string
   celular: string
   observaciones: string
+  direccionId: number | null
 }
 
 const FORM_VACIO: ContactoForm = {
@@ -33,9 +38,9 @@ const FORM_VACIO: ContactoForm = {
   telefono: '',
   celular: '',
   observaciones: '',
+  direccionId: null,
 }
 
-// Convierte un Contacto (de la base) al formato del formulario.
 function contactoAForm(c: Contacto): ContactoForm {
   return {
     nombre: c.nombre,
@@ -45,10 +50,10 @@ function contactoAForm(c: Contacto): ContactoForm {
     telefono: c.telefono ?? '',
     celular: c.celular ?? '',
     observaciones: c.observaciones ?? '',
+    direccionId: c.direccion_id,
   }
 }
 
-// Convierte el formulario al objeto que guardamos (vacíos -> null).
 function formAGuardar(f: ContactoForm) {
   return {
     nombre: f.nombre.trim(),
@@ -58,16 +63,21 @@ function formAGuardar(f: ContactoForm) {
     telefono: f.telefono.trim() || null,
     celular: f.celular.trim() || null,
     observaciones: f.observaciones.trim() || null,
+    direccion_id: f.direccionId,
   }
 }
 
-// Componente chico para los campos del formulario (se usa en crear y editar).
+// Campos del formulario (se usan en crear y editar).
 function CamposContacto({
   valor,
   setValor,
+  direcciones,
+  onNuevaDireccion,
 }: {
   valor: ContactoForm
   setValor: (v: ContactoForm) => void
+  direcciones: Direccion[]
+  onNuevaDireccion: () => void
 }) {
   return (
     <>
@@ -95,6 +105,37 @@ function CamposContacto({
           onChange={(e) => setValor({ ...valor, area: e.target.value })}
         />
       </label>
+
+      <label className="empresa-campo">
+        Dirección
+        <div className="contacto-direccion-fila">
+          <select
+            className="empresa-input"
+            value={valor.direccionId ?? ''}
+            onChange={(e) =>
+              setValor({
+                ...valor,
+                direccionId: e.target.value ? Number(e.target.value) : null,
+              })
+            }
+          >
+            <option value="">— Sin dirección —</option>
+            {direcciones.map((d) => (
+              <option key={d.id} value={d.id}>
+                {etiquetaDireccion(d)}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="empresa-boton-secundario"
+            onClick={onNuevaDireccion}
+          >
+            + Nueva
+          </button>
+        </div>
+      </label>
+
       <label className="empresa-campo">
         Email
         <input
@@ -136,6 +177,7 @@ function CamposContacto({
 
 function ContactosEmpresa({ empresaId }: { empresaId: number }) {
   const [contactos, setContactos] = useState<Contacto[]>([])
+  const [direcciones, setDirecciones] = useState<Direccion[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -156,12 +198,17 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
   const [borrando, setBorrando] = useState(false)
   const [errorBorrar, setErrorBorrar] = useState<string | null>(null)
 
+  // Nueva dirección desde el modal de contacto (modal sobre modal)
+  const [mostrarNuevaDireccion, setMostrarNuevaDireccion] = useState(false)
+
   async function cargarContactos() {
     setCargando(true)
     setError(null)
     const { data, error } = await supabase
       .from('empresa_contactos')
-      .select('id, nombre, puesto, area, email, telefono, celular, observaciones')
+      .select(
+        'id, nombre, puesto, area, email, telefono, celular, observaciones, direccion_id',
+      )
       .eq('empresa_id', empresaId)
       .order('nombre')
     if (error) {
@@ -173,9 +220,22 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
     setCargando(false)
   }
 
+  // Direcciones de la empresa (para el selector y para etiquetar la columna).
+  async function cargarDirecciones() {
+    const { data } = await supabase
+      .from('empresa_direcciones')
+      .select(
+        'id, tipo, calle, numero, piso, depto, observaciones, localidad_id, localidades ( nombre, codigo_postal, provincias ( nombre ) )',
+      )
+      .eq('empresa_id', empresaId)
+      .order('id')
+    setDirecciones((data as unknown as Direccion[]) ?? [])
+  }
+
   // Se recarga cada vez que cambia la empresa seleccionada.
   useEffect(() => {
     cargarContactos()
+    cargarDirecciones()
   }, [empresaId])
 
   function abrirNuevo() {
@@ -247,6 +307,18 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
     cargarContactos()
   }
 
+  // Cuando se crea una dirección desde el modal de contacto: la sumamos a la
+  // lista y la dejamos seleccionada en el formulario que esté abierto.
+  function onDireccionCreada(nueva: Direccion) {
+    setDirecciones((prev) => [...prev, nueva])
+    if (mostrarNuevo) {
+      setFormNuevo((f) => ({ ...f, direccionId: nueva.id }))
+    } else if (contactoEditando) {
+      setFormEdit((f) => ({ ...f, direccionId: nueva.id }))
+    }
+    setMostrarNuevaDireccion(false)
+  }
+
   return (
     <div className="subtabla">
       <MenuContextual
@@ -265,6 +337,7 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
               <th>Nombre</th>
               <th>Puesto</th>
               <th>Área</th>
+              <th>Dirección</th>
               <th>Email</th>
               <th>Teléfono</th>
               <th>Celular</th>
@@ -272,35 +345,39 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
             </tr>
           </thead>
           <tbody>
-            {contactos.map((c) => (
-              <tr key={c.id} className="tabla-fila">
-                <td>{c.nombre}</td>
-                <td>{c.puesto ?? '—'}</td>
-                <td>{c.area ?? '—'}</td>
-                <td>{c.email ?? '—'}</td>
-                <td>{c.telefono ?? '—'}</td>
-                <td>{c.celular ?? '—'}</td>
-                <td className="tabla-acciones">
-                  <button
-                    type="button"
-                    className="empresas-editar"
-                    onClick={() => abrirEdicion(c)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="empresas-borrar"
-                    onClick={() => {
-                      setContactoBorrando(c)
-                      setErrorBorrar(null)
-                    }}
-                  >
-                    Borrar
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {contactos.map((c) => {
+              const dir = direcciones.find((d) => d.id === c.direccion_id)
+              return (
+                <tr key={c.id} className="tabla-fila">
+                  <td>{c.nombre}</td>
+                  <td>{c.puesto ?? '—'}</td>
+                  <td>{c.area ?? '—'}</td>
+                  <td>{dir ? etiquetaDireccion(dir) : '—'}</td>
+                  <td>{c.email ?? '—'}</td>
+                  <td>{c.telefono ?? '—'}</td>
+                  <td>{c.celular ?? '—'}</td>
+                  <td className="tabla-acciones">
+                    <button
+                      type="button"
+                      className="empresas-editar"
+                      onClick={() => abrirEdicion(c)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="empresas-borrar"
+                      onClick={() => {
+                        setContactoBorrando(c)
+                        setErrorBorrar(null)
+                      }}
+                    >
+                      Borrar
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}
@@ -310,7 +387,12 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
       {mostrarNuevo && (
         <Modal titulo="Nuevo contacto" onCerrar={() => setMostrarNuevo(false)}>
           <div className="empresa-form-modal">
-            <CamposContacto valor={formNuevo} setValor={setFormNuevo} />
+            <CamposContacto
+              valor={formNuevo}
+              setValor={setFormNuevo}
+              direcciones={direcciones}
+              onNuevaDireccion={() => setMostrarNuevaDireccion(true)}
+            />
             {errorNuevo && <p className="empresa-form-error">{errorNuevo}</p>}
             <div className="empresa-modal-acciones">
               <button
@@ -340,7 +422,12 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
           onCerrar={() => setContactoEditando(null)}
         >
           <div className="empresa-form-modal">
-            <CamposContacto valor={formEdit} setValor={setFormEdit} />
+            <CamposContacto
+              valor={formEdit}
+              setValor={setFormEdit}
+              direcciones={direcciones}
+              onNuevaDireccion={() => setMostrarNuevaDireccion(true)}
+            />
             {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
             <div className="empresa-modal-acciones">
               <button
@@ -391,6 +478,15 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Modal sobre modal: crear dirección desde el contacto */}
+      {mostrarNuevaDireccion && (
+        <ModalNuevaDireccion
+          empresaId={empresaId}
+          onCerrar={() => setMostrarNuevaDireccion(false)}
+          onCreada={onDireccionCreada}
+        />
       )}
     </div>
   )

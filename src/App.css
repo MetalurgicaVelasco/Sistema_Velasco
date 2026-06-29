@@ -852,3 +852,20 @@
   color: #6366f1;
   pointer-events: none;
 }
+
+/* ---- Selector de dirección + botón "Nueva" en el modal de contacto ---- */
+.contacto-direccion-fila {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.contacto-direccion-fila select {
+  flex: 1;
+  min-width: 0;
+}
+
+.contacto-direccion-fila .empresa-boton-secundario {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
