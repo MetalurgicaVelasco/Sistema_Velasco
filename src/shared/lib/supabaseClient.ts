@@ -1,19 +1,23 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Conexión al proyecto Supabase "Sistema Velasco".
+// La URL y la clave anon ya NO viven en el código: se leen de variables de
+// entorno. Vite expone al navegador solo las variables que empiezan con VITE_.
 //
-// La "publishable key" (también llamada "anon key") es PÚBLICA: está pensada
-// para usarse en el navegador. Los datos quedan protegidos por las reglas de
-// seguridad de la base (RLS) de Supabase, no por ocultar esta clave.
+// Los valores reales van en un archivo ".env.local" (en la raíz del proyecto),
+// que NO se sube al repo. Hay un ".env.example" como plantilla.
 //
-// ⚠ Acá NUNCA va la "secret key" (service_role) ni la contraseña de Postgres.
-//   Esos son secretos y no pueden vivir en el navegador.
-//
-// 👉 Reemplazá los dos valores de abajo por los de tu proyecto:
-//    - SUPABASE_URL              -> el "Project URL" / "API URL"
-//    - SUPABASE_PUBLISHABLE_KEY  -> la "publishable key" (anon / public)
+// Recordatorio: la clave anon es PÚBLICA por diseño (igual termina visible en
+// el navegador). Sacarla del código es higiene/orden, no la vuelve secreta.
+// La seguridad real de los datos la da RLS.
 
-const SUPABASE_URL = 'https://cllnvomonvpswctbaqgg.supabase.co'
-const SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbG52b21vbnZwc3djdGJhcWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMDMyMzksImV4cCI6MjA5NzY3OTIzOX0.OShZi1ORbSkiKNNLUAyuPlj8DHSUEhFf1nuasNjBNXs'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'Faltan variables de entorno de Supabase. Creá un archivo ".env.local" en ' +
+      'la raíz del proyecto con VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.',
+  )
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
