@@ -1062,13 +1062,26 @@
   color: #64748b;
 }
 
-/* Grilla del bloque superior. Una sola grilla para que las filas de la
-   izquierda (cliente) y la derecha (contacto/estado/pedido/oc) queden
-   alineadas. Columnas: foto | cliente (1fr) | ancho 65% | angosto 35%.
-   La izquierda (1fr) = ancho total de la derecha (0.65 + 0.35). */
-.pf-grid {
+/* Bloque superior: foto sola a la izquierda + contenido (campos) a la derecha.
+   Debajo de la foto no va nada. */
+.pf-top2 {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.pf-contenido {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Grilla de campos (sin la foto): cliente (1fr) | ancho 65% | angosto 35%. */
+.pf-campos {
   display: grid;
-  grid-template-columns: 150px 1fr 0.65fr 0.35fr;
+  grid-template-columns: 1fr 0.65fr 0.35fr;
   column-gap: 16px;
   row-gap: 12px;
   align-items: start;
@@ -1272,76 +1285,129 @@
   border-radius: 8px;
 }
 
-.item-lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Tabla de items: el encabezado y cada fila comparten .item-grid (mismas
+   columnas) para que los datos queden perfectamente alineados con su título. */
+.item-tabla {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-/* Fila de item: densa, con zebra (convención del sistema) */
-.item-fila {
-  display: flex;
+.item-grid {
+  display: grid;
+  /* 4 primeras columnas iguales (44px) + gap 6px = paso de 50px entre ellas
+     (≈ 20% menos que el N°↔CANT original); así N°·CANT·REMITIDOS·FOTO quedan
+     equidistantes. Luego ITEM (1fr) y acciones (auto). */
+  grid-template-columns: 44px 44px 44px 44px 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+}
+
+.item-tabla-head {
+  padding: 0 12px;
+  border: 1px solid transparent;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #000;
+}
+/* Los títulos de las columnas angostas van más chicos para que "REMITIDOS"
+   entre en su columna. */
+.item-tabla-head .item-c-num,
+.item-tabla-head .item-c-cant,
+.item-tabla-head .item-c-rem,
+.item-tabla-head .item-c-foto {
+  font-size: 9px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.item-fila {
   padding: 8px 12px;
   border: 1px solid #ead7d7;
   border-radius: 8px;
   background: #fff;
 }
-.item-fila:nth-child(even) {
-  background: #fbf6f6;
-}
 
-.item-num {
-  width: 24px;
+/* Alineación dentro de cada columna. Texto negro siempre. */
+.item-c-num {
   text-align: center;
-  color: #71717a;
-  font-size: 13px;
-}
-
-.item-cant {
-  width: 48px;
-  text-align: right;
-  font-weight: 600;
+  color: #000;
   font-size: 14px;
 }
-
-.item-desc {
-  flex: 1;
+.item-c-cant {
+  text-align: center;
+}
+.item-fila .item-c-cant {
+  font-weight: 700;
+  font-size: 15px;
+  color: #000;
+}
+.item-c-rem {
+  text-align: center;
+  color: #000;
+}
+/* Remitido == pedido → en verde (número y, si todas, el título). */
+.item-rem-ok {
+  color: #16a34a;
+  font-weight: 700;
+}
+.item-c-foto {
+  display: flex;
+  justify-content: center;
+}
+.item-c-item {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  padding-left: 8px;
+}
+.item-c-acc {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
+/* Miniatura de la foto del item (o ícono de llave si no tiene) */
+.item-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+}
+.item-thumb-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+/* Descripción del item: negrita, negro. */
 .item-desc-texto {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 14px;
-  color: #1e293b;
+  font-weight: 700;
+  color: #000;
 }
 
 .item-codigo {
-  color: #71717a;
+  color: inherit;
+  font-weight: 400;
 }
 
+/* Etiqueta de estado: más chica. */
 .item-badge {
   flex-shrink: 0;
-  font-size: 12px;
-  padding: 2px 8px;
+  font-size: 10px;
+  padding: 1px 6px;
   border-radius: 999px;
   background: #e0e7ff;
   color: #3730a3;
-}
-
-.item-acciones {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
 }
 
 /* ---- Modal del item ---- */

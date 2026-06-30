@@ -361,6 +361,14 @@ function VistaProyectoForm({
     return s
   }
 
+  // Remitidos: por ahora siempre 0 (vendrá de remitos). Un item está
+  // "completo" cuando lo remitido iguala a lo pedido; ahí el número va verde.
+  // Si TODOS los items están completos, el título Remitidos también va verde.
+  const remitidosDe = (_it: ItemDraft) => 0
+  const cantidadDe = (it: ItemDraft) => Number(it.cantidad || '1')
+  const todosRemitidos =
+    items.length > 0 && items.every((it) => remitidosDe(it) === cantidadDe(it))
+
   return (
     <div className="pf-vista">
       <div className="pf-breadcrumb">
@@ -372,16 +380,14 @@ function VistaProyectoForm({
           {esNuevo ? 'Nuevo proyecto' : `Editar proyecto #${proyecto!.id}`}
         </h2>
 
-        {/* Bloque superior en una sola grilla para que las filas de la
-            izquierda y la derecha queden alineadas.
-              col1: foto | col2: cliente (1fr) | col3: ancho 65% | col4: 35%
+        {/* Bloque superior: la foto sola a la izquierda; todos los campos a la
+            derecha (debajo de la foto no va nada). Los campos van en una grilla
+            de 3 columnas:
+              col1: cliente (1fr) | col2: ancho 65% | col3: 35%
             Fila 1: Cliente        | Contacto       | Estado
             Fila 2: Cliente final  | Nº de pedido   | OC del cliente */}
-        <div className="pf-grid">
-          <div
-            className="pf-foto"
-            style={{ gridColumn: 1, gridRow: '1 / span 2' }}
-          >
+        <div className="pf-top2">
+          <div className="pf-foto">
             <span className="pf-label">Foto del proyecto</span>
             <CajaFoto
               previewUrl={previewUrl}
@@ -390,8 +396,10 @@ function VistaProyectoForm({
             />
           </div>
 
-          {/* Cliente + checks de cliente final */}
-          <div className="pf-celda" style={{ gridColumn: 2, gridRow: 1 }}>
+          <div className="pf-contenido">
+            <div className="pf-campos">
+              {/* Cliente + checks de cliente final */}
+          <div className="pf-celda" style={{ gridColumn: 1, gridRow: 1 }}>
             <label className="empresa-campo">
               Cliente *
               <BuscadorEmpresa
@@ -438,7 +446,7 @@ function VistaProyectoForm({
           {/* Cliente final. Si el check está apagado, se muestra un input
               vacío en gris (no se renderiza el buscador), así no se puede
               elegir y no depende del soporte de deshabilitado del buscador. */}
-          <label className="empresa-campo" style={{ gridColumn: 2, gridRow: 2 }}>
+          <label className="empresa-campo" style={{ gridColumn: 1, gridRow: 2 }}>
             Cliente final
             {!form.cfHabilitado ? (
               <input
@@ -465,7 +473,7 @@ function VistaProyectoForm({
 
           {/* Contacto (fila 1, ancho). Lista contactos del cliente y del
               cliente final; si hay cliente final, se aclara la empresa. */}
-          <label className="empresa-campo" style={{ gridColumn: 3, gridRow: 1 }}>
+          <label className="empresa-campo" style={{ gridColumn: 2, gridRow: 1 }}>
             Contacto del proyecto
             <select
               className="empresa-input"
@@ -503,7 +511,7 @@ function VistaProyectoForm({
           </label>
 
           {/* Estado (fila 1, angosto) */}
-          <div className="empresa-campo" style={{ gridColumn: 4, gridRow: 1 }}>
+          <div className="empresa-campo" style={{ gridColumn: 3, gridRow: 1 }}>
             <span className="pf-label-fila">
               Estado
               {form.estado === 'Cerrado' && (
@@ -530,7 +538,7 @@ function VistaProyectoForm({
           </div>
 
           {/* Nº de pedido (fila 2, ancho) */}
-          <label className="empresa-campo" style={{ gridColumn: 3, gridRow: 2 }}>
+          <label className="empresa-campo" style={{ gridColumn: 2, gridRow: 2 }}>
             Nº de pedido
             <input
               className="empresa-input"
@@ -542,7 +550,7 @@ function VistaProyectoForm({
           </label>
 
           {/* OC del cliente (fila 2, angosto) */}
-          <label className="empresa-campo" style={{ gridColumn: 4, gridRow: 2 }}>
+          <label className="empresa-campo" style={{ gridColumn: 3, gridRow: 2 }}>
             OC del cliente
             <input
               className="empresa-input"
@@ -660,6 +668,8 @@ function VistaProyectoForm({
             }
           />
         </label>
+          </div>
+        </div>
 
         {/* Items del proyecto */}
         <div className="item-seccion">
@@ -700,49 +710,101 @@ function VistaProyectoForm({
                 Aún no hay items. Apretá "+ Agregar item" para empezar.
               </p>
             ) : (
-              <ul className="item-lista">
-                {items.map((it, i) => (
-                  <li key={it.key} className="item-fila">
-                    <span className="item-num">{i + 1}</span>
-                    <span className="item-cant">{it.cantidad || '1'}</span>
-                    <div className="item-desc">
-                      <span className="item-desc-texto">
-                        {it.descripcion || '(sin descripción)'}
-                        {it.codigoCliente && (
-                          <span className="item-codigo">
-                            {' '}
-                            ({it.codigoCliente})
+              <div className="item-tabla">
+                {/* Encabezados (alineados con las columnas de cada fila) */}
+                <div className="item-grid item-tabla-head">
+                  <span className="item-c-num">N°</span>
+                  <span className="item-c-cant">CANT.</span>
+                  <span
+                    className={`item-c-rem${
+                      todosRemitidos ? ' item-rem-ok' : ''
+                    }`}
+                  >
+                    REMITIDOS
+                  </span>
+                  <span className="item-c-foto">FOTO</span>
+                  <span className="item-c-item">ITEM</span>
+                  <span className="item-c-acc" />
+                </div>
+
+                {items.map((it, i) => {
+                  const thumb =
+                    it.fotoPreview ??
+                    (it.fotoUrl
+                      ? supabase.storage.from(BUCKET).getPublicUrl(it.fotoUrl)
+                          .data.publicUrl
+                      : null)
+                  const itemCompleto = remitidosDe(it) === cantidadDe(it)
+                  return (
+                    <div key={it.key} className="item-grid item-fila">
+                      <span className="item-c-num">{i + 1}</span>
+                      <span className="item-c-cant">{it.cantidad || '1'}</span>
+                      <span
+                        className={`item-c-rem${
+                          itemCompleto ? ' item-rem-ok' : ''
+                        }`}
+                      >
+                        {remitidosDe(it)}
+                      </span>
+                      <span className="item-c-foto">
+                        {thumb ? (
+                          <img src={thumb} alt="" className="item-thumb" />
+                        ) : (
+                          <span className="item-thumb item-thumb-vacia">
+                            <svg
+                              viewBox="0 0 24 24"
+                              width="18"
+                              height="18"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                            </svg>
                           </span>
                         )}
                       </span>
-                      <span className="item-badge">{it.estado}</span>
+                      <div className="item-c-item">
+                        <span className="item-desc-texto">
+                          {it.descripcion || '(sin descripción)'}
+                          {it.codigoCliente && (
+                            <span className="item-codigo">
+                              {' '}
+                              ({it.codigoCliente})
+                            </span>
+                          )}
+                        </span>
+                        <span className="item-badge">{it.estado}</span>
+                      </div>
+                      <div className="item-c-acc">
+                        <button
+                          type="button"
+                          className="empresas-editar"
+                          onClick={() => setItemEditando(it)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="empresas-editar"
+                          onClick={() => duplicarItem(it)}
+                        >
+                          Duplicar
+                        </button>
+                        <button
+                          type="button"
+                          className="empresas-borrar"
+                          onClick={() => borrarItem(it.key)}
+                        >
+                          Borrar
+                        </button>
+                      </div>
                     </div>
-                    <div className="item-acciones">
-                      <button
-                        type="button"
-                        className="empresas-editar"
-                        onClick={() => setItemEditando(it)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="empresas-editar"
-                        onClick={() => duplicarItem(it)}
-                      >
-                        Duplicar
-                      </button>
-                      <button
-                        type="button"
-                        className="empresas-borrar"
-                        onClick={() => borrarItem(it.key)}
-                      >
-                        Borrar
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                  )
+                })}
+              </div>
             )}
           </MenuContextual>
         </div>
