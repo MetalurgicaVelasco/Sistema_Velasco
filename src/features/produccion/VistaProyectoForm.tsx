@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import BuscadorEmpresa from '../../shared/components/BuscadorEmpresa'
+import MenuContextual from '../../shared/components/MenuContextual'
 import CajaFoto from './CajaFoto'
+import ModalItem from './ModalItem'
 import {
   URGENCIAS,
   SUB_ESTADOS_CERRADO,
@@ -15,6 +17,14 @@ import {
   formAGuardar,
 } from './proyectoTipos'
 import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
+import {
+  itemDraftVacio,
+  itemRowADraft,
+  duplicarDraft,
+  draftAGuardar,
+  crearMaterial,
+} from './itemTipos'
+import type { ItemDraft, Material } from './itemTipos'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -36,6 +46,13 @@ function VistaProyectoForm({
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [modalCerrado, setModalCerrado] = useState(false)
+
+  // ---- Items del proyecto (viven en el form, se persisten al guardar) ----
+  const [items, setItems] = useState<ItemDraft[]>([])
+  const [materiales, setMateriales] = useState<Material[]>([])
+  const [itemEditando, setItemEditando] = useState<ItemDraft | null>(null)
+  // ids de items que ya estaban en la base (para detectar los borrados).
+  const [idsOriginales, setIdsOriginales] = useState<number[]>([])
 
   // ---- Foto (se retiene y se sube al guardar) ----
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -92,6 +109,69 @@ function VistaProyectoForm({
       activo = false
     }
   }, [form.empresaId, form.cfEmpresaId, form.cfHabilitado, form.cfLibre])
+
+  // Catálogo de materiales (para el selector) + items existentes (en edición).
+  useEffect(() => {
+    let activo = true
+    supabase
+      .from('materiales')
+      .select('id, nombre')
+      .order('nombre')
+      .then(({ data }) => {
+        if (activo) setMateriales(data ?? [])
+      })
+    if (proyecto) {
+      supabase
+        .from('items')
+        .select(
+          'id, proyecto_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo',
+        )
+        .eq('proyecto_id', proyecto.id)
+        .order('id')
+        .then(({ data }) => {
+          if (activo && data) {
+            setItems(data.map(itemRowADraft))
+            setIdsOriginales(data.map((r) => r.id))
+          }
+        })
+    }
+    return () => {
+      activo = false
+    }
+  }, [proyecto])
+
+  // ---- Acciones de items ----
+  function agregarItem() {
+    setItemEditando(itemDraftVacio())
+  }
+  function duplicarItem(it: ItemDraft) {
+    setItems((prev) => [...prev, duplicarDraft(it)])
+  }
+  function borrarItem(key: string) {
+    setItems((prev) => prev.filter((x) => x.key !== key))
+  }
+  // Al guardar desde el modal: si el item ya está en la lista lo reemplaza,
+  // si no, lo agrega.
+  function guardarItem(d: ItemDraft) {
+    setItems((prev) =>
+      prev.some((x) => x.key === d.key)
+        ? prev.map((x) => (x.key === d.key ? d : x))
+        : [...prev, d],
+    )
+    setItemEditando(null)
+  }
+  // Alta de material desde el selector: crea en la base y lo suma a la lista.
+  async function agregarMaterial(nombre: string) {
+    const m = await crearMaterial(nombre)
+    if (m) {
+      setMateriales((prev) =>
+        prev.some((x) => x.id === m.id)
+          ? prev
+          : [...prev, m].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      )
+    }
+    return m
+  }
 
   const estadosPosibles = esNuevo
     ? ESTADOS_INICIALES
@@ -210,6 +290,51 @@ function VistaProyectoForm({
           .from('proyectos')
           .update({ foto_url: null })
           .eq('id', proyectoId)
+      }
+    }
+
+    // Sincronizar items: borrar los quitados, insertar los nuevos, actualizar
+    // los existentes, y subir la foto de cada uno (necesita el id del item).
+    if (proyectoId != null) {
+      const idsActuales = items
+        .filter((d) => d.dbId != null)
+        .map((d) => d.dbId as number)
+      const aBorrar = idsOriginales.filter((id) => !idsActuales.includes(id))
+      if (aBorrar.length) {
+        await supabase.from('items').delete().in('id', aBorrar)
+      }
+
+      for (const d of items) {
+        const payload = draftAGuardar(d, proyectoId)
+        let itemId = d.dbId
+        if (d.dbId == null) {
+          const { data } = await supabase
+            .from('items')
+            .insert(payload)
+            .select('id')
+            .single()
+          itemId = data?.id ?? null
+        } else {
+          await supabase.from('items').update(payload).eq('id', d.dbId)
+        }
+
+        // Foto nueva del item (si hay): subir a items/{itemId}/... y guardar path.
+        if (itemId != null && d.fotoArchivo) {
+          const ext =
+            d.fotoArchivo.name.split('.').pop() ||
+            d.fotoArchivo.type.split('/')[1] ||
+            'png'
+          const ruta = `items/${itemId}/${Date.now()}.${ext}`
+          const { error: eUp } = await supabase.storage
+            .from(BUCKET)
+            .upload(ruta, d.fotoArchivo, { upsert: true })
+          if (!eUp) {
+            await supabase
+              .from('items')
+              .update({ foto_url: ruta })
+              .eq('id', itemId)
+          }
+        }
       }
     }
 
@@ -536,6 +661,92 @@ function VistaProyectoForm({
           />
         </label>
 
+        {/* Items del proyecto */}
+        <div className="item-seccion">
+          <div className="item-seccion-head">
+            <h3 className="item-seccion-titulo">
+              Items del proyecto
+              {items.length === 0 && (
+                <span className="item-aviso"> · al menos uno</span>
+              )}
+            </h3>
+            <div className="item-seccion-botones">
+              <span className="item-contador">
+                {items.length} item(s) cargado(s)
+              </span>
+              <button
+                type="button"
+                className="empresa-boton"
+                onClick={agregarItem}
+              >
+                + Agregar item
+              </button>
+              <button
+                type="button"
+                className="empresa-boton-secundario"
+                disabled
+                title="Próximamente"
+              >
+                + Agregar desde Matriz
+              </button>
+            </div>
+          </div>
+
+          <MenuContextual
+            items={[{ label: '+ Agregar item', onSelect: agregarItem }]}
+          >
+            {items.length === 0 ? (
+              <p className="item-vacio">
+                Aún no hay items. Apretá "+ Agregar item" para empezar.
+              </p>
+            ) : (
+              <ul className="item-lista">
+                {items.map((it, i) => (
+                  <li key={it.key} className="item-fila">
+                    <span className="item-num">{i + 1}</span>
+                    <span className="item-cant">{it.cantidad || '1'}</span>
+                    <div className="item-desc">
+                      <span className="item-desc-texto">
+                        {it.descripcion || '(sin descripción)'}
+                        {it.codigoCliente && (
+                          <span className="item-codigo">
+                            {' '}
+                            ({it.codigoCliente})
+                          </span>
+                        )}
+                      </span>
+                      <span className="item-badge">{it.estado}</span>
+                    </div>
+                    <div className="item-acciones">
+                      <button
+                        type="button"
+                        className="empresas-editar"
+                        onClick={() => setItemEditando(it)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="empresas-editar"
+                        onClick={() => duplicarItem(it)}
+                      >
+                        Duplicar
+                      </button>
+                      <button
+                        type="button"
+                        className="empresas-borrar"
+                        onClick={() => borrarItem(it.key)}
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </MenuContextual>
+        </div>
+
         {error && <p className="empresa-form-error">{error}</p>}
 
         <div className="pf-acciones">
@@ -555,7 +766,7 @@ function VistaProyectoForm({
             {guardando
               ? 'Guardando…'
               : esNuevo
-                ? 'Crear proyecto'
+                ? `Crear proyecto con ${items.length} item(s)`
                 : 'Guardar cambios'}
           </button>
         </div>
@@ -588,6 +799,17 @@ function VistaProyectoForm({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modal: alta/edición de un item */}
+      {itemEditando && (
+        <ModalItem
+          draft={itemEditando}
+          materiales={materiales}
+          onAgregarMaterial={agregarMaterial}
+          onGuardar={guardarItem}
+          onCancelar={() => setItemEditando(null)}
+        />
       )}
     </div>
   )

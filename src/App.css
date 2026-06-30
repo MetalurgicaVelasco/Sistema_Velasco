@@ -1217,3 +1217,172 @@
 .buscador-empresa-lista li button:hover {
   background: #f1f5f9;
 }
+
+/* ============================================================
+   Items del proyecto (sección dentro del form) + modal de item
+   ============================================================ */
+.item-seccion {
+  border-top: 1px solid #f3cccc;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-seccion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.item-seccion-titulo {
+  margin: 0;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.item-aviso {
+  font-size: 13px;
+  font-weight: 400;
+  color: #dc2626;
+}
+
+.item-seccion-botones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item-contador {
+  font-size: 13px;
+  color: #71717a;
+  margin-right: 4px;
+}
+
+.item-vacio {
+  margin: 0;
+  padding: 22px;
+  text-align: center;
+  color: #a1a1aa;
+  font-size: 14px;
+  background: #faf7f7;
+  border: 1px dashed #e4c9c9;
+  border-radius: 8px;
+}
+
+.item-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Fila de item: densa, con zebra (convención del sistema) */
+.item-fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid #ead7d7;
+  border-radius: 8px;
+  background: #fff;
+}
+.item-fila:nth-child(even) {
+  background: #fbf6f6;
+}
+
+.item-num {
+  width: 24px;
+  text-align: center;
+  color: #71717a;
+  font-size: 13px;
+}
+
+.item-cant {
+  width: 48px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.item-desc {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.item-desc-texto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.item-codigo {
+  color: #71717a;
+}
+
+.item-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.item-acciones {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ---- Modal del item ---- */
+.item-modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  width: 680px;
+  max-width: 94vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Estado del item resaltado (recuadro ámbar, como en el sistema viejo) */
+.item-estado-box {
+  background: #fef9e7;
+  border: 1px solid #f5e6a8;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+/* Check con descripción al costado (retrabajo / dispositivo) */
+.item-check {
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 13px;
+  color: #52525b;
+}
+.item-check strong {
+  color: #1e293b;
+}
+
+.pf-ayuda {
+  font-size: 12px;
+  color: #71717a;
+}
