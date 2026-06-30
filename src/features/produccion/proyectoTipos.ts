@@ -52,9 +52,7 @@ export type Proyecto = {
   observaciones_anulacion: string | null
   cliente_final_empresa_id: number | null
   cliente_final_texto: string | null
-  importe: number | null
   moneda: string | null
-  iva_id: number | null
   oc_cliente: string | null
   foto_url: string | null
   empresa: { nombre: string } | null
@@ -78,9 +76,7 @@ export type ProyectoForm = {
   cfLibre: boolean
   cfEmpresaId: number | null
   cfTexto: string
-  importe: string
   moneda: string
-  ivaId: number | null
   ocCliente: string
 }
 
@@ -108,9 +104,7 @@ export function formVacio(): ProyectoForm {
     cfLibre: false,
     cfEmpresaId: null,
     cfTexto: '',
-    importe: '',
     moneda: 'ARS',
-    ivaId: null,
     ocCliente: '',
   }
 }
@@ -135,9 +129,7 @@ export function proyectoAForm(p: Proyecto): ProyectoForm {
     cfLibre: p.cliente_final_texto != null,
     cfEmpresaId: p.cliente_final_empresa_id,
     cfTexto: p.cliente_final_texto ?? '',
-    importe: p.importe != null ? String(p.importe) : '',
     moneda: p.moneda ?? 'ARS',
-    ivaId: p.iva_id,
     ocCliente: p.oc_cliente ?? '',
   }
 }
@@ -165,9 +157,7 @@ export function formAGuardar(f: ProyectoForm) {
     cliente_final_empresa_id: f.cfHabilitado && !f.cfLibre ? f.cfEmpresaId : null,
     cliente_final_texto:
       f.cfHabilitado && f.cfLibre ? f.cfTexto.trim() || null : null,
-    importe: f.importe.trim() ? Number(f.importe) : null,
     moneda: f.moneda || null,
-    iva_id: f.ivaId,
     oc_cliente: f.ocCliente.trim() || null,
   }
 }

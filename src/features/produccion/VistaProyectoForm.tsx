@@ -13,19 +13,17 @@ import {
   proyectoAForm,
   formAGuardar,
 } from './proyectoTipos'
-import type { Proyecto, Empresa, Alicuota, ContactoMin } from './proyectoTipos'
+import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
 
 const BUCKET = 'proyectos-fotos'
 
 function VistaProyectoForm({
   proyecto,
   empresas,
-  alicuotas,
   onCerrar,
 }: {
   proyecto: Proyecto | null // null = nuevo
   empresas: Empresa[]
-  alicuotas: Alicuota[]
   onCerrar: () => void // vuelve a la lista (y recarga)
 }) {
   const esNuevo = proyecto == null
@@ -446,17 +444,8 @@ function VistaProyectoForm({
           />
         </label>
 
-        {/* Comercial */}
+        {/* Comercial (la moneda queda en el proyecto; importe e IVA son por item) */}
         <div className="empresa-campo-fila">
-          <label className="empresa-campo">
-            Importe
-            <input
-              type="number"
-              className="empresa-input"
-              value={form.importe}
-              onChange={(e) => setForm({ ...form, importe: e.target.value })}
-            />
-          </label>
           <label className="empresa-campo">
             Moneda
             <select
@@ -467,26 +456,6 @@ function VistaProyectoForm({
               {MONEDAS.map((m) => (
                 <option key={m} value={m}>
                   {m}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="empresa-campo">
-            IVA
-            <select
-              className="empresa-input"
-              value={form.ivaId ?? ''}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  ivaId: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            >
-              <option value="">— IVA —</option>
-              {alicuotas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.porcentaje}%
                 </option>
               ))}
             </select>

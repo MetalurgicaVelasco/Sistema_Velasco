@@ -4,15 +4,14 @@ import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
 import { fechaCorta } from './proyectoTipos'
-import type { Proyecto, Empresa, Alicuota } from './proyectoTipos'
+import type { Proyecto, Empresa } from './proyectoTipos'
 
 const SELECT_PROYECTO =
-  'id, empresa_id, contacto_id, pedido_nro, descripcion, urgencia, estado, sub_estado_cerrado, fecha_ingreso, fecha_entrega, fecha_limite_cotizar, paso_por_solicitud, observaciones_mail, observaciones_anulacion, cliente_final_empresa_id, cliente_final_texto, importe, moneda, iva_id, oc_cliente, foto_url, empresa:empresas!empresa_id ( nombre )'
+  'id, empresa_id, contacto_id, pedido_nro, descripcion, urgencia, estado, sub_estado_cerrado, fecha_ingreso, fecha_entrega, fecha_limite_cotizar, paso_por_solicitud, observaciones_mail, observaciones_anulacion, cliente_final_empresa_id, cliente_final_texto, moneda, oc_cliente, foto_url, empresa:empresas!empresa_id ( nombre )'
 
 function Proyectos() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
-  const [alicuotas, setAlicuotas] = useState<Alicuota[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seleccionadoId, setSeleccionadoId] = useState<number | null>(null)
@@ -49,18 +48,9 @@ function Proyectos() {
     setEmpresas(data ?? [])
   }
 
-  async function cargarAlicuotas() {
-    const { data } = await supabase
-      .from('alicuotas_iva')
-      .select('id, porcentaje')
-      .order('porcentaje')
-    setAlicuotas(data ?? [])
-  }
-
   useEffect(() => {
     cargarProyectos()
     cargarEmpresas()
-    cargarAlicuotas()
   }, [])
 
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
@@ -94,7 +84,6 @@ function Proyectos() {
       <VistaProyectoForm
         proyecto={formActivo === 'nuevo' ? null : formActivo}
         empresas={empresas}
-        alicuotas={alicuotas}
         onCerrar={volverALista}
       />
     )

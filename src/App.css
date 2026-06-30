@@ -981,12 +981,12 @@
   color: #71717a;
 }
 
-/* Card celeste = color que identifica "proyecto" */
+/* Card rojo pastel = color que identifica "proyecto" (ver ARQUITECTURA §9) */
 .pf-card {
   max-width: 1100px;
   margin: 0 auto;
-  background: #eef4fb;
-  border: 1px solid #cfe0f1;
+  background: #fdecec;
+  border: 1px solid #f3cccc;
   border-radius: 10px;
   padding: 24px;
   display: flex;
