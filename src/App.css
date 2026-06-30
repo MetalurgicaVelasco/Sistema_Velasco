@@ -286,6 +286,14 @@
 
 .franja-lista {
   flex: 35 1 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* La zona del menú contextual llena toda la franja-lista, así el click
+   derecho funciona también en el espacio vacío (no solo sobre las filas). */
+.franja-lista > .menu-ctx-zona {
+  flex: 1 0 auto;
 }
 
 .franja-detalle {
@@ -449,6 +457,25 @@
 .empresa-input:focus {
   outline: none;
   border-color: #6366f1;
+}
+
+/* Campos deshabilitados: gris y sin interacción (regla de "limpiar en gris") */
+.empresa-input:disabled {
+  background: #e6e6ea;
+  border-color: #d4d4d8;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+.empresa-input:disabled::placeholder {
+  color: #b8b8c0;
+}
+
+.filtro-check input:disabled {
+  cursor: not-allowed;
+}
+.filtro-check:has(input:disabled) {
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .empresa-roles {
@@ -971,12 +998,12 @@
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 24px;
+  padding: 12px 24px 24px;
 }
 
 .pf-breadcrumb {
   max-width: 1100px;
-  margin: 0 auto 12px;
+  margin: 0 auto 8px;
   font-size: 13px;
   color: #71717a;
 }
@@ -988,10 +1015,39 @@
   background: #fdecec;
   border: 1px solid #f3cccc;
   border-radius: 10px;
-  padding: 24px;
+  padding: 16px 24px 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+}
+
+/* Campo que ocupa más ancho que su vecino en una fila (ej. Nº pedido vs Moneda) */
+.pf-campo-crece {
+  flex: 2 1 0;
+}
+
+/* Campo bien ancho en una fila (ej. Descripción al lado de Urgencia).
+   Especificidad alta para ganarle a .empresa-campo-fila .empresa-campo. */
+.empresa-campo.pf-campo-ancho {
+  flex: 3 1 0;
+}
+
+/* Encabezado de campo con un enlace al costado (ej. Estado + "cambiar") */
+.pf-label-fila {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* Enlace de texto chico (acciones livianas dentro de un label) */
+.pf-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--accent, #2563eb);
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .pf-titulo {
@@ -1006,10 +1062,16 @@
   color: #64748b;
 }
 
-.pf-fila-top {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
+/* Grilla del bloque superior. Una sola grilla para que las filas de la
+   izquierda (cliente) y la derecha (contacto/estado/pedido/oc) queden
+   alineadas. Columnas: foto | cliente (1fr) | ancho 65% | angosto 35%.
+   La izquierda (1fr) = ancho total de la derecha (0.65 + 0.35). */
+.pf-grid {
+  display: grid;
+  grid-template-columns: 150px 1fr 0.65fr 0.35fr;
+  column-gap: 16px;
+  row-gap: 12px;
+  align-items: start;
 }
 
 .pf-foto {
@@ -1025,26 +1087,18 @@
   color: #52525b;
 }
 
-.pf-cliente-estado {
-  flex: 1;
+/* Celda que apila el campo + algo extra (ej. cliente + sus checks) */
+.pf-celda {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Línea de checks de cliente final (los dos checkboxes en una fila) */
+.pf-cf-checks {
   display: flex;
   gap: 16px;
-  align-items: flex-start;
-}
-
-.pf-col-cliente {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pf-col-estado {
-  width: 280px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* Advertencia suave (campos que TacticaSoft pide pero acá no bloquean) */
@@ -1063,6 +1117,49 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* ---- Modal de sub-estado de cierre ---- */
+.pf-modal-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.pf-modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  width: 320px;
+  max-width: 90vw;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.pf-modal-titulo {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.pf-modal-texto {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pf-modal-ops {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-modal-cancelar {
+  margin-top: 12px;
+  width: 100%;
 }
 
 /* ---- Buscador de empresa (combobox) ---- */

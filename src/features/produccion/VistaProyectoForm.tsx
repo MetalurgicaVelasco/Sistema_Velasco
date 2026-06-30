@@ -5,10 +5,11 @@ import CajaFoto from './CajaFoto'
 import {
   URGENCIAS,
   SUB_ESTADOS_CERRADO,
-  MONEDAS,
   ESTADOS_INICIALES,
   TRANSICIONES,
   estadoConfirmado,
+  usaDiasHabiles,
+  sumarDiasHabiles,
   formVacio,
   proyectoAForm,
   formAGuardar,
@@ -34,6 +35,7 @@ function VistaProyectoForm({
   const [contactos, setContactos] = useState<ContactoMin[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [modalCerrado, setModalCerrado] = useState(false)
 
   // ---- Foto (se retiene y se sube al guardar) ----
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -68,17 +70,20 @@ function VistaProyectoForm({
     }
   }, [fotoObjUrl])
 
-  // Contactos dependientes del cliente elegido.
+  // Contactos para el desplegable: los del Cliente y, si está cargado, los del
+  // Cliente final (empresa). Se recargan cuando cambia cualquiera de los dos.
   useEffect(() => {
-    if (form.empresaId == null) {
+    const cfId = form.cfHabilitado && !form.cfLibre ? form.cfEmpresaId : null
+    const ids = [form.empresaId, cfId].filter((x): x is number => x != null)
+    if (ids.length === 0) {
       setContactos([])
       return
     }
     let activo = true
     supabase
       .from('empresa_contactos')
-      .select('id, nombre, apellido')
-      .eq('empresa_id', form.empresaId)
+      .select('id, nombre, apellido, empresa_id')
+      .in('empresa_id', ids)
       .order('apellido')
       .then(({ data }) => {
         if (activo) setContactos(data ?? [])
@@ -86,11 +91,61 @@ function VistaProyectoForm({
     return () => {
       activo = false
     }
-  }, [form.empresaId])
+  }, [form.empresaId, form.cfEmpresaId, form.cfHabilitado, form.cfLibre])
 
   const estadosPosibles = esNuevo
     ? ESTADOS_INICIALES
     : TRANSICIONES[proyecto!.estado] ?? [proyecto!.estado]
+
+  // Aplica la regla "limpiar lo que queda deshabilitado" al pasar a un estado.
+  // - estados sin pedido firme (días hábiles): se limpian Nº de pedido y la
+  //   fecha de entrega firme (en gris se muestra el cálculo como preview);
+  // - estados confirmados: se limpian plazo y límite para cotizar, y la fecha
+  //   de entrega se autocompleta desde el plazo si estaba vacía.
+  function aplicarEstado(base: typeof form, nuevo: string) {
+    const anterior = base.estado
+    const cambios = { ...base, estado: nuevo }
+    if (usaDiasHabiles(nuevo)) {
+      cambios.pedidoNro = ''
+      cambios.fechaEntrega = ''
+    } else {
+      if (
+        usaDiasHabiles(anterior) &&
+        cambios.plazoDiasHabiles.trim() &&
+        cambios.fechaIngreso &&
+        !cambios.fechaEntrega
+      ) {
+        cambios.fechaEntrega = sumarDiasHabiles(
+          cambios.fechaIngreso,
+          Number(cambios.plazoDiasHabiles),
+        )
+      }
+      cambios.plazoDiasHabiles = ''
+      cambios.fechaLimiteCotizar = ''
+    }
+    if (anterior === 'Solicitud' && nuevo === 'Pedido') {
+      cambios.pasoPorSolicitud = true
+    }
+    if (nuevo !== 'Cerrado') cambios.subEstadoCerrado = ''
+    return cambios
+  }
+
+  // Cambio de estado desde el selector. Cerrado abre un modal para elegir el
+  // sub-estado; el estado real se aplica recién al confirmar el modal.
+  function cambiarEstado(nuevo: string) {
+    if (nuevo === 'Cerrado') {
+      setModalCerrado(true)
+      return
+    }
+    setForm(aplicarEstado(form, nuevo))
+  }
+
+  function confirmarCerrado(sub: string) {
+    const cambios = aplicarEstado(form, 'Cerrado')
+    cambios.subEstadoCerrado = sub
+    setForm(cambios)
+    setModalCerrado(false)
+  }
 
   async function guardar() {
     setError(null)
@@ -162,6 +217,25 @@ function VistaProyectoForm({
     onCerrar()
   }
 
+  // Banderas de habilitación de campos según el estado.
+  const confirmado = estadoConfirmado(form.estado)
+  const diasHabiles = usaDiasHabiles(form.estado)
+
+  // En estados sin pedido firme, la fecha de entrega se muestra en gris con
+  // el cálculo (ingreso + plazo en días hábiles) como preview.
+  const fechaEntregaCalc =
+    !confirmado && form.plazoDiasHabiles.trim() && form.fechaIngreso
+      ? sumarDiasHabiles(form.fechaIngreso, Number(form.plazoDiasHabiles))
+      : ''
+
+  // Etiqueta del Estado en el selector: Cerrado muestra el sub-estado.
+  function etiquetaEstado(s: string) {
+    if (s === 'Cerrado' && form.estado === 'Cerrado' && form.subEstadoCerrado) {
+      return `Cerrado (${form.subEstadoCerrado})`
+    }
+    return s
+  }
+
   return (
     <div className="pf-vista">
       <div className="pf-breadcrumb">
@@ -172,11 +246,17 @@ function VistaProyectoForm({
         <h2 className="pf-titulo">
           {esNuevo ? 'Nuevo proyecto' : `Editar proyecto #${proyecto!.id}`}
         </h2>
-        <p className="pf-subtitulo">Cargá los datos del proyecto.</p>
 
-        {/* Fila superior: foto + (cliente/estado) */}
-        <div className="pf-fila-top">
-          <div className="pf-foto">
+        {/* Bloque superior en una sola grilla para que las filas de la
+            izquierda y la derecha queden alineadas.
+              col1: foto | col2: cliente (1fr) | col3: ancho 65% | col4: 35%
+            Fila 1: Cliente        | Contacto       | Estado
+            Fila 2: Cliente final  | Nº de pedido   | OC del cliente */}
+        <div className="pf-grid">
+          <div
+            className="pf-foto"
+            style={{ gridColumn: 1, gridRow: '1 / span 2' }}
+          >
             <span className="pf-label">Foto del proyecto</span>
             <CajaFoto
               previewUrl={previewUrl}
@@ -185,176 +265,179 @@ function VistaProyectoForm({
             />
           </div>
 
-          <div className="pf-cliente-estado">
-            {/* Columna izquierda: cliente + cliente final */}
-            <div className="pf-col-cliente">
-              <label className="empresa-campo">
-                Cliente *
-                <BuscadorEmpresa
-                  empresas={empresas}
-                  valorId={form.empresaId}
-                  onElegir={(id) =>
-                    setForm({ ...form, empresaId: id, contactoId: null })
+          {/* Cliente + checks de cliente final */}
+          <div className="pf-celda" style={{ gridColumn: 2, gridRow: 1 }}>
+            <label className="empresa-campo">
+              Cliente *
+              <BuscadorEmpresa
+                empresas={empresas}
+                valorId={form.empresaId}
+                onElegir={(id) =>
+                  setForm({ ...form, empresaId: id, contactoId: null })
+                }
+                placeholder="Buscar cliente…"
+              />
+            </label>
+            <div className="pf-cf-checks">
+              <label className="filtro-check">
+                <input
+                  type="checkbox"
+                  checked={form.cfHabilitado}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      cfHabilitado: e.target.checked,
+                      // al apagar, se limpia el cliente final
+                      cfEmpresaId: e.target.checked ? form.cfEmpresaId : null,
+                      cfTexto: e.target.checked ? form.cfTexto : '',
+                      cfLibre: e.target.checked ? form.cfLibre : false,
+                    })
                   }
-                  placeholder="Buscar cliente…"
                 />
+                Cliente final (opcional)
               </label>
-
-              <div className="empresa-campo">
-                <label className="filtro-check">
-                  <input
-                    type="checkbox"
-                    checked={form.cfHabilitado}
-                    onChange={(e) =>
-                      setForm({ ...form, cfHabilitado: e.target.checked })
-                    }
-                  />
-                  Cliente final (opcional)
-                </label>
-
-                {form.cfHabilitado && (
-                  <>
-                    <label className="filtro-check">
-                      <input
-                        type="checkbox"
-                        checked={form.cfLibre}
-                        onChange={(e) =>
-                          setForm({ ...form, cfLibre: e.target.checked })
-                        }
-                      />
-                      Permitir texto libre
-                    </label>
-                    {form.cfLibre ? (
-                      <input
-                        className="empresa-input"
-                        placeholder="Cliente final (texto)"
-                        value={form.cfTexto}
-                        onChange={(e) =>
-                          setForm({ ...form, cfTexto: e.target.value })
-                        }
-                      />
-                    ) : (
-                      <BuscadorEmpresa
-                        empresas={empresas}
-                        valorId={form.cfEmpresaId}
-                        onElegir={(id) => setForm({ ...form, cfEmpresaId: id })}
-                        placeholder="Buscar cliente final…"
-                      />
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Columna derecha: estado + (Nº de pedido, debajo de estado) */}
-            <div className="pf-col-estado">
-              <label className="empresa-campo">
-                Estado
-                <select
-                  className="empresa-input"
-                  value={form.estado}
-                  onChange={(e) => setForm({ ...form, estado: e.target.value })}
-                >
-                  {estadosPosibles.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+              <label className="filtro-check">
+                <input
+                  type="checkbox"
+                  checked={form.cfLibre}
+                  disabled={!form.cfHabilitado}
+                  onChange={(e) =>
+                    setForm({ ...form, cfLibre: e.target.checked })
+                  }
+                />
+                Permitir texto libre
               </label>
-
-              {estadoConfirmado(form.estado) && (
-                <label className="empresa-campo">
-                  Nº de pedido
-                  <input
-                    className="empresa-input"
-                    placeholder="Ej. 4130 (de TacticaSoft)"
-                    value={form.pedidoNro}
-                    onChange={(e) =>
-                      setForm({ ...form, pedidoNro: e.target.value })
-                    }
-                  />
-                  {!form.pedidoNro.trim() && (
-                    <span className="pf-warn">
-                      Sin Nº de pedido. En TacticaSoft es obligatorio para
-                      proyectos confirmados.
-                    </span>
-                  )}
-                </label>
-              )}
-
-              {/* Sub-estado solo si Cerrado */}
-              {form.estado === 'Cerrado' && (
-                <label className="empresa-campo">
-                  Sub-estado (cerrado)
-                  <select
-                    className="empresa-input"
-                    value={form.subEstadoCerrado}
-                    onChange={(e) =>
-                      setForm({ ...form, subEstadoCerrado: e.target.value })
-                    }
-                  >
-                    <option value="">— Elegí —</option>
-                    {SUB_ESTADOS_CERRADO.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
             </div>
           </div>
+
+          {/* Cliente final. Si el check está apagado, se muestra un input
+              vacío en gris (no se renderiza el buscador), así no se puede
+              elegir y no depende del soporte de deshabilitado del buscador. */}
+          <label className="empresa-campo" style={{ gridColumn: 2, gridRow: 2 }}>
+            Cliente final
+            {!form.cfHabilitado ? (
+              <input
+                className="empresa-input"
+                placeholder="Cliente final"
+                disabled
+              />
+            ) : form.cfLibre ? (
+              <input
+                className="empresa-input"
+                placeholder="Cliente final (texto)"
+                value={form.cfTexto}
+                onChange={(e) => setForm({ ...form, cfTexto: e.target.value })}
+              />
+            ) : (
+              <BuscadorEmpresa
+                empresas={empresas}
+                valorId={form.cfEmpresaId}
+                onElegir={(id) => setForm({ ...form, cfEmpresaId: id })}
+                placeholder="Buscar cliente final…"
+              />
+            )}
+          </label>
+
+          {/* Contacto (fila 1, ancho). Lista contactos del cliente y del
+              cliente final; si hay cliente final, se aclara la empresa. */}
+          <label className="empresa-campo" style={{ gridColumn: 3, gridRow: 1 }}>
+            Contacto del proyecto
+            <select
+              className="empresa-input"
+              value={form.contactoId ?? ''}
+              disabled={form.empresaId == null}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  contactoId: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            >
+              <option value="">
+                {form.empresaId == null
+                  ? '— Seleccioná un cliente primero —'
+                  : '— Sin contacto —'}
+              </option>
+              {contactos.map((c) => {
+                const nombre = [c.nombre, c.apellido].filter(Boolean).join(' ')
+                const emp = empresas.find((e) => e.id === c.empresa_id)
+                const dosEmpresas =
+                  form.cfHabilitado && !form.cfLibre && form.cfEmpresaId != null
+                return (
+                  <option key={c.id} value={c.id}>
+                    {dosEmpresas && emp ? `${nombre} — ${emp.nombre}` : nombre}
+                  </option>
+                )
+              })}
+            </select>
+            {form.empresaId != null && form.contactoId == null && (
+              <span className="pf-warn">
+                Falta asignar contacto. En TacticaSoft es obligatorio.
+              </span>
+            )}
+          </label>
+
+          {/* Estado (fila 1, angosto) */}
+          <div className="empresa-campo" style={{ gridColumn: 4, gridRow: 1 }}>
+            <span className="pf-label-fila">
+              Estado
+              {form.estado === 'Cerrado' && (
+                <button
+                  type="button"
+                  className="pf-link"
+                  onClick={() => setModalCerrado(true)}
+                >
+                  cambiar
+                </button>
+              )}
+            </span>
+            <select
+              className="empresa-input"
+              value={form.estado}
+              onChange={(e) => cambiarEstado(e.target.value)}
+            >
+              {estadosPosibles.map((s) => (
+                <option key={s} value={s}>
+                  {etiquetaEstado(s)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Nº de pedido (fila 2, ancho) */}
+          <label className="empresa-campo" style={{ gridColumn: 3, gridRow: 2 }}>
+            Nº de pedido
+            <input
+              className="empresa-input"
+              placeholder={confirmado ? 'Ej. 4130 (de TacticaSoft)' : ''}
+              value={form.pedidoNro}
+              disabled={!confirmado}
+              onChange={(e) => setForm({ ...form, pedidoNro: e.target.value })}
+            />
+          </label>
+
+          {/* OC del cliente (fila 2, angosto) */}
+          <label className="empresa-campo" style={{ gridColumn: 4, gridRow: 2 }}>
+            OC del cliente
+            <input
+              className="empresa-input"
+              value={form.ocCliente}
+              onChange={(e) => setForm({ ...form, ocCliente: e.target.value })}
+            />
+          </label>
         </div>
 
-        {/* Contacto (con advertencia suave) */}
-        <label className="empresa-campo">
-          Contacto del proyecto
-          <select
-            className="empresa-input"
-            value={form.contactoId ?? ''}
-            disabled={form.empresaId == null}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                contactoId: e.target.value ? Number(e.target.value) : null,
-              })
-            }
-          >
-            <option value="">
-              {form.empresaId == null
-                ? '— Seleccioná un cliente primero —'
-                : '— Sin contacto —'}
-            </option>
-            {contactos.map((c) => (
-              <option key={c.id} value={c.id}>
-                {[c.nombre, c.apellido].filter(Boolean).join(' ')}
-              </option>
-            ))}
-          </select>
-          {form.empresaId != null && form.contactoId == null && (
-            <span className="pf-warn">
-              Falta asignar contacto del proyecto. En TacticaSoft es
-              obligatorio.
-            </span>
-          )}
-        </label>
-
-        {/* Descripción */}
-        <label className="empresa-campo">
-          Descripción del proyecto *
-          <input
-            className="empresa-input"
-            placeholder="Ej. Bomba centrífuga AJM2000"
-            value={form.descripcion}
-            onChange={(e) =>
-              setForm({ ...form, descripcion: e.target.value })
-            }
-          />
-        </label>
-
-        {/* Urgencia + fechas */}
+        {/* Descripción + Urgencia en un renglón */}
         <div className="empresa-campo-fila">
+          <label className="empresa-campo pf-campo-ancho">
+            Descripción del proyecto *
+            <input
+              className="empresa-input"
+              placeholder="Ej. Bomba centrífuga AJM2000"
+              value={form.descripcion}
+              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+            />
+          </label>
           <label className="empresa-campo">
             Urgencia
             <select
@@ -368,6 +451,36 @@ function VistaProyectoForm({
                 </option>
               ))}
             </select>
+          </label>
+        </div>
+
+        {/* Fechas y plazos: las 4 en un renglón; se habilitan según el estado.
+            En estados sin pedido firme la fecha de entrega muestra el cálculo
+            (ingreso + plazo) en gris. */}
+        <div className="empresa-campo-fila">
+          <label className="empresa-campo">
+            Fecha para cotizar
+            <input
+              type="date"
+              className="empresa-input"
+              value={form.fechaLimiteCotizar}
+              disabled={!diasHabiles}
+              onChange={(e) =>
+                setForm({ ...form, fechaLimiteCotizar: e.target.value })
+              }
+            />
+          </label>
+          <label className="empresa-campo">
+            Plazo de entrega (días hábiles)
+            <input
+              type="number"
+              className="empresa-input"
+              value={form.plazoDiasHabiles}
+              disabled={!diasHabiles}
+              onChange={(e) =>
+                setForm({ ...form, plazoDiasHabiles: e.target.value })
+              }
+            />
           </label>
           <label className="empresa-campo">
             Fecha de ingreso
@@ -385,35 +498,14 @@ function VistaProyectoForm({
             <input
               type="date"
               className="empresa-input"
-              value={form.fechaEntrega}
+              value={confirmado ? form.fechaEntrega : fechaEntregaCalc}
+              disabled={!confirmado}
               onChange={(e) =>
                 setForm({ ...form, fechaEntrega: e.target.value })
               }
             />
           </label>
-          <label className="empresa-campo">
-            Límite para cotizar
-            <input
-              type="date"
-              className="empresa-input"
-              value={form.fechaLimiteCotizar}
-              onChange={(e) =>
-                setForm({ ...form, fechaLimiteCotizar: e.target.value })
-              }
-            />
-          </label>
         </div>
-
-        <label className="filtro-check">
-          <input
-            type="checkbox"
-            checked={form.pasoPorSolicitud}
-            onChange={(e) =>
-              setForm({ ...form, pasoPorSolicitud: e.target.checked })
-            }
-          />
-          Pasó por solicitud
-        </label>
 
         {/* Observación de anulación / pérdida */}
         {(form.estado === 'Anulado' || form.estado === 'Perdido') && (
@@ -444,32 +536,6 @@ function VistaProyectoForm({
           />
         </label>
 
-        {/* Comercial (la moneda queda en el proyecto; importe e IVA son por item) */}
-        <div className="empresa-campo-fila">
-          <label className="empresa-campo">
-            Moneda
-            <select
-              className="empresa-input"
-              value={form.moneda}
-              onChange={(e) => setForm({ ...form, moneda: e.target.value })}
-            >
-              {MONEDAS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="empresa-campo">
-            OC del cliente
-            <input
-              className="empresa-input"
-              value={form.ocCliente}
-              onChange={(e) => setForm({ ...form, ocCliente: e.target.value })}
-            />
-          </label>
-        </div>
-
         {error && <p className="empresa-form-error">{error}</p>}
 
         <div className="pf-acciones">
@@ -494,6 +560,35 @@ function VistaProyectoForm({
           </button>
         </div>
       </div>
+
+      {/* Modal: elegir sub-estado al cerrar el proyecto */}
+      {modalCerrado && (
+        <div className="pf-modal-fondo" onClick={() => setModalCerrado(false)}>
+          <div className="pf-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="pf-modal-titulo">Sub-estado del cierre</h3>
+            <p className="pf-modal-texto">¿Cómo se cierra el proyecto?</p>
+            <div className="pf-modal-ops">
+              {SUB_ESTADOS_CERRADO.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="empresa-boton"
+                  onClick={() => confirmarCerrado(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="empresa-boton-secundario pf-modal-cancelar"
+              onClick={() => setModalCerrado(false)}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
