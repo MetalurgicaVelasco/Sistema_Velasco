@@ -11,6 +11,10 @@ import type {
   Personal,
 } from '../types/recursos'
 
+// Las fotos de máquina reutilizan el bucket de proyectos, bajo el prefijo
+// "maquinas/" (mismo patrón que las fotos de item). foto_url guarda el path.
+const BUCKET = 'proyectos-fotos'
+
 // ---------------------------------------------------------------------------
 // CARGA
 // ---------------------------------------------------------------------------
@@ -193,4 +197,99 @@ export async function eliminarTipoProceso(
 ): Promise<{ error?: string }> {
   const { error } = await supabase.from('tipos_proceso').delete().eq('id', id)
   return error ? { error: error.message } : {}
+}
+
+// ---------------------------------------------------------------------------
+// MÁQUINA — guardar
+// ---------------------------------------------------------------------------
+
+export type GuardarMaquinaInput = {
+  id: number | null
+  nombre: string
+  fotoUrl: string | null // path existente que se conserva (o null si se quitó)
+  fotoArchivo: File | null // foto nueva a subir (si hay)
+  tipoProcesoIds: number[]
+  operarioIdealId: number | null
+  suplenteIds: number[]
+}
+
+// Inserta o actualiza la máquina, sube la foto si hay una nueva y reconcilia
+// sus cruces (procesos que realiza + operarios ideal/suplente).
+export async function guardarMaquina(
+  input: GuardarMaquinaInput,
+): Promise<{ error?: string }> {
+  const base = { nombre: input.nombre.trim(), foto_url: input.fotoUrl }
+
+  let id = input.id
+  if (id == null) {
+    const { data, error } = await supabase
+      .from('maquinas')
+      .insert(base)
+      .select('id')
+      .single()
+    if (error) return { error: error.message }
+    id = data.id
+  } else {
+    const { error } = await supabase.from('maquinas').update(base).eq('id', id)
+    if (error) return { error: error.message }
+  }
+  if (id == null) return { error: 'No se pudo determinar la máquina guardada.' }
+
+  // Foto nueva: subir a maquinas/{id}/... y guardar el path.
+  if (input.fotoArchivo) {
+    const ext =
+      input.fotoArchivo.name.split('.').pop() ||
+      input.fotoArchivo.type.split('/')[1] ||
+      'png'
+    const ruta = `maquinas/${id}/${Date.now()}.${ext}`
+    const { error: eUp } = await supabase.storage
+      .from(BUCKET)
+      .upload(ruta, input.fotoArchivo, { upsert: true })
+    if (!eUp) {
+      await supabase.from('maquinas').update({ foto_url: ruta }).eq('id', id)
+    }
+  }
+
+  // Cruce con procesos que realiza.
+  const eMTP = await supabase
+    .from('maquina_tipos_proceso')
+    .delete()
+    .eq('maquina_id', id)
+  if (eMTP.error) return { error: eMTP.error.message }
+  if (input.tipoProcesoIds.length) {
+    const filas = input.tipoProcesoIds.map((tipo_proceso_id) => ({
+      maquina_id: id,
+      tipo_proceso_id,
+    }))
+    const { error } = await supabase
+      .from('maquina_tipos_proceso')
+      .insert(filas)
+    if (error) return { error: error.message }
+  }
+
+  // Cruce con operarios (ideal + suplentes).
+  const eMP = await supabase
+    .from('maquina_personal')
+    .delete()
+    .eq('maquina_id', id)
+  if (eMP.error) return { error: eMP.error.message }
+  const filasP: { maquina_id: number; personal_id: number; rol: string }[] = []
+  if (input.operarioIdealId != null) {
+    filasP.push({
+      maquina_id: id,
+      personal_id: input.operarioIdealId,
+      rol: 'ideal',
+    })
+  }
+  for (const pid of input.suplenteIds) {
+    if (pid !== input.operarioIdealId) {
+      filasP.push({ maquina_id: id, personal_id: pid, rol: 'suplente' })
+    }
+  }
+  if (filasP.length) {
+    const { error } = await supabase.from('maquina_personal').insert(filasP)
+    if (error) return { error: error.message }
+  }
+
+  return {}
 }

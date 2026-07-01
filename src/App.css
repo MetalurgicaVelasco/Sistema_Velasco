@@ -504,14 +504,14 @@
   font-size: 14px;
   font-weight: 600;
   color: #fff;
-  background: #4f46e5;
+  background: #0c447c;
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .empresa-boton:hover {
-  background: #4338ca;
+  background: #0a3866;
 }
 
 .empresa-boton:disabled {
@@ -620,15 +620,15 @@
 .empresa-boton-secundario {
   padding: 8px 16px;
   font-size: 14px;
-  color: #52525b;
-  background: #f4f4f5;
-  border: 1px solid #d4d4d8;
+  color: #2c2c2a;
+  background: #fff;
+  border: 1px solid #c8c6be;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .empresa-boton-secundario:hover {
-  background: #e4e4e7;
+  background: #f5f3ec;
 }
 
 /* ---- Botón borrar en la fila + botón peligro en el modal ---- */
@@ -650,15 +650,15 @@
   padding: 8px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
-  background: #dc2626;
-  border: none;
+  color: #a32d2d;
+  background: #fef0f0;
+  border: 1px solid #e24b4a;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .empresa-boton-peligro:hover {
-  background: #b91c1c;
+  background: #fedada;
 }
 
 .empresa-boton-peligro:disabled {
@@ -1582,4 +1582,201 @@
   .checklist-cols {
     column-count: 1;
   }
+}
+
+/* ---- Módulo Máquinas (Activos) ---- */
+.maq-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.maq-head-texto {
+  flex: 1;
+  margin: 0;
+}
+.maq-filtros {
+  background: #fff;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.maq-filtros-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.maq-filtros-fila + .maq-filtros-fila {
+  margin-top: 10px;
+}
+.maq-filtro-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5f5e5a;
+}
+.maq-buscar {
+  width: 220px;
+}
+.maq-orden {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.maq-orden-select {
+  width: auto;
+  padding: 6px 8px;
+}
+.maq-orden-dir {
+  padding: 5px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+.maq-filtro-combo {
+  flex: 1;
+  min-width: 0;
+}
+
+.maq-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.maq-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+}
+.maq-card-foto {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #e8e6df;
+  flex-shrink: 0;
+}
+.maq-card-foto-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a1a1aa;
+  font-size: 22px;
+}
+.maq-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.maq-card-nombre {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.maq-card-procs {
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.maq-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: #e8f2fc;
+  color: #0c447c;
+}
+.maq-sin-procs {
+  font-size: 12px;
+  color: #a32d2d;
+  font-style: italic;
+}
+
+/* Variante de modal más ancha (Máquina) */
+.rec-modal-ancho {
+  width: 600px;
+}
+
+/* ---- Combo multi-select buscable (ComboMultiBuscable) ---- */
+.cmb {
+  position: relative;
+}
+.cmb-caja {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: #fff;
+  min-height: 34px;
+}
+.cmb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: #0c447c;
+  color: #fff;
+}
+.cmb-chip-x {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+.cmb-input {
+  flex: 1;
+  min-width: 140px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  padding: 3px 4px;
+  background: transparent;
+}
+.cmb-drop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin-top: 2px;
+  background: #fff;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+.cmb-opt {
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 1px solid #f5f3ec;
+}
+.cmb-opt:last-child {
+  border-bottom: none;
+}
+.cmb-opt:hover {
+  background: #e6f1fb;
+  color: #0c447c;
+}
+.cmb-vacio {
+  padding: 10px;
+  font-size: 12px;
+  color: #a1a1aa;
+  font-style: italic;
+  text-align: center;
 }

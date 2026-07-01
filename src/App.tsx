@@ -8,6 +8,7 @@ import Login from './shared/components/Login'
 import Empresas from './features/empresas/Empresas'
 import Proyectos from './features/produccion/Proyectos'
 import Procesos from './features/produccion/Procesos'
+import Maquinas from './features/activos/Maquinas'
 import './App.css'
 
 function App() {
@@ -51,6 +52,13 @@ function App() {
       seleccion.moduloId === 'procesos'
     ) {
       return <Procesos />
+    }
+
+    if (
+      seleccion.seccionId === 'activos' &&
+      seleccion.moduloId === 'maquinas'
+    ) {
+      return <Maquinas />
     }
 
     return (
