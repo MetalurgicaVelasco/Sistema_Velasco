@@ -2446,3 +2446,174 @@ textarea.ef-i {
 .tabla-acciones button {
   margin-left: 6px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Navegación por teclado + selección de fila + columna de fotos (franja 3)
+   Bloque al final: pisa por orden de fuente las reglas anteriores.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Contenedor focuseable de cada lista (franjas 2 y 3): sin outline, la fila
+   azul ya marca dónde estás parado. */
+.lista-focus {
+  outline: none;
+}
+
+/* Fila seleccionada: fondo azul marino + texto blanco (pisa el lila anterior),
+   y se mantiene aunque se hoveree. */
+.tabla-fila.seleccionada td {
+  background: #0c447c;
+  color: #fff;
+}
+.tabla-fila.seleccionada:hover td {
+  background: #0c447c;
+}
+/* Los botones de acción sobre el azul: fondo blanco para que se lean bien. */
+.tabla-fila.seleccionada .empresas-editar,
+.tabla-fila.seleccionada .empresas-borrar {
+  background: #fff;
+}
+
+/* Nombre de empresa clickeable (salto a Empresas filtrado). */
+.empresa-link {
+  color: #0c447c;
+  cursor: pointer;
+  text-decoration: none;
+}
+.empresa-link:hover {
+  text-decoration: underline;
+}
+/* En la fila seleccionada hereda el blanco para contrastar con el azul. */
+.tabla-fila.seleccionada .empresa-link {
+  color: #fff;
+}
+
+/* Franja 3 (Producción): columna de fotos (fija 150px, SIN scroll) +
+   contenido a la derecha. Se escopa a `.detalle-proy` para no afectar el
+   detalle de Empresas, que usa `.detalle` con otra estructura. */
+.detalle {
+  display: block;
+  padding: 0;
+}
+.detalle-proy {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.detalle-proy .detalle-fotos {
+  flex: 0 0 150px;
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+.detalle-proy .detalle-foto-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.detalle-proy .detalle-foto {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain; /* imagen completa, sin recortar */
+  border: 1px solid #c8c6be;
+  border-radius: 4px;
+  background: #fff;
+}
+.detalle-proy .detalle-foto-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9a978f;
+  font-size: 11px;
+  background: #f5f3ec;
+}
+.detalle-proy .detalle-foto-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: #6b6a66;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.detalle-proy .detalle-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* La tabla de items scrollea internamente: así la columna de fotos no crece
+   ni empuja scroll en la franja. */
+.detalle-proy .detalle-main .lista-focus {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Barra superior con el botón "← Volver": queda fija arriba al scrollear,
+   así siempre se ve. Se usa en el form de proyecto y en la vista del item. */
+.vista-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+
+/* Logo de empresa en modo solo lectura (detalle General): solo se ve. */
+.logo-caja-ro {
+  cursor: default;
+  border-color: #c8c6be;
+  background: #f5f3ec;
+}
+.logo-vacio {
+  color: #9a978f;
+  font-size: 12px;
+}
+/* Logo editable dentro del modal de edición de empresa. */
+.empresa-logo-editar {
+  margin-bottom: 12px;
+}
+.empresa-logo-label {
+  display: block;
+  font-size: 12px;
+  color: #6b6a66;
+  margin-bottom: 4px;
+}
+
+/* Detalle de Empresas: la "fila" del detalle (franja 3) es seleccionable y
+   tiene menú contextual (click derecho → Editar/Borrar). */
+.detalle-fila {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 6px;
+}
+.detalle-fila.seleccionada {
+  background: #0c447c;
+}
+.detalle-fila.seleccionada .detalle-campos {
+  color: #fff;
+}
+.detalle-fila.seleccionada .detalle-label {
+  color: #cfe0f2;
+}
+.detalle-fila.seleccionada .empresas-editar,
+.detalle-fila.seleccionada .empresas-borrar {
+  background: #fff;
+}
+/* Editar/Borrar en la misma línea que los valores de los campos (a la derecha). */
+.detalle-campos > .detalle-acciones-inline {
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-end;
+  margin-left: auto;
+  gap: 8px;
+}

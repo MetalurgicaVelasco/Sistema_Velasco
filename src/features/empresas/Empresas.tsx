@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import type { NavFiltro } from '../../shared/types/navegacion'
 import { supabase } from '../../shared/lib/supabaseClient'
 import { contiene } from '../../shared/lib/texto'
 import MenuContextual from '../../shared/components/MenuContextual'
@@ -80,6 +81,14 @@ const TABS_ENLAZADOS = [
   { id: 'recibos', label: 'Recibos' },
   { id: 'pagos', label: 'Pagos' },
 ]
+
+// CUIT argentino: dos dígitos, guion, ocho dígitos, guion, dígito verificador.
+function formatCuit(cuit: string | null): string {
+  if (!cuit) return '—'
+  const d = cuit.replace(/\D/g, '')
+  if (d.length === 11) return `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`
+  return cuit
+}
 
 function rolesTexto(e: Empresa): string {
   const r: string[] = []
@@ -249,7 +258,7 @@ function CamposEmpresa({
   )
 }
 
-function Empresas() {
+function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -257,6 +266,14 @@ function Empresas() {
   const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null)
   const empresaSeleccionada =
     empresas.find((e) => e.id === seleccionadaId) ?? null
+
+  // Refs para navegación con teclado (foco) y auto-scroll de la fila activa.
+  const listaEmpRef = useRef<HTMLDivElement>(null)
+  const filaEmpSelRef = useRef<HTMLTableRowElement>(null)
+  // Preview del logo dentro del modal de edición (se actualiza al pegar/quitar).
+  const [logoUrlEdit, setLogoUrlEdit] = useState<string | null>(null)
+  // La "fila" del detalle (franja 3) se puede seleccionar aunque sea única.
+  const [detalleSel, setDetalleSel] = useState(false)
 
   // Filtros (franja 1)
   const [busqueda, setBusqueda] = useState('')
@@ -292,6 +309,48 @@ function Empresas() {
     setFiltroRazon('')
     setFiltroApellido('')
     setFiltroRoles({ cliente: false, proveedor: false, transporte: false })
+  }
+
+  // Filtro entrante (salto desde otro módulo, ej: click en la empresa de un
+  // proyecto): limpia los filtros y filtra por el NOMBRE de esa empresa,
+  // dejándola seleccionada. Se aplica una vez por
+  // salto (aplicadoRef evita re-aplicar cuando recargan las empresas).
+  const aplicadoRef = useRef<NavFiltro | null>(null)
+  useEffect(() => {
+    if (!filtroEntrante || empresas.length === 0) return
+    if (aplicadoRef.current === filtroEntrante) return
+    aplicadoRef.current = filtroEntrante
+    const emp = empresas.find((e) => e.id === filtroEntrante.empresaId)
+    limpiarFiltros()
+    if (emp) setFiltroNombre(emp.nombre)
+    setSeleccionadaId(filtroEntrante.empresaId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroEntrante, empresas])
+
+  // Auto-scroll de la fila seleccionada al moverse con el teclado.
+  useEffect(() => {
+    filaEmpSelRef.current?.scrollIntoView({ block: 'nearest' })
+    setDetalleSel(false)
+  }, [seleccionadaId])
+
+  // Navegación con teclado en la lista (↑/↓ mueve el selector, Enter = Editar).
+  function onKeyEmpresas(e: React.KeyboardEvent) {
+    if (empresasFiltradas.length === 0) return
+    const idx = empresasFiltradas.findIndex((x) => x.id === seleccionadaId)
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSeleccionadaId(
+        empresasFiltradas[
+          idx < 0 ? 0 : Math.min(idx + 1, empresasFiltradas.length - 1)
+        ].id,
+      )
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSeleccionadaId(empresasFiltradas[idx < 0 ? 0 : Math.max(idx - 1, 0)].id)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (empresaSeleccionada) abrirEdicion(empresaSeleccionada)
+    }
   }
 
   function toggleRol(rol: 'cliente' | 'proveedor' | 'transporte') {
@@ -423,6 +482,7 @@ function Empresas() {
   function abrirEdicion(empresa: Empresa) {
     setEmpresaEditando(empresa)
     setFormEdit(empresaAForm(empresa))
+    setLogoUrlEdit(empresa.foto_url)
     setErrorEdit(null)
   }
 
@@ -556,6 +616,12 @@ function Empresas() {
             Ninguna empresa coincide con los filtros.
           </p>
         ) : (
+          <div
+            className="lista-focus"
+            tabIndex={0}
+            ref={listaEmpRef}
+            onKeyDown={onKeyEmpresas}
+          >
           <table className="tabla">
             <thead>
               <tr>
@@ -569,20 +635,25 @@ function Empresas() {
               {empresasFiltradas.map((empresa) => (
                 <tr
                   key={empresa.id}
+                  ref={empresa.id === seleccionadaId ? filaEmpSelRef : undefined}
                   className={
                     'tabla-fila' +
                     (empresa.id === seleccionadaId ? ' seleccionada' : '')
                   }
-                  onClick={() => setSeleccionadaId(empresa.id)}
+                  onClick={() => {
+                    setSeleccionadaId(empresa.id)
+                    listaEmpRef.current?.focus()
+                  }}
                 >
                   <td>{empresa.codigo ?? '—'}</td>
                   <td>{empresa.nombre}</td>
-                  <td>{empresa.cuit ?? '—'}</td>
+                  <td>{formatCuit(empresa.cuit)}</td>
                   <td>{rolesTexto(empresa)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
         </MenuContextual>
       </div>
@@ -608,67 +679,92 @@ function Empresas() {
             <div className="enlazados-contenido">
               {tabDetalle === 'general' ? (
                 <div className="detalle">
-                  <div className="detalle-header">
-                    <h3 className="detalle-titulo">
-                      {empresaSeleccionada.nombre}
-                    </h3>
-                    <div className="detalle-acciones">
-                      <button
-                        type="button"
-                        className="empresas-editar"
-                        onClick={() => abrirEdicion(empresaSeleccionada)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="empresas-borrar"
-                        onClick={() => {
+                  <MenuContextual
+                    items={[
+                      {
+                        label: 'Editar',
+                        onSelect: () => abrirEdicion(empresaSeleccionada),
+                      },
+                      {
+                        label: 'Borrar',
+                        onSelect: () => {
                           setEmpresaBorrando(empresaSeleccionada)
                           setErrorBorrar(null)
-                        }}
-                      >
-                        Borrar
-                      </button>
+                        },
+                      },
+                    ]}
+                  >
+                    <div
+                      className={
+                        'detalle-cuerpo detalle-fila' +
+                        (detalleSel ? ' seleccionada' : '')
+                      }
+                      onClick={() => setDetalleSel(true)}
+                    >
+                      <LogoEmpresa
+                        soloLectura
+                        empresaId={empresaSeleccionada.id}
+                        fotoUrl={empresaSeleccionada.foto_url}
+                      />
+                      <div className="detalle-campos">
+                        <div>
+                          <span className="detalle-label">Nombre</span>
+                          <span>{empresaSeleccionada.nombre}</span>
+                        </div>
+                        <div>
+                          <span className="detalle-label">Código</span>
+                          <span>{empresaSeleccionada.codigo ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="detalle-label">CUIT</span>
+                          <span>{formatCuit(empresaSeleccionada.cuit)}</span>
+                        </div>
+                        <div>
+                          <span className="detalle-label">Razón social</span>
+                          <span>{empresaSeleccionada.razon_social ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="detalle-label">Condición IVA</span>
+                          <span>{empresaSeleccionada.condicion_iva ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="detalle-label">Condición IIBB</span>
+                          <span>{empresaSeleccionada.condicion_iibb ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="detalle-label">Número IIBB</span>
+                          <span>{empresaSeleccionada.numero_iibb ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="detalle-label">Roles</span>
+                          <span>{rolesTexto(empresaSeleccionada)}</span>
+                        </div>
+                        <div className="detalle-acciones-inline">
+                          <button
+                            type="button"
+                            className="empresas-editar"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              abrirEdicion(empresaSeleccionada)
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="empresas-borrar"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEmpresaBorrando(empresaSeleccionada)
+                              setErrorBorrar(null)
+                            }}
+                          >
+                            Borrar
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="detalle-cuerpo">
-                    <LogoEmpresa
-                      empresaId={empresaSeleccionada.id}
-                      fotoUrl={empresaSeleccionada.foto_url}
-                      onCambio={cargarEmpresas}
-                    />
-                    <div className="detalle-campos">
-                    <div>
-                      <span className="detalle-label">Código</span>
-                      <span>{empresaSeleccionada.codigo ?? '—'}</span>
-                    </div>
-                    <div>
-                      <span className="detalle-label">CUIT</span>
-                      <span>{empresaSeleccionada.cuit ?? '—'}</span>
-                    </div>
-                    <div>
-                      <span className="detalle-label">Razón social</span>
-                      <span>{empresaSeleccionada.razon_social ?? '—'}</span>
-                    </div>
-                    <div>
-                      <span className="detalle-label">Condición IVA</span>
-                      <span>{empresaSeleccionada.condicion_iva ?? '—'}</span>
-                    </div>
-                    <div>
-                      <span className="detalle-label">Condición IIBB</span>
-                      <span>{empresaSeleccionada.condicion_iibb ?? '—'}</span>
-                    </div>
-                    <div>
-                      <span className="detalle-label">Número IIBB</span>
-                      <span>{empresaSeleccionada.numero_iibb ?? '—'}</span>
-                    </div>
-                    <div>
-                      <span className="detalle-label">Roles</span>
-                      <span>{rolesTexto(empresaSeleccionada)}</span>
-                    </div>
-                  </div>
-                  </div>
+                  </MenuContextual>
                 </div>
               ) : tabDetalle === 'contactos' ? (
                 <ContactosEmpresa empresaId={empresaSeleccionada.id} />
@@ -743,6 +839,17 @@ function Empresas() {
           onCerrar={() => setEmpresaEditando(null)}
         >
           <div className="empresa-form-modal">
+            <div className="empresa-logo-editar">
+              <span className="empresa-logo-label">Logo</span>
+              <LogoEmpresa
+                empresaId={empresaEditando.id}
+                fotoUrl={logoUrlEdit}
+                onCambio={(ruta) => {
+                  setLogoUrlEdit(ruta)
+                  cargarEmpresas()
+                }}
+              />
+            </div>
             <CamposEmpresa valor={formEdit} setValor={setFormEdit} />
             {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
             <div className="empresa-modal-acciones">

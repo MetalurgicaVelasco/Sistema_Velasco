@@ -7,10 +7,12 @@ function LogoEmpresa({
   empresaId,
   fotoUrl,
   onCambio,
+  soloLectura = false,
 }: {
   empresaId: number
   fotoUrl: string | null
-  onCambio: () => void
+  onCambio?: (ruta: string | null) => void
+  soloLectura?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -19,6 +21,21 @@ function LogoEmpresa({
   const urlPublica = fotoUrl
     ? supabase.storage.from(BUCKET).getPublicUrl(fotoUrl).data.publicUrl
     : null
+
+  // ── Modo solo lectura (detalle): solo se ve el logo, sin poder editarlo ──
+  if (soloLectura) {
+    return (
+      <div className="logo-empresa">
+        <div className="logo-caja logo-caja-ro">
+          {urlPublica ? (
+            <img src={urlPublica} alt="Logo" className="logo-img" />
+          ) : (
+            <span className="logo-vacio">sin logo</span>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   async function subirArchivo(file: File) {
     setError(null)
@@ -56,7 +73,7 @@ function LogoEmpresa({
       setError('Se subió la imagen pero no se pudo asociar a la empresa.')
       return
     }
-    onCambio()
+    onCambio?.(ruta)
   }
 
   async function quitar() {
@@ -74,7 +91,7 @@ function LogoEmpresa({
       setError('No se pudo quitar el logo.')
       return
     }
-    onCambio()
+    onCambio?.(null)
   }
 
   // Pegar con Ctrl+V una captura del portapapeles.

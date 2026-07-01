@@ -164,9 +164,11 @@ function VistaItem({
 
   return (
     <div className="vista-item">
-      <button type="button" className="empresa-boton-secundario" onClick={onCerrar}>
-        ← Volver al proyecto
-      </button>
+      <div className="vista-topbar">
+        <button type="button" className="empresa-boton-secundario" onClick={onCerrar}>
+          ← Volver al proyecto
+        </button>
+      </div>
 
       {/* Encabezado del item */}
       <div className="vi-header">

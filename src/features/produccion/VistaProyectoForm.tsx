@@ -371,6 +371,15 @@ function VistaProyectoForm({
 
   return (
     <div className="pf-vista">
+      <div className="vista-topbar">
+        <button
+          type="button"
+          className="empresa-boton-secundario"
+          onClick={onCerrar}
+        >
+          ← Volver
+        </button>
+      </div>
       <div className="pf-breadcrumb">
         Proyectos › {esNuevo ? 'Nuevo' : 'Editar'}
       </div>

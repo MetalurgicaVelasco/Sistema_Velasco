@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './shared/lib/supabaseClient'
 import BarraSecciones from './shared/components/BarraSecciones'
 import type { Seleccion } from './shared/components/BarraSecciones'
+import type { NavFiltro } from './shared/types/navegacion'
 import Encabezado from './shared/components/Encabezado'
 import Login from './shared/components/Login'
 import Empresas from './features/empresas/Empresas'
@@ -16,6 +17,14 @@ function App() {
   const [sesion, setSesion] = useState<Session | null>(null)
   const [cargando, setCargando] = useState(true)
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null)
+  // Filtro que se aplica en el módulo destino al saltar por un enlazado.
+  const [filtroEntrante, setFiltroEntrante] = useState<NavFiltro | null>(null)
+
+  // Navegación cross-módulo: cambia de módulo y deja el filtro para el destino.
+  function navegar(sel: Seleccion, filtro: NavFiltro) {
+    setSeleccion(sel)
+    setFiltroEntrante(filtro)
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -38,14 +47,14 @@ function App() {
     }
 
     if (seleccion.seccionId === 'empresas' && seleccion.moduloId === 'empresas') {
-      return <Empresas />
+      return <Empresas filtroEntrante={filtroEntrante} />
     }
 
     if (
       seleccion.seccionId === 'produccion' &&
       seleccion.moduloId === 'proyectos'
     ) {
-      return <Proyectos />
+      return <Proyectos onNavegar={navegar} />
     }
 
     if (
@@ -89,7 +98,12 @@ function App() {
   return (
     <div className="app">
       <Encabezado email={sesion.user.email} />
-      <BarraSecciones onSeleccion={setSeleccion} />
+      <BarraSecciones
+        onSeleccion={(s) => {
+          setSeleccion(s)
+          setFiltroEntrante(null)
+        }}
+      />
       <main className="contenido-area">{renderContenido()}</main>
     </div>
   )

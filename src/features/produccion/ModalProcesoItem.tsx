@@ -68,6 +68,52 @@ function ModalProcesoItem({
     .slice()
     .sort((a, b) => nombrePersonal(a).localeCompare(nombrePersonal(b)))
 
+  // ── Filtrado según el proceso elegido (calca el viejo) ──────────────
+  // Máquinas: solo las que hacen ese tipo de proceso (sin proceso o "Otro" →
+  // todas). Operarios: el ideal + suplentes de la máquina elegida, o del tipo
+  // si es "Ninguna" (sin máquina). Lo ya guardado que quede fuera del filtro
+  // se mantiene visible marcado "(fuera de tipo)", para no perderlo en silencio.
+  const tipoId = procSel !== '' && procSel !== 'OTRO' ? Number(procSel) : null
+
+  const maquinasFiltradas =
+    tipoId == null
+      ? maquinasOrden
+      : maquinasOrden.filter((m) => m.tipoProcesoIds.includes(tipoId))
+  const maqSelId =
+    maqSel !== '' && maqSel !== 'OTRA' && maqSel !== 'NINGUNA' ? Number(maqSel) : null
+  const maqFueraDeTipo =
+    maqSelId != null && !maquinasFiltradas.some((m) => m.id === maqSelId)
+      ? (maquinasOrden.find((m) => m.id === maqSelId) ?? null)
+      : null
+
+  function idsOperariosDisponibles(): number[] | null {
+    if (maqSelId != null) {
+      const m = maquinasOrden.find((x) => x.id === maqSelId)
+      if (!m) return null
+      const ids = [m.operarioIdealId, ...m.suplenteIds].filter(
+        (x): x is number => x != null,
+      )
+      return ids.length ? ids : null
+    }
+    if (maqSel === 'NINGUNA' && tipoId != null) {
+      const t = tiposProceso.find((x) => x.id === tipoId)
+      if (!t) return null
+      const ids = [t.operarioIdealId, ...t.suplenteIds].filter(
+        (x): x is number => x != null,
+      )
+      return ids.length ? ids : null
+    }
+    return null
+  }
+  const opIds = idsOperariosDisponibles()
+  const personalFiltrado =
+    opIds == null ? personalOrden : personalOrden.filter((p) => opIds.includes(p.id))
+  const opSelId = opSel !== '' ? Number(opSel) : null
+  const opFueraDeTipo =
+    opSelId != null && !personalFiltrado.some((p) => p.id === opSelId)
+      ? (personalOrden.find((p) => p.id === opSelId) ?? null)
+      : null
+
   const MODOS: [ModoProceso, string, string][] = [
     ['manual', 'Manual', 'El operario está presente todo el tiempo de la actividad.'],
     [
@@ -196,7 +242,7 @@ function ModalProcesoItem({
           />
         </div>
       </div>
-      <div className="ef-help" style={{ marginTop: -6, marginBottom: 12 }}>
+      <div className="ef-help" style={{ marginTop: 6, marginBottom: 12 }}>
         El <b>setup</b> es el seteo de la máquina, una sola vez. La{' '}
         <b>operación</b> es por pieza. Total = setup + cantidad del item ×
         operación, y el <b>margen</b> se suma al total.
@@ -239,11 +285,16 @@ function ModalProcesoItem({
           onChange={(e) => setMaqSel(e.target.value)}
         >
           <option value="">— elegir —</option>
-          {maquinasOrden.map((m) => (
+          {maquinasFiltradas.map((m) => (
             <option key={m.id} value={String(m.id)}>
               {m.nombre}
             </option>
           ))}
+          {maqFueraDeTipo && (
+            <option value={String(maqFueraDeTipo.id)}>
+              {maqFueraDeTipo.nombre} (fuera de tipo)
+            </option>
+          )}
           <option value="OTRA">Otra (especificar)</option>
           <option value="NINGUNA">Ninguna (sin máquina)</option>
         </select>
@@ -267,11 +318,16 @@ function ModalProcesoItem({
           onChange={(e) => setOpSel(e.target.value)}
         >
           <option value="">— sin operario —</option>
-          {personalOrden.map((p) => (
+          {personalFiltrado.map((p) => (
             <option key={p.id} value={String(p.id)}>
               {nombrePersonal(p)}
             </option>
           ))}
+          {opFueraDeTipo && (
+            <option value={String(opFueraDeTipo.id)}>
+              {nombrePersonal(opFueraDeTipo)} (fuera de tipo)
+            </option>
+          )}
         </select>
       </div>
 
