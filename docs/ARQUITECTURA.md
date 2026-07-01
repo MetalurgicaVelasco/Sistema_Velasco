@@ -4,7 +4,9 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 29/06/2026 (§5: contacto nombre/apellido, catálogos Área/Sector, filtros franja 1)
+> Última actualización: 01/07/2026 (agregadas §8.3 procesos e items, §14 estándar de
+> modales y §15 paleta de botones; notas en §5 sobre acciones en franja 2 y la vista
+> dedicada del item)
 
 ---
 
@@ -91,7 +93,7 @@ conexiones externas tipo DBeaver/TablePlus o migraciones masivas, no en el día 
 | `clientes` | `empresas` |
 
 `empresas` modela una entidad que puede ser cliente, proveedor o ambos
-(campos `es_cliente` / `es_proveedor`).
+(campos `es_cliente` / `es_proveedor`, más `es_transporte`).
 
 ---
 
@@ -112,10 +114,14 @@ de referencia (se afinan al maquetar; alguna franja podría volverse ajustable/c
   proyectos del HTML).
 - **Franja 2 — Lista:** los registros que cumplen los filtros. Columnas (ej. Proyectos):
   Nº Proyecto, Nº Pedido, Cliente, Descripción, Estado, Fecha Creación, Plazo de Entrega,
-  Moneda, Importe, OC Cliente, Contacto, Responsable, Creado por, IVA, Notas.
+  Moneda, Importe, OC Cliente, Contacto, Responsable, Creado por, IVA, Notas. **Las
+  acciones del registro (Editar / Borrar) viven en esta franja** (en la fila del
+  registro), no en el detalle, para no confundirlas con la edición de los items del
+  detalle.
 - **Franja 3 — Detalle:** los items del registro seleccionado. Columnas (ej.): Nº Item,
   Tipo, Cant. Pedida, Cant. Remitida, Descripción, Estado, Plazo, Urgencia, Fecha Remitido,
-  Código de Matriz, Sector, Equipo, Stock disponible, Stock en producción.
+  Código de Matriz, Sector, Equipo, Stock disponible, Stock en producción, y el conteo
+  **"N proceso(s)"** por item.
   - **Despliegue según sección** (un mismo módulo se ve distinto según dónde se mira):
     - En **Ventas**, los items se ven **planos** (las filas tal cual, sin explotar). A
       Ventas le importa qué se vende, no la estructura de fabricación.
@@ -123,6 +129,10 @@ de referencia (se afinan al maquetar; alguna franja podría volverse ajustable/c
       subconjuntos anidados (a cualquier profundidad) → productos → procesos.
   - Política de uso: ser estrictos y no pasar de **1 nivel de subconjunto** en la práctica,
     aunque el modelo recursivo (§8) soporte más si aparecen.
+  - **Vista dedicada del item:** doble click (o el botón **Editar**) en una fila de item
+    abre una **vista a módulo completo** con el encabezado del item (foto, cliente,
+    pedido, cantidad, etc.) y sus **procesos** (ver §8.3). Los procesos NO se editan dentro
+    del form del proyecto, sino en esta vista, sobre un item ya guardado.
 - **Franja 4 — Enlazados:** pestañas con los conceptos vinculados al registro seleccionado
   (Presupuestos, Pedidos, Facturas, Remitos, Recibos, Órdenes de Compra, Compras, Pagos,
   Recepciones, Logística, etc.). Cada pestaña lista los conceptos de ese tipo enlazados al
@@ -141,149 +151,8 @@ OC → (doble click en su pago) → Compras > Pagos filtrado por ese pago. Se "v
 red de conceptos enlazados, siempre con el mismo gesto.
 
 Otras interacciones:
-- **Click derecho**: acciones contextuales. **Convención del sistema:** las cosas nuevas
-  se crean por **click derecho → "Nueva …"** sobre el área correspondiente, no con botones
-  "+ Nuevo" a la vista. Se prioriza recuperar espacio vertical (que es escaso) y unificar el
-  gesto de alta en todo el sistema. Implementado con el componente reutilizable
-  `MenuContextual` (`shared/components`). (Sin texto de ayuda: el gesto se aprende una vez y
-  vale en todos lados.)
+- **Click derecho**: acciones contextuales.
 - **Tooltips** en las franjas de lista y detalle.
-
-### Lineamientos de modales (aplican a TODOS los modales del sistema)
-
-1. **Botón de cerrar (X) siempre visible:** el header del modal queda fijo arriba; solo
-   scrollea el cuerpo. La X nunca desaparece, aun con contenido largo.
-2. **No se cierran al clickear afuera:** el modal solo se cierra con la X o con sus botones
-   (Cancelar / Guardar / etc.). Evita perder lo que se está cargando por un click al lado.
-3. **Arrastrables (pendiente):** todos los modales deben poder moverse, para ver lo que hay
-   detrás sin cerrarlos. Se implementa una vez en el `Modal` reutilizable de `shared/` y
-   todos lo heredan. *(Aún no implementado.)*
-
-Implementación: hay un componente `Modal` reutilizable en `shared/components/` que encapsula
-estos comportamientos; los módulos solo le pasan el contenido. Los puntos 1 y 2 ya están;
-el 3 queda pendiente.
-
-### Requisitos de las franjas y tablas (pendientes, son features dedicados)
-
-Aplican a la vista de 4 franjas de todos los módulos:
-
-1. **Filtros sin distinción de tildes:** todo filtro de tipo "contiene" debe ser
-   insensible a acentos (buscar "America" encuentra "América Pampa Agroindustrial").
-   También insensible a mayúsculas/minúsculas. *(Pendiente.)*
-2. **Franjas con altura ajustable:** se puede arrastrar el borde entre franjas para
-   redistribuir el alto. Mínimo **15%** por franja. *(Pendiente.)*
-3. **Columnas configurables por tabla:** ancho ajustable (arrastrando), reordenables, y un
-   menú por **click derecho** en los encabezados para elegir/ordenar columnas. Para esto se
-   evaluará una **librería de tablas madura** (candidata: TanStack Table) en vez de
-   construirlo a mano, para no generar deuda técnica. *(Pendiente.)*
-4. **Persistencia de preferencias de UI por usuario y módulo:** las personalizaciones
-   (alturas de franjas, anchos/orden de columnas) se guardan en una **tabla de Supabase**
-   (no en el navegador), para que sigan al usuario entre sus distintos dispositivos. Cada
-   módulo guarda las suyas sin afectar a los demás. *(Pendiente.)*
-
-**Criterio general:** preferir librerías maduras antes que reinventar funcionalidad
-compleja, evaluando caso por caso, para evitar deuda técnica.
-
-### Densidad visual de las tablas (lineamiento, aplicar al construir la tabla definitiva)
-
-Objetivo: **que entre más información en pantalla**. Hoy las filas y encabezados desperdician
-mucho espacio vertical. Estándar para todas las tablas del sistema:
-
-- **Encabezados de columna:** alto ≈ 80% texto, 10% arriba, 10% abajo (hoy ≈ 33/33/33).
-  Reducir el padding vertical de los `th`.
-- **Filas de datos:** mismo criterio (≈ 80% ocupado por el texto, poco aire arriba/abajo;
-  hoy ≈ 35%).
-- **Línea divisoria** entre cada fila.
-- **Filas alternadas** blanco / gris claro (zebra striping), para seguir una fila con la
-  vista.
-
-> Se aplica cuando se construya la tabla definitiva (probablemente con TanStack Table),
-> para no maquetar a mano algo que la librería va a regenerar.
-
-### Composición de las franjas (Empresas)
-
-- **Franja 3 (Detalle):** datos propios de la empresa + sus conceptos que son *parte de*
-  ella: **Contactos, Direcciones, Transportes**.
-- **Franja 4 (Enlazados):** conceptos comerciales *vinculados* a la empresa: Proyectos,
-  Pedidos, Facturas, Remitos, Órdenes de Compra, Recibos, Pagos, etc. (se llenan a medida
-  que existan esos módulos).
-
-**Relación contacto → dirección (implementado):** un contacto puede referenciar **una
-dirección de su propia empresa** (campo `direccion_id`, FK a `empresa_direcciones`; no texto
-libre), de forma **opcional**. En el modal del contacto, un selector lista las direcciones de
-la empresa, más un botón "+ Nueva" que abre el modal de alta de dirección **encima** del de
-contacto (modal sobre modal); al crearla, queda **seleccionada automáticamente** en el
-contacto sin perder lo cargado. El alta de dirección se factorizó en un componente
-reutilizable (`ModalNuevaDireccion` + el módulo `direccionForm`) que usan tanto Direcciones
-como Contactos, para no duplicar el formulario.
-- **Borrado:** la FK es `ON DELETE SET NULL`: si se borra una dirección referenciada por un
-  contacto, el contacto **no se rompe** ni se borra; queda sin dirección. (Esto convive con el
-  ciclo de vida de §7 cuando se implemente el bloqueo de borrado por enlaces.)
-- En la tabla de contactos hay una columna **Dirección** con la etiqueta legible de la
-  dirección vinculada.
-
-**Catálogo geográfico (normalizado, sin texto libre):** las direcciones no guardan país /
-provincia / localidad como texto, sino que **referencian** un catálogo jerárquico compartido
-por todo el sistema: `paises` → `provincias` (FK país) → `localidades` (FK provincia).
-`empresa_direcciones` apunta a `localidad_id` (de ahí salen provincia y país por la cadena).
-- **Sin texto libre:** para elegir un país/provincia/localidad tiene que existir en el
-  catálogo; si no está, primero se carga en el catálogo. Esto evita variantes ("Gral. Pico"
-  vs "General Pico") y mantiene los datos limpios para filtros y reportes.
-- **Precargado de fuente oficial:** se importa de Georef (datos.gob.ar, IGN/INDEC): país
-  Argentina, las 24 provincias y todas las localidades del país. No se cargan a mano (salvo
-  algún caso puntual que falte).
-- **Selector estilo Táctica:** columnas País / Provincia / Localidad, cada una con filtro
-  "contiene" insensible a tildes y mayúsculas; se elige de la lista.
-- Hoy solo Argentina; el modelo permite sumar otros países si aparecen.
-
-**Contactos — nombre/apellido y catálogos de Área/Sector (implementado):**
-- El contacto se guarda con **Nombre + Apellido separados** (dos campos), no un solo nombre.
-  Permite filtrar empresas por apellido de contacto de forma precisa.
-- **Área (catálogo global):** tabla `contacto_areas`, las **mismas áreas para todas las
-  empresas** (Mantenimiento, Compras, Ventas, Gerencia, Postventa, General, …). El contacto
-  referencia `area_id` (FK, `SET NULL`).
-- **Sector (catálogo por empresa):** tabla `empresa_sectores` (FK `empresa_id`), cada empresa
-  tiene **sus propios** sectores (Rendering, Soja, Girasol, Faena, …). El contacto referencia
-  `sector_id` (FK, `SET NULL`). A futuro probablemente se conecte con el "Sector" de la Matriz
-  de Productos (Cliente → Sector → Equipo, §8.1).
-- **Sin texto libre:** ambos se eligen de un desplegable. El alta de valores nuevos se hace
-  **al vuelo** desde el mismo selector (componente reutilizable `SelectorConAlta`: desplegable
-  + "+ Nuevo" que inserta en el catálogo y deja el valor seleccionado), coherente con el
-  criterio de catálogos normalizados de la geografía.
-
-**Filtros de la franja 1 (Empresas, implementado):**
-- **Buscador general** (un campo que matchea nombre, código o CUIT a la vez) **+ campos por
-  columna** separados: Código, Nombre, Razón social, Apellido de contacto.
-- Todos los filtros se **combinan con Y**; el buscador general es "O" entre sus campos.
-- **Filtro por rol** (Cliente / Proveedor / Transporte) con checkboxes, lógica "O" entre los
-  tildados (ninguno tildado = todas).
-- El filtro por apellido de contacto cruza a `empresa_contactos` (snapshot en memoria).
-- Todo el filtrado es **del lado del cliente** (la lista de empresas está cargada entera);
-  para el volumen del taller es instantáneo. Si el volumen creciera mucho, se pasaría a
-  filtrar en la base. Las comparaciones de texto usan el helper `texto.ts` (sin tildes).
-
-### Transportes / Logística (visión a futuro, en tres niveles)
-
-Idea planteada por Tomás; **no se construye todavía** (falta definir el modelo). Se registra
-para tenerla de norte. Son tres niveles de ambición muy distintos, a no mezclar:
-
-- **Nivel 1 — Transportes usuales de una empresa (acotado, patrón conocido).** Las empresas
-  que prestan el servicio llevan el rol `es_transporte`. Dentro de cada empresa, la solapa
-  **Transportes** (franja 3) lista sus transportes usuales (que son otras empresas con rol
-  Transporte) con **observaciones**: a cargo de quién va el flete (nuestro / del
-  cliente/proveedor), contactos/teléfonos del transporte, días y horarios que maneja, etc.
-  Es el mismo patrón uno-a-muchos de Contactos/Direcciones. **Candidato a construir primero**
-  cuando se retome.
-- **Nivel 2 — Rutas con días y horarios (sub-sistema, va en el módulo Logística).** Modelar
-  las rutas de cada transporte: retiro del taller, y tramos entre ciudades (ej. el Pamper:
-  Santa Rosa↔General Pico, Santa Rosa↔Buenos Aires, Santa Rosa↔Córdoba), cada uno con sus
-  días y horarios/frecuencias. Es un módulo propio, no un campo más. Encaja en **Logística**
-  (sección Actividades, §6).
-- **Nivel 3 — Optimizador de envíos (proyecto en sí mismo, lejano).** Dada una carga
-  (peso/volumen) y la fecha/hora en que estará lista, que el sistema sugiera el medio/combinación
-  más rápida para llegar a destino, usando las rutas, ventanas horarias, transbordos y
-  capacidad. Es un problema de ruteo/optimización; el más complejo de todo lo planteado.
-  Requiere los niveles 1 y 2 andando primero.
 
 ---
 
@@ -337,70 +206,13 @@ definidos; se hilan más adelante.
 
 ---
 
-## 7. Roles, permisos, auditoría y ciclo de vida de los registros
-
-### Roles y permisos
+## 7. Roles, permisos y auditoría
 
 - Cada usuario tiene un **Rol**.
 - Los permisos (qué módulos ve / edita) se definen **por rol**, no por usuario.
 - Existe un **Rol Maestro** con acceso total, salvo la configuración del Admin Principal.
+- **Auditoría**: el sistema registra quién cambió qué y cuándo.
 - Auth mediante **Supabase Auth**.
-
-### Auditoría — historial completo de revisiones
-
-Requisito troncal: el sistema deja **trazabilidad completa de todos los cambios**. No solo
-el último cambio, sino el **historial entero**: qué cambió, valor anterior y nuevo, quién
-lo hizo y cuándo. Debe poder consultarse las **revisiones anteriores** de cualquier
-registro.
-
-- **Implementación recomendada: triggers de Postgres** (en Supabase) que registran cada
-  cambio automáticamente en una tabla de auditoría. Ventaja: no depende de que el código de
-  la app "se acuerde" de loguear en cada operación; la base lo hace siempre, no se escapa
-  ningún cambio.
-- Tabla de auditoría con: tabla afectada, id del registro, acción (insert/update/delete),
-  campo/valores anterior y nuevo, usuario y timestamp. (Diseño exacto a definir al
-  implementar.)
-- Coherente con el versionado inmutable de planos (§10): los registros históricos no se
-  editan ni se borran.
-
-> Estado: **no implementado todavía**. Es un sistema en sí mismo; se construye en su etapa.
-> Pero define cómo se modela cada tabla desde ahora.
-
-**Cómo se accede a las auditorías (los tres modos conviven, leen la misma tabla):**
-- **A — Pestaña "Auditoría" por registro:** una pestaña más en las franjas (3 o 4) que
-  muestra el historial *de ese registro* (estilo TacticaSoft). Responde "¿qué pasó con esta
-  empresa?".
-- **B — Vista global de auditoría:** muestra *todos* los cambios del sistema, filtrable por
-  usuario, fecha y tabla. Responde "¿qué tocó tal usuario ayer?".
-- **C — Historial inline por campo:** al editar, un acceso muestra los valores anteriores de
-  *ese campo*. Útil para campos sensibles (ej: límite de cuenta corriente).
-
-> Decisión pendiente: el acceso global (B) ¿es un módulo "Auditoría" repetido dentro de cada
-> sección, o una sección "Auditoría" aparte que centraliza todo? A definir (mirar también
-> cómo lo organiza TacticaSoft).
-
-### Ciclo de vida de los registros — borrar vs. bloquear
-
-Regla troncal para proteger la integridad histórica: **una entidad enlazada a cualquier
-registro (proyecto, solicitud, venta, compra, etc.) no se borra físicamente.** Estados:
-
-- **Activo:** se ve y se puede seleccionar/usar normalmente.
-- **Bloqueado:** ya no se puede seleccionar para registros nuevos, pero **sigue visible**
-  (porque está enlazado a históricos que deben seguir teniendo sentido).
-- **Oculto:** un bloqueado que además se esconde de la vista por defecto, pero **sigue
-  existiendo** en la base por trazabilidad.
-
-**Borrar vs. bloquear (conviven):**
-- **Borrado físico:** permitido **solo si la entidad nunca se enlazó a nada** (ej: una
-  empresa cargada por error que no tiene proyectos/ventas/compras). Sirve para limpiar
-  basura.
-- **Bloqueo:** si la entidad **ya tiene enlaces**, no se borra; se bloquea (y opcionalmente
-  se oculta).
-- Se puede apoyar en **FKs con `ON DELETE RESTRICT`**: la base misma impide borrar una fila
-  referenciada, garantizando la regla a nivel de datos.
-
-> Estado: **no implementado todavía**. El botón "Borrar" actual de Empresas evolucionará a
-> esta lógica (borrar si no tiene enlaces, bloquear si los tiene).
 
 ---
 
@@ -448,7 +260,7 @@ Proyecto → Item → Proceso
 
 - En el HTML actual los items son **planos** (todos hermanos).
 - En React, el item del proyecto gana un campo **Tipo** (Conjunto / Producto), permitiendo
-  estructura anidada dentro del proyecto.
+  estructura anidada dentro del proyecto (vía `tipo` + `parent_item_id`).
 - **El avance se modela en dos niveles distintos (no confundir):**
   - **Estado del proyecto** = estado *comercial / de coordinación*. Valores reales en uso:
     `Proyectando, Solicitud, Pedido, Mantenimiento, Cerrado, Anulado, Perdido` (con
@@ -458,7 +270,51 @@ Proyecto → Item → Proceso
     `Espera MP, Llegó MP, Proceso, Enviar a TT, TT, Llegó TT, Terminado, Enviado,
     Stockeado, Anulado`.
   - El detalle del significado de cada estado vive en `NEGOCIO.md` (sección 4).
-- Los **procesos** del item son los que se convierten en bloques/actividades del Tablero.
+- Los **procesos** del item son los que se convierten en bloques/actividades del Tablero
+  (ver §8.3).
+
+### 8.3 Procesos del item (implementado)
+
+Cada item tiene una lista ordenada de **procesos** (tabla `procesos`, el renombre
+normalizado de `actividades_tablero`). Un proceso es un paso de trabajo del item y es lo
+que se convierte en bloque del Tablero. Se editan en la **vista dedicada del item** (§5),
+sobre un item ya guardado.
+
+**Modelo de datos:**
+- `procesos`: `item_id`, `orden`, `tipo_proceso_id` (FK al catálogo de tipos) **o**
+  `proceso_otro` (texto libre cuando es "Otro"), `modo`, los tres tiempos (`setup_min`,
+  `operacion_min`, `margen_min`), `maquina_id` / `maquina_otra`, `operario_id`,
+  `detalle_trabajo`, `es_retrabajo`. **No denormaliza** cliente/pedido/fotos (eso sale por
+  join cuando haga falta, a diferencia del viejo).
+- `correlatividades`: tabla propia (`predecesor_id` → `sucesor_id`), muchos-a-muchos;
+  puede cruzar items del mismo proyecto. Se crean lineales al agregar procesos (el nuevo
+  encadena con el anterior) y se pueden editar a mano o **redefinir** (borra las internas
+  del item y las recrea lineales según el orden actual, sin tocar las que van a otros items).
+
+**Duraciones — tres tiempos de entrada, el total se deriva:**
+- **Setup** (`setup_min`): seteo de máquina, una sola vez.
+- **Operación** (`operacion_min`): por pieza (admite decimales).
+- **Margen** (`margen_min`): global.
+- Total = `setup + cantidad_del_item × operación (+ margen)`. **No se guarda
+  pre-calculado**, para que no quede viejo si cambia la cantidad del item.
+
+**Modo** (define la ocupación operario/máquina en el Tablero, badge MAN/SEMI/AUTO):
+- `manual`: el operario está presente todo el tiempo.
+- `semi_automatica`: setup y la máquina sigue sola hasta fin de jornada; retoma al otro día.
+- `automatica`: setup y la máquina corre 24/7 hasta terminar.
+
+**"Otro" proceso:** `tipo_proceso_id` null + `proceso_otro` (texto). Se decidió así en vez
+de una fila fija "Otro" en el catálogo, porque el nombre concreto varía por caso
+(Granallado, etc.).
+
+**Suplentes derivados:** los suplentes de máquina y operario **no se guardan por proceso**;
+se derivan de recursos (otras máquinas que hacen ese tipo de proceso; los suplentes de la
+máquina elegida, o del tipo de proceso si no lleva máquina). Si más adelante hace falta
+override por proceso, se agregan tablas de cruce.
+
+**Fase 2 (con el Tablero):** estados de planificación, ✓Hecho/Desanclar, grupo de división
+(sub-procesos por pieza), buscador de predecesores entre items, duración del planificador.
+Nada de eso está todavía en el esquema.
 
 ---
 
@@ -476,6 +332,8 @@ El color comunica **qué tipo de cosa es** (no la profundidad). La profundidad s
 
 > Los códigos hexadecimal exactos se afinan al maquetar, cuidando que entre rojo, naranja y
 > amarillo haya suficiente contraste aunque sean todos suaves.
+
+(Para los colores de los **botones de acción**, ver §15.)
 
 ---
 
@@ -603,6 +461,39 @@ sola vez** en `shared/` en lugar de duplicarse entre páginas como pasaba en el 
       con `parent_type` = proyecto / item / producto; falta decidir si se extiende a
       conjunto, subconjunto, sector, equipo). Pendiente de definir.
 - [ ] **Librerías a sumar** (drag-and-drop para el tablero, calendario, date picker, etc.).
-- [ ] **Códigos hexadecimal** de los colores pastel.
-- [ ] **Script de migración** de datos maestros desde la Supabase vieja a la nueva.
-- [ ] **Por qué módulo empezar** el desarrollo.
+- [ ] **Códigos hexadecimal** de los colores pastel por nivel jerárquico (§9).
+- [ ] **Script de migración** de proyectos viejos desde la Supabase vieja a la nueva
+      (los datos maestros —empresas, recursos— ya se migraron).
+
+---
+
+## 14. Estándar de modales
+
+Todos los modales del sistema usan el componente compartido
+`shared/components/Modal.tsx`, que garantiza **tres reglas**:
+
+1. **No se cierran al clickear afuera.** Solo se cierran con la × del header, con sus
+   botones (Cancelar) o con **Esc**. Evita perder lo cargado por un click accidental en
+   el fondo.
+2. **Se arrastran** tomándolos de la barra de título.
+3. **La × queda siempre visible:** el header es fijo y solo el cuerpo scrollea.
+
+El ancho se controla con el prop `ancho` (px). Los modales que todavía usan divs ad-hoc
+(`ModalItem`, `ModalProceso`, `ModalPersonal`, `ModalMaquina`) se van migrando a `<Modal>`
+para cumplir el estándar.
+
+---
+
+## 15. Paleta de colores de acción (botones)
+
+Los botones usan los colores del **sistema viejo** (no índigo/gris):
+
+| Rol | Fondo | Borde | Texto | Hover |
+|---|---|---|---|---|
+| **Primario** (acción principal) | `#0C447C` | — | `#FFFFFF` | fondo `#0A3866` |
+| **Secundario / base** | `#FFFFFF` | `#C8C6BE` | `#2C2C2A` | fondo `#F5F3EC` |
+| **Peligro / eliminar** | `#FEF0F0` | `#E24B4A` | `#A32D2D` | fondo `#FEDADA` |
+| **Retrabajo** (acento naranja) | `#FFF4E6` | `#E69138` | `#854F0B` | fondo `#FFE9CF` |
+
+Los badges de modo de proceso en la tarjeta: MAN gris (`#E8E6DF`/`#5F5E5A`), SEMI violeta
+(`#5C4A8A`/blanco), AUTO negro (`#1A1A1A`/blanco).
