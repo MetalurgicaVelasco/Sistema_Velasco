@@ -9,6 +9,7 @@ import Empresas from './features/empresas/Empresas'
 import Proyectos from './features/produccion/Proyectos'
 import Procesos from './features/produccion/Procesos'
 import Maquinas from './features/activos/Maquinas'
+import Personal from './features/rrhh/Personal'
 import './App.css'
 
 function App() {
@@ -59,6 +60,13 @@ function App() {
       seleccion.moduloId === 'maquinas'
     ) {
       return <Maquinas />
+    }
+
+    if (
+      seleccion.seccionId === 'rrhh' &&
+      seleccion.moduloId === 'personal'
+    ) {
+      return <Personal />
     }
 
     return (

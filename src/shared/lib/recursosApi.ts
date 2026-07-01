@@ -293,3 +293,141 @@ export async function guardarMaquina(
 
   return {}
 }
+
+// ---------------------------------------------------------------------------
+// PERSONAL — guardar / inhabilitar
+// ---------------------------------------------------------------------------
+
+export type GuardarPersonalInput = {
+  id: number | null
+  nombre: string
+  apellido: string | null
+  horarioEntrada: string | null
+  horarioSalida: string | null
+  horarioSabadoInicio: string | null
+  horarioSabadoFin: string | null
+  enTablero: boolean
+  colorBorde: string | null
+  // Máquinas donde la persona es ideal / suplente (edición bidireccional).
+  maquinasIdeal: number[]
+  maquinasSuplente: number[]
+  // Tipos de proceso SIN máquina que la persona "sabe hacer". Se guardan como
+  // rol 'suplente'. IMPORTANTE: no debe incluir procesos donde la persona ya es
+  // el ideal — esas filas se protegen y se editan desde el módulo Procesos.
+  procesosSinMaquinaSuplente: number[]
+}
+
+// Inserta o actualiza una persona y reconcilia sus asignaciones:
+//  - maquina_personal: sus filas ideal/suplente, con la regla de "un solo ideal
+//    por máquina" (si pasa a ser ideal de una que ya tenía otro, ese otro baja a
+//    suplente). El aviso al usuario lo hace el modal antes de llamar acá.
+//  - tipo_proceso_personal: solo sus filas 'suplente' (las 'ideal', que se
+//    definen desde Procesos, no se tocan).
+export async function guardarPersonal(
+  input: GuardarPersonalInput,
+): Promise<{ error?: string }> {
+  const base = {
+    nombre: input.nombre.trim(),
+    apellido: input.apellido?.trim() || null,
+    horario_entrada: input.horarioEntrada,
+    horario_salida: input.horarioSalida,
+    horario_sabado_inicio: input.horarioSabadoInicio,
+    horario_sabado_fin: input.horarioSabadoFin,
+    en_tablero: input.enTablero,
+    color_borde: input.colorBorde,
+  }
+
+  let id = input.id
+  if (id == null) {
+    const { data, error } = await supabase
+      .from('personal')
+      .insert({ ...base, activo: true })
+      .select('id')
+      .single()
+    if (error) return { error: error.message }
+    id = data.id
+  } else {
+    const { error } = await supabase.from('personal').update(base).eq('id', id)
+    if (error) return { error: error.message }
+  }
+  if (id == null) return { error: 'No se pudo determinar la persona guardada.' }
+  const pid = id // desde acá siempre es number (ayuda a TypeScript en los cruces)
+
+  // --- maquina_personal ---
+  // 1) Desplazar: en cada máquina donde esta persona pasa a ser ideal, si había
+  //    otro ideal, ese otro baja a suplente.
+  for (const maquinaId of input.maquinasIdeal) {
+    const { error } = await supabase
+      .from('maquina_personal')
+      .update({ rol: 'suplente' })
+      .eq('maquina_id', maquinaId)
+      .eq('rol', 'ideal')
+      .neq('personal_id', pid)
+    if (error) return { error: error.message }
+  }
+  // 2) Limpiar las filas de ESTA persona y reinsertar el set deseado.
+  const eDelMaq = await supabase
+    .from('maquina_personal')
+    .delete()
+    .eq('personal_id', pid)
+  if (eDelMaq.error) return { error: eDelMaq.error.message }
+
+  const idealSet = new Set(input.maquinasIdeal)
+  const filasMaq: { maquina_id: number; personal_id: number; rol: string }[] = []
+  for (const maquinaId of input.maquinasIdeal) {
+    filasMaq.push({ maquina_id: maquinaId, personal_id: pid, rol: 'ideal' })
+  }
+  for (const maquinaId of input.maquinasSuplente) {
+    if (!idealSet.has(maquinaId)) {
+      filasMaq.push({ maquina_id: maquinaId, personal_id: pid, rol: 'suplente' })
+    }
+  }
+  if (filasMaq.length) {
+    const { error } = await supabase.from('maquina_personal').insert(filasMaq)
+    if (error) return { error: error.message }
+  }
+
+  // --- tipo_proceso_personal (solo las filas 'suplente' de esta persona) ---
+  const eDelProc = await supabase
+    .from('tipo_proceso_personal')
+    .delete()
+    .eq('personal_id', pid)
+    .eq('rol', 'suplente')
+  if (eDelProc.error) return { error: eDelProc.error.message }
+  if (input.procesosSinMaquinaSuplente.length) {
+    const filasProc = input.procesosSinMaquinaSuplente.map((tipo_proceso_id) => ({
+      tipo_proceso_id,
+      personal_id: pid,
+      rol: 'suplente',
+    }))
+    const { error } = await supabase
+      .from('tipo_proceso_personal')
+      .insert(filasProc)
+    if (error) return { error: error.message }
+  }
+
+  return {}
+}
+
+// Baja lógica: marca la persona como inactiva y le quita todas sus asignaciones
+// (deja de ser ideal/suplente de máquinas y procesos), para no dejar referencias
+// colgadas a alguien que ya no está. Si se rehabilita, se reasigna.
+export async function inhabilitarPersonal(
+  id: number,
+): Promise<{ error?: string }> {
+  const e1 = await supabase
+    .from('maquina_personal')
+    .delete()
+    .eq('personal_id', id)
+  if (e1.error) return { error: e1.error.message }
+  const e2 = await supabase
+    .from('tipo_proceso_personal')
+    .delete()
+    .eq('personal_id', id)
+  if (e2.error) return { error: e2.error.message }
+  const e3 = await supabase
+    .from('personal')
+    .update({ activo: false })
+    .eq('id', id)
+  return e3.error ? { error: e3.error.message } : {}
+}
