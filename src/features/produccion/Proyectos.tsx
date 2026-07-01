@@ -3,8 +3,14 @@ import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
+import VistaItem from './VistaItem'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
+import type { Item } from './itemTipos'
+import { contarProcesosPorItems } from './procesosApi'
+
+const SELECT_ITEM =
+  'id, proyecto_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo'
 
 const SELECT_PROYECTO =
   'id, empresa_id, contacto_id, pedido_nro, descripcion, urgencia, estado, sub_estado_cerrado, fecha_ingreso, fecha_entrega, fecha_limite_cotizar, plazo_dias_habiles, paso_por_solicitud, observaciones_mail, observaciones_anulacion, cliente_final_empresa_id, cliente_final_texto, moneda, oc_cliente, foto_url, empresa:empresas!empresa_id ( nombre )'
@@ -15,6 +21,14 @@ function Proyectos() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seleccionadoId, setSeleccionadoId] = useState<number | null>(null)
+
+  // Items del proyecto seleccionado (franja 3) + conteo de procesos por item.
+  const [items, setItems] = useState<Item[]>([])
+  const [itemsCargando, setItemsCargando] = useState(false)
+  const [contarProc, setContarProc] = useState<Record<number, number>>({})
+
+  // Item cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
+  const [itemVista, setItemVista] = useState<Item | null>(null)
 
   // null = lista; 'nuevo' = formulario nuevo; Proyecto = formulario editar
   const [formActivo, setFormActivo] = useState<'nuevo' | Proyecto | null>(null)
@@ -53,6 +67,29 @@ function Proyectos() {
     cargarEmpresas()
   }, [])
 
+  async function cargarItems(proyectoId: number) {
+    setItemsCargando(true)
+    const { data } = await supabase
+      .from('items')
+      .select(SELECT_ITEM)
+      .eq('proyecto_id', proyectoId)
+      .order('id')
+    const its = (data as unknown as Item[]) ?? []
+    setItems(its)
+    setContarProc(await contarProcesosPorItems(its.map((i) => i.id)))
+    setItemsCargando(false)
+  }
+
+  useEffect(() => {
+    if (seleccionadoId == null) {
+      setItems([])
+      setContarProc({})
+      return
+    }
+    cargarItems(seleccionadoId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seleccionadoId])
+
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
 
   function volverALista() {
@@ -76,6 +113,22 @@ function Proyectos() {
     if (seleccionadoId === proyectoBorrando.id) setSeleccionadoId(null)
     setProyectoBorrando(null)
     cargarProyectos()
+  }
+
+  // Vista dedicada del item (procesos): ocupa todo el módulo.
+  if (itemVista) {
+    return (
+      <VistaItem
+        item={itemVista}
+        proyecto={
+          proyectos.find((p) => p.id === itemVista.proyecto_id) ?? seleccionado
+        }
+        onCerrar={() => {
+          setItemVista(null)
+          if (seleccionadoId != null) cargarItems(seleccionadoId)
+        }}
+      />
+    )
   }
 
   // Vista de formulario (alta o edición): ocupa todo el módulo.
@@ -176,9 +229,52 @@ function Proyectos() {
                 </button>
               </div>
             </div>
-            <span className="franja-placeholder">
-              Items del proyecto (próximamente)
-            </span>
+            {itemsCargando ? (
+              <span className="franja-placeholder">Cargando items…</span>
+            ) : items.length === 0 ? (
+              <span className="franja-placeholder">
+                Este proyecto todavía no tiene items.
+              </span>
+            ) : (
+              <table className="tabla">
+                <thead>
+                  <tr>
+                    <th>Nº</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                    <th>Estado</th>
+                    <th>Procesos</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it) => (
+                    <tr
+                      key={it.id}
+                      className="tabla-fila"
+                      onDoubleClick={() => setItemVista(it)}
+                    >
+                      <td>{it.id}</td>
+                      <td>{it.tipo}</td>
+                      <td>{it.descripcion}</td>
+                      <td>{it.cantidad ?? 1}</td>
+                      <td>{it.estado}</td>
+                      <td>{contarProc[it.id] ?? 0} proceso(s)</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className="empresas-editar"
+                          onClick={() => setItemVista(it)}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         ) : (
           <span className="franja-placeholder">

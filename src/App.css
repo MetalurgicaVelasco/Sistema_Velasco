@@ -1902,3 +1902,232 @@
   vertical-align: middle;
   margin-right: 5px;
 }
+
+/* ================= Vista dedicada del item (procesos) ================= */
+.vista-item {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px 20px 40px;
+  height: 100%;
+  overflow-y: auto;
+}
+.vi-header {
+  margin: 12px 0 20px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fff;
+}
+.vi-titulo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.vi-titulo h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #27272a;
+}
+.vi-cant {
+  color: #71717a;
+  font-weight: 600;
+}
+.vi-estado {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0c447c;
+  background: #eaf1fa;
+  border: 1px solid #cfe0f3;
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.vi-datos {
+  display: flex;
+  gap: 16px;
+}
+.vi-foto {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e4e4e7;
+  flex: 0 0 auto;
+}
+.vi-foto-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a1a1aa;
+  font-size: 12px;
+  background: #fafafa;
+}
+.vi-datos-txt {
+  font-size: 13px;
+  color: #3f3f46;
+  line-height: 1.7;
+}
+.vi-datos-txt b {
+  color: #52525b;
+  font-weight: 600;
+}
+.vi-proc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 12px;
+}
+.vi-proc-head-btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- Tarjeta de proceso ---- */
+.proc-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid #e4e4e7;
+  border-left: 3px solid #0c447c;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+.proc-card-ret {
+  border-left-color: #e24b4a;
+  background: #fffaf9;
+}
+.proc-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.proc-card-t {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #27272a;
+  margin-bottom: 4px;
+}
+.proc-num {
+  color: #71717a;
+}
+.proc-card-s {
+  font-size: 13px;
+  color: #3f3f46;
+  line-height: 1.55;
+}
+.proc-card-s b {
+  color: #52525b;
+  font-weight: 600;
+}
+
+/* ---- Badges de modo ---- */
+.proc-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+.proc-badge-manual {
+  color: #3f3f46;
+  background: #f4f4f5;
+  border: 1px solid #d4d4d8;
+}
+.proc-badge-semi_automatica {
+  color: #92580a;
+  background: #fdf3e0;
+  border: 1px solid #f0d9a8;
+}
+.proc-badge-automatica {
+  color: #0c447c;
+  background: #eaf1fa;
+  border: 1px solid #cfe0f3;
+}
+.proc-badge-ret {
+  color: #a32d2d;
+  background: #fef0f0;
+  border: 1px solid #e24b4a;
+}
+
+/* ---- Predecesores ---- */
+.proc-preds {
+  margin-top: 3px;
+}
+.proc-preds-vacio {
+  color: #a1a1aa;
+}
+.proc-pred-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  background: #f4f4f5;
+  border: 1px solid #d4d4d8;
+  border-radius: 999px;
+  padding: 1px 4px 1px 8px;
+  margin: 0 4px 4px 0;
+}
+.proc-pred-x {
+  cursor: pointer;
+  color: #a32d2d;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 4px;
+}
+.proc-pred-x:hover {
+  color: #7a2020;
+}
+
+/* ---- Acciones de la tarjeta ---- */
+.proc-card-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  max-width: 240px;
+}
+.proc-mover {
+  display: flex;
+  gap: 4px;
+}
+
+/* ---- Modal de proceso ---- */
+.proc-fila-3 {
+  display: flex;
+  gap: 10px;
+}
+.proc-fila-3 > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.proc-modos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.proc-modo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.proc-modo-sel {
+  border-color: #0c447c;
+  background: #f5f9fe;
+}
+.proc-modo-desc {
+  display: block;
+  color: #71717a;
+  font-size: 12px;
+  margin-top: 2px;
+}
