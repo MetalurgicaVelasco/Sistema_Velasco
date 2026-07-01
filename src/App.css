@@ -1458,7 +1458,16 @@
    Vista simple: encabezado + lista + modal. Paleta índigo/gris de la app.
    ========================================================================== */
 .rec-vista {
-  padding: 4px 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px 20px;
+  box-sizing: border-box;
+}
+/* Contenido centrado en una columna (compacto en PC; a todo el ancho en
+   pantallas más angostas que el max-width). */
+.rec-cont {
+  max-width: 1080px;
+  margin: 0 auto;
 }
 .rec-head-bar {
   display: flex;

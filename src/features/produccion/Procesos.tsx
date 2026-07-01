@@ -63,6 +63,7 @@ function Procesos() {
 
   return (
     <div className="rec-vista">
+      <div className="rec-cont">
       <div className="rec-head-bar">
         <h2 className="rec-titulo">Procesos</h2>
         <button
@@ -122,6 +123,7 @@ function Procesos() {
           ))}
         </div>
       )}
+      </div>
 
       {modal && (
         <ModalProceso
