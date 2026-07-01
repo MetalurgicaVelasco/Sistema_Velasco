@@ -7,6 +7,7 @@ import Encabezado from './shared/components/Encabezado'
 import Login from './shared/components/Login'
 import Empresas from './features/empresas/Empresas'
 import Proyectos from './features/produccion/Proyectos'
+import Procesos from './features/produccion/Procesos'
 import './App.css'
 
 function App() {
@@ -43,6 +44,13 @@ function App() {
       seleccion.moduloId === 'proyectos'
     ) {
       return <Proyectos />
+    }
+
+    if (
+      seleccion.seccionId === 'produccion' &&
+      seleccion.moduloId === 'procesos'
+    ) {
+      return <Procesos />
     }
 
     return (
