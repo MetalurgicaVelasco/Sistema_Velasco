@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../../shared/components/Modal'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { TipoProceso, Maquina, Personal } from '../../shared/types/recursos'
 import { guardarProceso } from './procesosApi'
@@ -6,6 +7,7 @@ import type { Proceso, ModoProceso } from './procesoTipos'
 
 // Modal para crear o editar un proceso de un item. Los suplentes de máquina y
 // operario NO se editan acá: se derivan de recursos y se muestran en la tarjeta.
+// Usa el <Modal> compartido (arrastrable, no cierra al click afuera, × fija).
 function ModalProcesoItem({
   proceso,
   itemId,
@@ -66,6 +68,16 @@ function ModalProcesoItem({
     .slice()
     .sort((a, b) => nombrePersonal(a).localeCompare(nombrePersonal(b)))
 
+  const MODOS: [ModoProceso, string, string][] = [
+    ['manual', 'Manual', 'El operario está presente todo el tiempo de la actividad.'],
+    [
+      'semi_automatica',
+      'Semi-automática',
+      'Setup y la máquina sigue sola hasta fin de jornada; retoma al otro día.',
+    ],
+    ['automatica', 'Automática', 'Setup y la máquina corre 24/7 hasta terminar.'],
+  ]
+
   async function guardar() {
     if (!procSel) {
       setError('Elegí un proceso.')
@@ -109,167 +121,163 @@ function ModalProcesoItem({
   }
 
   return (
-    <div className="pf-modal-fondo" onClick={onCancelar}>
-      <div className="rec-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="pf-modal-titulo">
-          {esEditar ? 'Editar proceso' : 'Nuevo proceso'}
-        </h3>
-
-        {/* Proceso */}
-        <label className="empresa-campo">
-          Proceso *
-          <select
-            className="empresa-input"
-            value={procSel}
-            onChange={(e) => setProcSel(e.target.value)}
-          >
-            <option value="">— elegir proceso —</option>
-            {tiposOrden.map((t) => (
-              <option key={t.id} value={String(t.id)}>
-                {t.nombre}
-              </option>
-            ))}
-            <option value="OTRO">Otro (especificar)</option>
-          </select>
-        </label>
+    <Modal
+      titulo={esEditar ? 'Editar proceso' : 'Nuevo proceso'}
+      onCerrar={onCancelar}
+      ancho={680}
+    >
+      {/* Proceso */}
+      <div className="ef">
+        <div className="ef-l">
+          Proceso <span className="ef-req">*</span>
+        </div>
+        <select
+          className="ef-i"
+          value={procSel}
+          onChange={(e) => setProcSel(e.target.value)}
+        >
+          <option value="">— elegir proceso —</option>
+          {tiposOrden.map((t) => (
+            <option key={t.id} value={String(t.id)}>
+              {t.nombre}
+            </option>
+          ))}
+          <option value="OTRO">Otro (especificar)</option>
+        </select>
         {procSel === 'OTRO' && (
-          <label className="empresa-campo">
-            Nombre del proceso
-            <input
-              className="empresa-input"
-              value={procOtro}
-              onChange={(e) => setProcOtro(e.target.value)}
-              placeholder="Ej. Granallado"
-            />
-          </label>
+          <input
+            className="ef-i"
+            style={{ marginTop: 6 }}
+            value={procOtro}
+            onChange={(e) => setProcOtro(e.target.value)}
+            placeholder="Especificá el proceso…"
+          />
         )}
-
-        {/* Tiempos */}
-        <div className="proc-fila-3">
-          <label className="empresa-campo">
-            Setup (min)
-            <input
-              type="number"
-              className="empresa-input"
-              value={setup}
-              min="0"
-              step="5"
-              onChange={(e) => setSetup(e.target.value)}
-            />
-          </label>
-          <label className="empresa-campo">
-            Operación (min/pieza)
-            <input
-              type="number"
-              className="empresa-input"
-              value={operacion}
-              min="0"
-              step="0.1"
-              onChange={(e) => setOperacion(e.target.value)}
-            />
-          </label>
-          <label className="empresa-campo">
-            Margen (min)
-            <input
-              type="number"
-              className="empresa-input"
-              value={margen}
-              min="0"
-              step="10"
-              onChange={(e) => setMargen(e.target.value)}
-            />
-          </label>
+        <div className="ef-help">
+          Es lo que se muestra en el bloque del tablero junto al item.
         </div>
-        <span className="pf-ayuda">
-          Total = setup + cantidad del item × operación (+ margen).
-        </span>
+      </div>
 
-        {/* Modo */}
-        <div className="empresa-campo">
-          <span className="pf-label">Tipo *</span>
-          <div className="proc-modos">
-            {(
-              [
-                ['manual', 'Manual', 'El operario está presente todo el tiempo.'],
-                [
-                  'semi_automatica',
-                  'Semi-automática',
-                  'Setup y la máquina sigue sola hasta fin de jornada; retoma al otro día.',
-                ],
-                [
-                  'automatica',
-                  'Automática',
-                  'Setup y la máquina corre 24/7 hasta terminar.',
-                ],
-              ] as [ModoProceso, string, string][]
-            ).map(([val, titulo, desc]) => (
-              <label
-                key={val}
-                className={'proc-modo' + (modo === val ? ' proc-modo-sel' : '')}
-              >
-                <input
-                  type="radio"
-                  name="modo"
-                  checked={modo === val}
-                  onChange={() => setModo(val)}
-                />
-                <span>
-                  <strong>{titulo}</strong>
-                  <span className="proc-modo-desc">{desc}</span>
-                </span>
-              </label>
-            ))}
+      {/* Tiempos */}
+      <div className="proc-fila-3">
+        <div className="ef">
+          <div className="ef-l">Tiempo de setup (min)</div>
+          <input
+            type="number"
+            className="ef-i"
+            value={setup}
+            min="0"
+            step="5"
+            onChange={(e) => setSetup(e.target.value)}
+          />
+        </div>
+        <div className="ef">
+          <div className="ef-l">
+            Tiempo de operación (min) <span className="ef-req">*</span>
           </div>
+          <input
+            type="number"
+            className="ef-i"
+            value={operacion}
+            min="0"
+            step="0.1"
+            onChange={(e) => setOperacion(e.target.value)}
+          />
         </div>
+        <div className="ef">
+          <div className="ef-l">Margen (min)</div>
+          <input
+            type="number"
+            className="ef-i"
+            value={margen}
+            min="0"
+            step="10"
+            onChange={(e) => setMargen(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="ef-help" style={{ marginTop: -6, marginBottom: 12 }}>
+        El <b>setup</b> es el seteo de la máquina, una sola vez. La{' '}
+        <b>operación</b> es por pieza. Total = setup + cantidad del item ×
+        operación, y el <b>margen</b> se suma al total.
+      </div>
 
-        {/* Máquina */}
-        <label className="empresa-campo">
-          Máquina ideal *
-          <select
-            className="empresa-input"
-            value={maqSel}
-            onChange={(e) => setMaqSel(e.target.value)}
-          >
-            <option value="">— elegir —</option>
-            {maquinasOrden.map((m) => (
-              <option key={m.id} value={String(m.id)}>
-                {m.nombre}
-              </option>
-            ))}
-            <option value="OTRA">Otra (especificar)</option>
-            <option value="NINGUNA">Ninguna (sin máquina)</option>
-          </select>
-        </label>
+      {/* Modo */}
+      <div className="ef">
+        <div className="ef-l">
+          Tipo <span className="ef-req">*</span>
+        </div>
+        <div className="proc-modos">
+          {MODOS.map(([val, titulo, desc]) => (
+            <label
+              key={val}
+              className={'proc-modo' + (modo === val ? ' proc-modo-sel' : '')}
+            >
+              <input
+                type="radio"
+                name="modo"
+                checked={modo === val}
+                onChange={() => setModo(val)}
+              />
+              <span>
+                <strong>{titulo}</strong>
+                <span className="proc-modo-desc">{desc}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Máquina */}
+      <div className="ef">
+        <div className="ef-l">
+          Máquina ideal <span className="ef-req">*</span>
+        </div>
+        <select
+          className="ef-i"
+          value={maqSel}
+          onChange={(e) => setMaqSel(e.target.value)}
+        >
+          <option value="">— elegir —</option>
+          {maquinasOrden.map((m) => (
+            <option key={m.id} value={String(m.id)}>
+              {m.nombre}
+            </option>
+          ))}
+          <option value="OTRA">Otra (especificar)</option>
+          <option value="NINGUNA">Ninguna (sin máquina)</option>
+        </select>
         {maqSel === 'OTRA' && (
-          <label className="empresa-campo">
-            Nombre de la máquina
-            <input
-              className="empresa-input"
-              value={maqOtra}
-              onChange={(e) => setMaqOtra(e.target.value)}
-            />
-          </label>
+          <input
+            className="ef-i"
+            style={{ marginTop: 6 }}
+            value={maqOtra}
+            onChange={(e) => setMaqOtra(e.target.value)}
+            placeholder="Especificá la máquina…"
+          />
         )}
+      </div>
 
-        {/* Operario */}
-        <label className="empresa-campo">
-          Operario ideal
-          <select
-            className="empresa-input"
-            value={opSel}
-            onChange={(e) => setOpSel(e.target.value)}
-          >
-            <option value="">— sin operario —</option>
-            {personalOrden.map((p) => (
-              <option key={p.id} value={String(p.id)}>
-                {nombrePersonal(p)}
-              </option>
-            ))}
-          </select>
-        </label>
+      {/* Operario */}
+      <div className="ef">
+        <div className="ef-l">Operario ideal</div>
+        <select
+          className="ef-i"
+          value={opSel}
+          onChange={(e) => setOpSel(e.target.value)}
+        >
+          <option value="">— sin operario —</option>
+          {personalOrden.map((p) => (
+            <option key={p.id} value={String(p.id)}>
+              {nombrePersonal(p)}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {/* Es retrabajo */}
-        <label className="filtro-check">
+      {/* Es retrabajo */}
+      <div className={'proc-retrabajo-box' + (esRetrabajo ? ' on' : '')}>
+        <label>
           <input
             type="checkbox"
             checked={esRetrabajo}
@@ -277,40 +285,40 @@ function ModalProcesoItem({
           />
           🔁 Es retrabajo
         </label>
-
-        {/* Detalle de tareas */}
-        <label className="empresa-campo">
-          Detalle de tareas (para la orden de trabajo)
-          <textarea
-            className="empresa-input"
-            rows={3}
-            value={detalle}
-            onChange={(e) => setDetalle(e.target.value)}
-            placeholder="Ej. Tornear según plano. Consultar dudas con Nicolás."
-          />
-        </label>
-
-        {error && <p className="empresa-form-error">{error}</p>}
-
-        <div className="pf-acciones">
-          <button
-            type="button"
-            className="empresa-boton-secundario"
-            onClick={onCancelar}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            className="empresa-boton"
-            onClick={guardar}
-            disabled={guardando}
-          >
-            {guardando ? 'Guardando…' : esEditar ? 'Guardar' : 'Agregar'}
-          </button>
-        </div>
       </div>
-    </div>
+
+      {/* Detalle de tareas */}
+      <div className="ef">
+        <div className="ef-l">Detalle de tareas (para la orden de trabajo)</div>
+        <textarea
+          className="ef-i"
+          rows={3}
+          value={detalle}
+          onChange={(e) => setDetalle(e.target.value)}
+          placeholder="Ej. Tornear según plano. Consultar dudas con Nicolás."
+        />
+      </div>
+
+      {error && <p className="empresa-form-error">{error}</p>}
+
+      <div className="ef-actions">
+        <button
+          type="button"
+          className="empresa-boton-secundario"
+          onClick={onCancelar}
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          className="empresa-boton"
+          onClick={guardar}
+          disabled={guardando}
+        >
+          {guardando ? 'Guardando…' : esEditar ? 'Guardar' : 'Agregar'}
+        </button>
+      </div>
+    </Modal>
   )
 }
 

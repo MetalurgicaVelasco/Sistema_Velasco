@@ -174,6 +174,7 @@ function Proyectos() {
                   <th>Urgencia</th>
                   <th>Pedido</th>
                   <th>Plazo</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -193,6 +194,29 @@ function Proyectos() {
                     <td>{p.urgencia}</td>
                     <td>{p.pedido_nro ?? '—'}</td>
                     <td>{fechaCorta(p.fecha_entrega)}</td>
+                    <td className="tabla-acciones">
+                      <button
+                        type="button"
+                        className="empresas-editar"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setFormActivo(p)
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="empresas-borrar"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setProyectoBorrando(p)
+                          setErrorBorrar(null)
+                        }}
+                      >
+                        Borrar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -209,25 +233,6 @@ function Proyectos() {
               <h3 className="detalle-titulo">
                 #{seleccionado.id} — {seleccionado.descripcion}
               </h3>
-              <div className="detalle-acciones">
-                <button
-                  type="button"
-                  className="empresas-editar"
-                  onClick={() => setFormActivo(seleccionado)}
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  className="empresas-borrar"
-                  onClick={() => {
-                    setProyectoBorrando(seleccionado)
-                    setErrorBorrar(null)
-                  }}
-                >
-                  Borrar
-                </button>
-              </div>
             </div>
             {itemsCargando ? (
               <span className="franja-placeholder">Cargando items…</span>

@@ -569,6 +569,8 @@
   border-bottom: 1px solid #e4e4e7;
   flex-shrink: 0;
   background: #fff;
+  cursor: move;
+  user-select: none;
 }
 
 .modal-titulo {
@@ -2130,4 +2132,317 @@
   color: #71717a;
   font-size: 12px;
   margin-top: 2px;
+}
+
+/* ================================================================
+   Procesos de item — estética calcada del sistema viejo
+   (pisa las reglas .proc-* anteriores; va al final a propósito)
+   ================================================================ */
+
+/* ---- Tarjeta de proceso (densa, como el viejo) ---- */
+.proc-card {
+  background: #fafaf7;
+  border: 1px solid #e8e6df;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.proc-card-ret {
+  background: #fff8ec;
+  border-left: 3px solid #e69138;
+}
+.proc-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.proc-card-t {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 3px;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.proc-num {
+  color: #888780;
+  font-weight: 400;
+}
+.proc-card-s {
+  font-size: 11px;
+  color: #5f5e5a;
+  line-height: 1.6;
+}
+.proc-card-s b {
+  color: #3f3e3a;
+  font-weight: 600;
+}
+
+/* ---- Badges de modo (9px, colores del viejo) ---- */
+.proc-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.proc-badge-manual {
+  background: #e8e6df;
+  color: #5f5e5a;
+  border: none;
+}
+.proc-badge-semi_automatica {
+  background: #5c4a8a;
+  color: #fff;
+  border: none;
+}
+.proc-badge-automatica {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+}
+.proc-badge-ret {
+  background: #fff4e6;
+  color: #e69138;
+  border: 1px solid #e69138;
+}
+
+/* ---- Predecesores ---- */
+.proc-preds {
+  margin-top: 3px;
+}
+.proc-preds-vacio {
+  color: #888780;
+  font-style: italic;
+}
+.proc-pred-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e6f1fb;
+  color: #0c447c;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  margin: 0 3px 2px 0;
+  border: none;
+}
+.proc-pred-x {
+  cursor: pointer;
+  font-weight: 700;
+  opacity: 0.6;
+  color: #0c447c;
+  padding: 0 2px;
+}
+.proc-pred-x:hover {
+  opacity: 1;
+}
+
+/* ---- Botonera de la tarjeta (columna vertical, como el viejo) ---- */
+.proc-card-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  max-width: none;
+}
+.proc-mover-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.proc-pos {
+  font-size: 11px;
+  color: #5f5e5a;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.proc-pos-input {
+  width: 48px;
+  padding: 1px 4px;
+  font-size: 11px;
+  border: 1px solid #888780;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+/* Botón base de acción de tarjeta (= .b + .b-icon del viejo) */
+.proc-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  background: #fff;
+  color: #2c2c2a;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: center;
+  white-space: nowrap;
+}
+.proc-btn:hover {
+  background: #f5f3ec;
+}
+.proc-btn-ret {
+  background: #fff4e6;
+  border-color: #e69138;
+  color: #854f0b;
+}
+.proc-btn-ret:hover {
+  background: #ffe9cf;
+}
+.proc-btn-danger {
+  background: #fef0f0;
+  border-color: #e24b4a;
+  color: #a32d2d;
+}
+.proc-btn-danger:hover {
+  background: #fedada;
+}
+.proc-btn-mini {
+  padding: 2px 6px;
+  font-size: 11px;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  background: #fff;
+  color: #2c2c2a;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.proc-btn-mini:hover:not(:disabled) {
+  background: #f5f3ec;
+}
+.proc-btn-mini:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---- Campos del modal de proceso (= .ef del viejo) ---- */
+.ef {
+  margin-bottom: 12px;
+}
+.ef-l {
+  font-size: 11px;
+  color: #5f5e5a;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.ef-req {
+  color: #a32d2d;
+}
+.ef-i {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  font-size: 13px;
+  background: #fff;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+textarea.ef-i {
+  resize: vertical;
+}
+.ef-help {
+  font-size: 10px;
+  color: #888780;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.ef-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e8e6df;
+}
+
+/* Los 3 tiempos en fila; el espaciado lo da la fila, no cada .ef */
+.proc-fila-3 {
+  display: flex;
+  gap: 12px;
+}
+.proc-fila-3 .ef {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+/* Radios de modo (manual / semi / automática) */
+.proc-modos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.proc-modo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+.proc-modo-sel {
+  border-color: #1a1a1a;
+  background: #f5f4ee;
+}
+.proc-modo input {
+  margin-top: 2px;
+}
+.proc-modo strong {
+  font-weight: 600;
+  font-size: 12px;
+}
+.proc-modo-desc {
+  display: block;
+  color: #5f5e5a;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* Caja "Es retrabajo" del modal */
+.proc-retrabajo-box {
+  margin-bottom: 12px;
+  padding: 8px 11px;
+  border-radius: 5px;
+  border: 1px solid #c8c6be;
+  background: #f5f3ec;
+}
+.proc-retrabajo-box.on {
+  border-color: #e69138;
+  background: #fff4e6;
+}
+.proc-retrabajo-box label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3f3e3a;
+}
+.proc-retrabajo-box.on label {
+  color: #854f0b;
+}
+
+/* ---- Celda de acciones en las tablas (franja 2 y items) ---- */
+.tabla-acciones {
+  white-space: nowrap;
+  text-align: right;
+}
+.tabla-acciones button {
+  margin-left: 6px;
 }

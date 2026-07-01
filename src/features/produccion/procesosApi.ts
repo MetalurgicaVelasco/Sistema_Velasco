@@ -173,6 +173,39 @@ export async function moverProceso(
   return e2.error ? { error: e2.error.message } : {}
 }
 
+// Mueve un proceso a una posición puntual (1..N) reasignando orden 1..N a todos
+// los procesos del item. Más directo que apretar las flechitas varias veces.
+export async function moverProcesoAPos(
+  itemId: number,
+  id: number,
+  posNueva: number,
+): Promise<{ error?: string }> {
+  const { data, error } = await supabase
+    .from('procesos')
+    .select('id, orden')
+    .eq('item_id', itemId)
+    .order('orden')
+  if (error) return { error: error.message }
+  const lista = data ?? []
+  const total = lista.length
+  const idxActual = lista.findIndex((p) => p.id === id)
+  if (idxActual < 0) return {}
+  if (!Number.isFinite(posNueva) || posNueva < 1 || posNueva > total) {
+    return { error: `La posición debe estar entre 1 y ${total}.` }
+  }
+  if (posNueva === idxActual + 1) return {} // sin cambios
+  const arr = lista.slice()
+  const [movido] = arr.splice(idxActual, 1)
+  arr.splice(posNueva - 1, 0, movido)
+  const updates = await Promise.all(
+    arr.map((p, i) =>
+      supabase.from('procesos').update({ orden: i + 1 }).eq('id', p.id),
+    ),
+  )
+  const conError = updates.find((u) => u.error)
+  return conError?.error ? { error: conError.error.message } : {}
+}
+
 // Duplica un proceso al final del item, sin correlatividades. Si asRetrabajo,
 // lo marca como retrabajo.
 export async function duplicarProceso(

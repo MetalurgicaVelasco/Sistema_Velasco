@@ -7,6 +7,7 @@ import {
   cargarProcesosDeItem,
   eliminarProceso,
   moverProceso,
+  moverProcesoAPos,
   duplicarProceso,
   redefinirPredecesores,
   quitarCorrelatividad,
@@ -35,6 +36,9 @@ function VistaItem({
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<{ proceso: Proceso | null } | null>(null)
+  // Editor de posición: id del proceso cuyo "N/Total" está en modo edición.
+  const [editandoPosId, setEditandoPosId] = useState<number | null>(null)
+  const [posInput, setPosInput] = useState('')
 
   async function cargar() {
     setCargando(true)
@@ -122,6 +126,16 @@ function VistaItem({
   }
   async function onMover(p: Proceso, delta: number) {
     await moverProceso(item.id, p.id, delta)
+    cargar()
+  }
+  async function aplicarPos(p: Proceso) {
+    const n = Number(posInput)
+    setEditandoPosId(null)
+    const { error: err } = await moverProcesoAPos(item.id, p.id, n)
+    if (err) {
+      window.alert(err)
+      return
+    }
     cargar()
   }
   async function onDuplicar(p: Proceso, asRetrabajo: boolean) {
@@ -295,10 +309,10 @@ function VistaItem({
               </div>
 
               <div className="proc-card-acciones">
-                <div className="proc-mover">
+                <div className="proc-mover-row">
                   <button
                     type="button"
-                    className="empresa-boton-secundario rec-boton-chico"
+                    className="proc-btn-mini"
                     disabled={idx === 0}
                     onClick={() => onMover(p, -1)}
                     title="Subir"
@@ -307,38 +321,91 @@ function VistaItem({
                   </button>
                   <button
                     type="button"
-                    className="empresa-boton-secundario rec-boton-chico"
+                    className="proc-btn-mini"
                     disabled={idx === procesos.length - 1}
                     onClick={() => onMover(p, 1)}
                     title="Bajar"
                   >
                     ▼
                   </button>
+                  {editandoPosId === p.id ? (
+                    <span className="proc-pos">
+                      <input
+                        type="number"
+                        min={1}
+                        max={procesos.length}
+                        className="proc-pos-input"
+                        value={posInput}
+                        autoFocus
+                        onChange={(e) => setPosInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            aplicarPos(p)
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setEditandoPosId(null)
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="proc-btn-mini"
+                        onClick={() => aplicarPos(p)}
+                        title="Aplicar"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        type="button"
+                        className="proc-btn-mini"
+                        onClick={() => setEditandoPosId(null)}
+                        title="Cancelar"
+                      >
+                        ✗
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="proc-pos">
+                      {idx + 1}/{procesos.length}
+                      <button
+                        type="button"
+                        className="proc-btn-mini"
+                        onClick={() => {
+                          setEditandoPosId(p.id)
+                          setPosInput(String(idx + 1))
+                        }}
+                        title="Editar posición"
+                      >
+                        ✏
+                      </button>
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
-                  className="empresa-boton-secundario rec-boton-chico"
+                  className="proc-btn"
                   onClick={() => setModal({ proceso: p })}
                 >
                   Editar
                 </button>
                 <button
                   type="button"
-                  className="empresa-boton-secundario rec-boton-chico"
+                  className="proc-btn"
                   onClick={() => onDuplicar(p, false)}
                 >
                   📋 Duplicar
                 </button>
                 <button
                   type="button"
-                  className="empresa-boton-secundario rec-boton-chico"
+                  className="proc-btn proc-btn-ret"
                   onClick={() => onDuplicar(p, true)}
                 >
-                  🔁 Retrabajo
+                  🔁 Crear retrabajo
                 </button>
                 <button
                   type="button"
-                  className="empresa-boton-peligro rec-boton-chico"
+                  className="proc-btn proc-btn-danger"
                   onClick={() => onEliminar(p)}
                 >
                   Eliminar
