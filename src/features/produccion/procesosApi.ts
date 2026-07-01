@@ -179,31 +179,32 @@ export async function duplicarProceso(
   id: number,
   asRetrabajo: boolean,
 ): Promise<{ error?: string }> {
-  const { data: orig, error } = await supabase
+  const { data, error } = await supabase
     .from('procesos')
     .select(COLS)
     .eq('id', id)
     .single()
   if (error) return { error: error.message }
+  const orig = mapProceso(data)
   const { data: hermanos } = await supabase
     .from('procesos')
     .select('orden')
-    .eq('item_id', orig.item_id)
+    .eq('item_id', orig.itemId)
     .order('orden', { ascending: false })
   const maxOrden = hermanos && hermanos.length ? hermanos[0].orden ?? 0 : 0
   const copia = {
-    item_id: orig.item_id,
+    item_id: orig.itemId,
     orden: maxOrden + 1,
-    tipo_proceso_id: orig.tipo_proceso_id,
-    proceso_otro: orig.proceso_otro,
+    tipo_proceso_id: orig.tipoProcesoId,
+    proceso_otro: orig.procesoOtro,
     modo: orig.modo,
-    setup_min: orig.setup_min,
-    operacion_min: orig.operacion_min,
-    margen_min: orig.margen_min,
-    maquina_id: orig.maquina_id,
-    maquina_otra: orig.maquina_otra,
-    operario_id: orig.operario_id,
-    detalle_trabajo: orig.detalle_trabajo,
+    setup_min: orig.setupMin,
+    operacion_min: orig.operacionMin,
+    margen_min: orig.margenMin,
+    maquina_id: orig.maquinaId,
+    maquina_otra: orig.maquinaOtra,
+    operario_id: orig.operarioId,
+    detalle_trabajo: orig.detalleTrabajo,
     es_retrabajo: asRetrabajo,
   }
   const { error: eIns } = await supabase.from('procesos').insert(copia)
