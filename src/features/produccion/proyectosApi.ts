@@ -148,7 +148,7 @@ function rangoDeFecha(f: FiltrosProyectos): { desde: string; hasta: string } | n
 // búsqueda que cruza tablas). Devuelve null si hubo error.
 async function proyectoIdsPorItem(texto: string): Promise<number[] | null> {
   const { data, error } = await supabase
-    .from('items')
+    .from('elementos')
     .select('proyecto_id')
     .ilike('descripcion', like(texto))
   if (error) return null

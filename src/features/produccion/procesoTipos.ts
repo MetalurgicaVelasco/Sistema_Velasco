@@ -1,4 +1,4 @@
-// Tipos del dominio "procesos de item" (instancias que van al tablero) y sus
+// Tipos del dominio "procesos de elemento" (instancias que van al tablero) y sus
 // correlatividades (predecesores). Los procesos son PLANOS acá: guardan ids;
 // los nombres de tipo/máquina/operario se resuelven en la vista con los datos
 // de recursos (cargarRecursos), igual que en Procesos/Máquinas.
@@ -7,7 +7,7 @@ export type ModoProceso = 'manual' | 'semi_automatica' | 'automatica'
 
 export type Proceso = {
   id: number
-  itemId: number
+  elementoId: number
   orden: number
   tipoProcesoId: number | null
   procesoOtro: string | null
@@ -34,9 +34,9 @@ export const MODO_LABEL: Record<ModoProceso, string> = {
   automatica: 'AUTO',
 }
 
-// Duración total en minutos: setup + cantidad_del_item × operación + margen.
-export function totalMin(p: Proceso, cantidadItem: number): number {
-  const cant = cantidadItem > 0 ? cantidadItem : 1
+// Duración total en minutos: setup + cantidad_del_elemento × operación + margen.
+export function totalMin(p: Proceso, cantidadElemento: number): number {
+  const cant = cantidadElemento > 0 ? cantidadElemento : 1
   return p.setupMin + cant * p.operacionMin + p.margenMin
 }
 

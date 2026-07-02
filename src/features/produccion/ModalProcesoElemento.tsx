@@ -5,12 +5,12 @@ import type { TipoProceso, Maquina, Personal } from '../../shared/types/recursos
 import { guardarProceso } from './procesosApi'
 import type { Proceso, ModoProceso } from './procesoTipos'
 
-// Modal para crear o editar un proceso de un item. Los suplentes de máquina y
+// Modal para crear o editar un proceso de un elemento. Los suplentes de máquina y
 // operario NO se editan acá: se derivan de recursos y se muestran en la tarjeta.
 // Usa el <Modal> compartido (arrastrable, no cierra al click afuera, × fija).
-function ModalProcesoItem({
+function ModalProcesoElemento({
   proceso,
-  itemId,
+  elementoId,
   tiposProceso,
   maquinas,
   personal,
@@ -18,7 +18,7 @@ function ModalProcesoItem({
   onCancelar,
 }: {
   proceso: Proceso | null
-  itemId: number
+  elementoId: number
   tiposProceso: TipoProceso[]
   maquinas: Maquina[]
   personal: Personal[]
@@ -145,7 +145,7 @@ function ModalProcesoItem({
     setGuardando(true)
     const { error: err } = await guardarProceso({
       id: proceso?.id ?? null,
-      itemId,
+      elementoId,
       tipoProcesoId: procSel === 'OTRO' ? null : Number(procSel),
       procesoOtro: procSel === 'OTRO' ? procOtro.trim() : null,
       modo,
@@ -200,7 +200,7 @@ function ModalProcesoItem({
           />
         )}
         <div className="ef-help">
-          Es lo que se muestra en el bloque del tablero junto al item.
+          Es lo que se muestra en el bloque del tablero junto al elemento.
         </div>
       </div>
 
@@ -244,7 +244,7 @@ function ModalProcesoItem({
       </div>
       <div className="ef-help" style={{ marginTop: 6, marginBottom: 12 }}>
         El <b>setup</b> es el seteo de la máquina, una sola vez. La{' '}
-        <b>operación</b> es por pieza. Total = setup + cantidad del item ×
+        <b>operación</b> es por pieza. Total = setup + cantidad del elemento ×
         operación, y el <b>margen</b> se suma al total.
       </div>
 
@@ -378,4 +378,4 @@ function ModalProcesoItem({
   )
 }
 
-export default ModalProcesoItem
+export default ModalProcesoElemento

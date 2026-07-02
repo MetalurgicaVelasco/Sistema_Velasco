@@ -4,7 +4,7 @@ import { cargarRecursos } from '../../shared/lib/recursosApi'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { RecursosData } from '../../shared/types/recursos'
 import {
-  cargarProcesosDeItem,
+  cargarProcesosDeElemento,
   eliminarProceso,
   moverProceso,
   moverProcesoAPos,
@@ -16,17 +16,17 @@ import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto } from './proyectoTipos'
-import type { Item } from './itemTipos'
-import ModalProcesoItem from './ModalProcesoItem'
+import type { Elemento } from './elementoTipos'
+import ModalProcesoElemento from './ModalProcesoElemento'
 
 const BUCKET = 'proyectos-fotos'
 
-function VistaItem({
-  item,
+function VistaElemento({
+  elemento,
   proyecto,
   onCerrar,
 }: {
-  item: Item
+  elemento: Elemento
   proyecto: Proyecto | null
   onCerrar: () => void
 }) {
@@ -44,7 +44,7 @@ function VistaItem({
     setCargando(true)
     try {
       const [pr, rec] = await Promise.all([
-        cargarProcesosDeItem(item.id),
+        cargarProcesosDeElemento(elemento.id),
         cargarRecursos(),
       ])
       setProcesos(pr.procesos)
@@ -61,12 +61,12 @@ function VistaItem({
   useEffect(() => {
     cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id])
+  }, [elemento.id])
 
-  const cantidad = Number(item.cantidad ?? 1)
+  const cantidad = Number(elemento.cantidad ?? 1)
 
-  const fotoUrl = item.foto_url
-    ? supabase.storage.from(BUCKET).getPublicUrl(item.foto_url).data.publicUrl
+  const fotoUrl = elemento.foto_url
+    ? supabase.storage.from(BUCKET).getPublicUrl(elemento.foto_url).data.publicUrl
     : null
 
   // ---- Resolución de nombres con recursos ----
@@ -125,13 +125,13 @@ function VistaItem({
     cargar()
   }
   async function onMover(p: Proceso, delta: number) {
-    await moverProceso(item.id, p.id, delta)
+    await moverProceso(elemento.id, p.id, delta)
     cargar()
   }
   async function aplicarPos(p: Proceso) {
     const n = Number(posInput)
     setEditandoPosId(null)
-    const { error: err } = await moverProcesoAPos(item.id, p.id, n)
+    const { error: err } = await moverProcesoAPos(elemento.id, p.id, n)
     if (err) {
       window.alert(err)
       return
@@ -149,12 +149,12 @@ function VistaItem({
   async function onRedefinir() {
     if (
       !window.confirm(
-        'Se borran las correlatividades internas del item y se recrean lineales ' +
-          'según el orden actual. Las que van a otros items no se tocan. ¿Continuar?',
+        'Se borran las correlatividades internas del elemento y se recrean lineales ' +
+          'según el orden actual. Las que van a otros elementos no se tocan. ¿Continuar?',
       )
     )
       return
-    await redefinirPredecesores(item.id)
+    await redefinirPredecesores(elemento.id)
     cargar()
   }
   async function onQuitarPred(c: Correlatividad) {
@@ -170,14 +170,14 @@ function VistaItem({
         </button>
       </div>
 
-      {/* Encabezado del item */}
+      {/* Encabezado del elemento */}
       <div className="vi-header">
         <div className="vi-titulo">
           <h2>
-            Item: {item.descripcion}{' '}
+            Elemento: {elemento.descripcion}{' '}
             <span className="vi-cant">×{cantidad}</span>
           </h2>
-          <span className="vi-estado">{item.estado}</span>
+          <span className="vi-estado">{elemento.estado}</span>
         </div>
         <div className="vi-datos">
           {fotoUrl ? (
@@ -197,10 +197,10 @@ function VistaItem({
               {cantidad}
             </div>
             <div>
-              <b>Presentación:</b> {item.presentacion_mat_prima ?? '—'}
+              <b>Presentación:</b> {elemento.presentacion_mat_prima ?? '—'}
             </div>
             <div>
-              <b>Fin estipulado:</b> {fechaCorta(item.fecha_fin_estipulada)}
+              <b>Fin estipulado:</b> {fechaCorta(elemento.fecha_fin_estipulada)}
             </div>
           </div>
         </div>
@@ -208,7 +208,7 @@ function VistaItem({
 
       {/* Procesos */}
       <div className="vi-proc-head">
-        <h3 className="rec-titulo">Procesos del item</h3>
+        <h3 className="rec-titulo">Procesos del elemento</h3>
         <div className="vi-proc-head-btns">
           <button
             type="button"
@@ -234,7 +234,7 @@ function VistaItem({
         <div className="empresa-form-error">{error}</div>
       ) : procesos.length === 0 ? (
         <div className="rec-vacio">
-          Sin procesos. Este item no genera actividades en el tablero.
+          Sin procesos. Este elemento no genera actividades en el tablero.
         </div>
       ) : (
         procesos.map((p, idx) => {
@@ -295,7 +295,7 @@ function VistaItem({
                       const pred = procesos.find((x) => x.id === c.predecesorId)
                       return (
                         <span key={c.id} className="proc-pred-chip">
-                          ↶ {pred ? nombreProceso(pred) : '(otro item)'}
+                          ↶ {pred ? nombreProceso(pred) : '(otro elemento)'}
                           <span
                             className="proc-pred-x"
                             title="Quitar predecesor"
@@ -419,9 +419,9 @@ function VistaItem({
       )}
 
       {modal && recursos && (
-        <ModalProcesoItem
+        <ModalProcesoElemento
           proceso={modal.proceso}
-          itemId={item.id}
+          elementoId={elemento.id}
           tiposProceso={recursos.tiposProceso}
           maquinas={recursos.maquinas}
           personal={recursos.personal.filter((p) => p.activo)}
@@ -433,4 +433,4 @@ function VistaItem({
   )
 }
 
-export default VistaItem
+export default VistaElemento

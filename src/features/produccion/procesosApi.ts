@@ -2,7 +2,7 @@ import { supabase } from '../../shared/lib/supabaseClient'
 import type { Proceso, Correlatividad, ModoProceso } from './procesoTipos'
 
 const COLS =
-  'id, item_id, orden, tipo_proceso_id, proceso_otro, modo, setup_min, ' +
+  'id, elemento_id, orden, tipo_proceso_id, proceso_otro, modo, setup_min, ' +
   'operacion_min, margen_min, maquina_id, maquina_otra, operario_id, ' +
   'detalle_trabajo, es_retrabajo'
 
@@ -10,7 +10,7 @@ const COLS =
 function mapProceso(r: any): Proceso {
   return {
     id: r.id,
-    itemId: r.item_id,
+    elementoId: r.elemento_id,
     orden: r.orden,
     tipoProcesoId: r.tipo_proceso_id,
     procesoOtro: r.proceso_otro,
@@ -26,15 +26,15 @@ function mapProceso(r: any): Proceso {
   }
 }
 
-// Carga los procesos de un item (ordenados) + las correlatividades que tocan a
-// esos procesos (incluye las que van hacia/desde procesos de otros items).
-export async function cargarProcesosDeItem(
-  itemId: number,
+// Carga los procesos de un elemento (ordenados) + las correlatividades que tocan a
+// esos procesos (incluye las que van hacia/desde procesos de otros elementos).
+export async function cargarProcesosDeElemento(
+  elementoId: number,
 ): Promise<{ procesos: Proceso[]; correlatividades: Correlatividad[] }> {
   const { data, error } = await supabase
     .from('procesos')
     .select(COLS)
-    .eq('item_id', itemId)
+    .eq('elemento_id', elementoId)
     .order('orden')
   if (error) throw new Error(error.message)
   const procesos = (data ?? []).map(mapProceso)
@@ -57,24 +57,24 @@ export async function cargarProcesosDeItem(
   return { procesos, correlatividades }
 }
 
-// Cuenta procesos por item (para el "N proceso(s)" de la lista de items).
-export async function contarProcesosPorItems(
-  itemIds: number[],
+// Cuenta procesos por elemento (para el "N proceso(s)" de la lista de elementos).
+export async function contarProcesosPorElementos(
+  elementoIds: number[],
 ): Promise<Record<number, number>> {
   const out: Record<number, number> = {}
-  if (!itemIds.length) return out
+  if (!elementoIds.length) return out
   const { data, error } = await supabase
     .from('procesos')
-    .select('item_id')
-    .in('item_id', itemIds)
+    .select('elemento_id')
+    .in('elemento_id', elementoIds)
   if (error) throw new Error(error.message)
-  for (const r of data ?? []) out[r.item_id] = (out[r.item_id] ?? 0) + 1
+  for (const r of data ?? []) out[r.elemento_id] = (out[r.elemento_id] ?? 0) + 1
   return out
 }
 
 export type GuardarProcesoInput = {
   id: number | null
-  itemId: number
+  elementoId: number
   tipoProcesoId: number | null
   procesoOtro: string | null
   modo: ModoProceso
@@ -90,7 +90,7 @@ export type GuardarProcesoInput = {
 
 function payloadDe(input: GuardarProcesoInput) {
   return {
-    item_id: input.itemId,
+    elemento_id: input.elementoId,
     tipo_proceso_id: input.tipoProcesoId,
     proceso_otro: input.procesoOtro,
     modo: input.modo,
@@ -105,7 +105,7 @@ function payloadDe(input: GuardarProcesoInput) {
   }
 }
 
-// Inserta (al final del item, encadenado al anterior) o actualiza un proceso.
+// Inserta (al final del elemento, encadenado al anterior) o actualiza un proceso.
 export async function guardarProceso(
   input: GuardarProcesoInput,
 ): Promise<{ error?: string }> {
@@ -117,11 +117,11 @@ export async function guardarProceso(
     return error ? { error: error.message } : {}
   }
 
-  // Nuevo: orden = max + 1 entre los hermanos del item.
+  // Nuevo: orden = max + 1 entre los hermanos del elemento.
   const { data: hermanos, error: eH } = await supabase
     .from('procesos')
     .select('id, orden')
-    .eq('item_id', input.itemId)
+    .eq('elemento_id', input.elementoId)
     .order('orden', { ascending: false })
   if (eH) return { error: eH.message }
   const previo = hermanos && hermanos.length ? hermanos[0] : null
@@ -151,14 +151,14 @@ export async function eliminarProceso(id: number): Promise<{ error?: string }> {
 
 // Sube/baja un proceso intercambiando el orden con su vecino.
 export async function moverProceso(
-  itemId: number,
+  elementoId: number,
   id: number,
   delta: number,
 ): Promise<{ error?: string }> {
   const { data, error } = await supabase
     .from('procesos')
     .select('id, orden')
-    .eq('item_id', itemId)
+    .eq('elemento_id', elementoId)
     .order('orden')
   if (error) return { error: error.message }
   const lista = data ?? []
@@ -174,16 +174,16 @@ export async function moverProceso(
 }
 
 // Mueve un proceso a una posición puntual (1..N) reasignando orden 1..N a todos
-// los procesos del item. Más directo que apretar las flechitas varias veces.
+// los procesos del elemento. Más directo que apretar las flechitas varias veces.
 export async function moverProcesoAPos(
-  itemId: number,
+  elementoId: number,
   id: number,
   posNueva: number,
 ): Promise<{ error?: string }> {
   const { data, error } = await supabase
     .from('procesos')
     .select('id, orden')
-    .eq('item_id', itemId)
+    .eq('elemento_id', elementoId)
     .order('orden')
   if (error) return { error: error.message }
   const lista = data ?? []
@@ -206,7 +206,7 @@ export async function moverProcesoAPos(
   return conError?.error ? { error: conError.error.message } : {}
 }
 
-// Duplica un proceso al final del item, sin correlatividades. Si asRetrabajo,
+// Duplica un proceso al final del elemento, sin correlatividades. Si asRetrabajo,
 // lo marca como retrabajo.
 export async function duplicarProceso(
   id: number,
@@ -222,11 +222,11 @@ export async function duplicarProceso(
   const { data: hermanos } = await supabase
     .from('procesos')
     .select('orden')
-    .eq('item_id', orig.itemId)
+    .eq('elemento_id', orig.elementoId)
     .order('orden', { ascending: false })
   const maxOrden = hermanos && hermanos.length ? hermanos[0].orden ?? 0 : 0
   const copia = {
-    item_id: orig.itemId,
+    elemento_id: orig.elementoId,
     orden: maxOrden + 1,
     tipo_proceso_id: orig.tipoProcesoId,
     proceso_otro: orig.procesoOtro,
@@ -244,15 +244,15 @@ export async function duplicarProceso(
   return eIns ? { error: eIns.message } : {}
 }
 
-// Borra las correlatividades INTERNAS del item y las recrea lineales según el
-// orden actual (1→2→3…). Las que van a otros items no se tocan.
+// Borra las correlatividades INTERNAS del elemento y las recrea lineales según el
+// orden actual (1→2→3…). Las que van a otros elementos no se tocan.
 export async function redefinirPredecesores(
-  itemId: number,
+  elementoId: number,
 ): Promise<{ error?: string }> {
   const { data: procs, error } = await supabase
     .from('procesos')
     .select('id')
-    .eq('item_id', itemId)
+    .eq('elemento_id', elementoId)
     .order('orden')
   if (error) return { error: error.message }
   const ids = (procs ?? []).map((p) => p.id)

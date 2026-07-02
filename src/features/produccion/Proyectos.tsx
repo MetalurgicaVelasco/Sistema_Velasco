@@ -3,11 +3,11 @@ import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
-import VistaItem from './VistaItem'
+import VistaElemento from './VistaElemento'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
-import type { Item } from './itemTipos'
-import { contarProcesosPorItems } from './procesosApi'
+import type { Elemento } from './elementoTipos'
+import { contarProcesosPorElementos } from './procesosApi'
 import {
   buscarProyectos,
   hayFiltrosActivos,
@@ -20,7 +20,7 @@ import type { Navegar } from '../../shared/types/navegacion'
 
 const BUCKET = 'proyectos-fotos'
 
-const SELECT_ITEM =
+const SELECT_ELEMENTO =
   'id, proyecto_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo'
 
 function fotoPublica(path: string | null): string | null {
@@ -38,14 +38,14 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const [filtros, setFiltros] = useState<FiltrosProyectos>(FILTROS_VACIOS)
   const [recargarTick, setRecargarTick] = useState(0)
 
-  // Items del proyecto seleccionado (franja 3) + conteo de procesos por item.
-  const [items, setItems] = useState<Item[]>([])
-  const [itemsCargando, setItemsCargando] = useState(false)
+  // Elementos del proyecto seleccionado (franja 3) + conteo de procesos por elemento.
+  const [elementos, setElementos] = useState<Elemento[]>([])
+  const [elementosCargando, setElementosCargando] = useState(false)
   const [contarProc, setContarProc] = useState<Record<number, number>>({})
-  const [itemSeleccionadoId, setItemSeleccionadoId] = useState<number | null>(null)
+  const [elementoSeleccionadoId, setElementoSeleccionadoId] = useState<number | null>(null)
 
-  // Item cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
-  const [itemVista, setItemVista] = useState<Item | null>(null)
+  // Elemento cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
+  const [elementoVista, setElementoVista] = useState<Elemento | null>(null)
 
   // null = lista; 'nuevo' = formulario nuevo; Proyecto = formulario editar
   const [formActivo, setFormActivo] = useState<'nuevo' | Proyecto | null>(null)
@@ -57,9 +57,9 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
 
   // Refs para foco (navegación con teclado) y auto-scroll de la fila seleccionada.
   const listaProyRef = useRef<HTMLDivElement>(null)
-  const listaItemRef = useRef<HTMLDivElement>(null)
+  const listaElementoRef = useRef<HTMLDivElement>(null)
   const filaProySelRef = useRef<HTMLTableRowElement>(null)
-  const filaItemSelRef = useRef<HTMLTableRowElement>(null)
+  const filaElementoSelRef = useRef<HTMLTableRowElement>(null)
 
   function setF<K extends keyof FiltrosProyectos>(
     campo: K,
@@ -98,27 +98,27 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     cargarEmpresas()
   }, [])
 
-  async function cargarItems(proyectoId: number) {
-    setItemsCargando(true)
+  async function cargarElementos(proyectoId: number) {
+    setElementosCargando(true)
     const { data } = await supabase
-      .from('items')
-      .select(SELECT_ITEM)
+      .from('elementos')
+      .select(SELECT_ELEMENTO)
       .eq('proyecto_id', proyectoId)
       .order('id')
-    const its = (data as unknown as Item[]) ?? []
-    setItems(its)
-    setContarProc(await contarProcesosPorItems(its.map((i) => i.id)))
-    setItemsCargando(false)
+    const its = (data as unknown as Elemento[]) ?? []
+    setElementos(its)
+    setContarProc(await contarProcesosPorElementos(its.map((i) => i.id)))
+    setElementosCargando(false)
   }
 
   useEffect(() => {
-    setItemSeleccionadoId(null)
+    setElementoSeleccionadoId(null)
     if (seleccionadoId == null) {
-      setItems([])
+      setElementos([])
       setContarProc({})
       return
     }
-    cargarItems(seleccionadoId)
+    cargarElementos(seleccionadoId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seleccionadoId])
 
@@ -127,13 +127,13 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     filaProySelRef.current?.scrollIntoView({ block: 'nearest' })
   }, [seleccionadoId])
   useEffect(() => {
-    filaItemSelRef.current?.scrollIntoView({ block: 'nearest' })
-  }, [itemSeleccionadoId])
+    filaElementoSelRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [elementoSeleccionadoId])
 
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
-  const itemSeleccionado = items.find((it) => it.id === itemSeleccionadoId) ?? null
+  const elementoSeleccionado = elementos.find((it) => it.id === elementoSeleccionadoId) ?? null
   const fotoProyectoUrl = seleccionado ? fotoPublica(seleccionado.foto_url) : null
-  const fotoItemUrl = itemSeleccionado ? fotoPublica(itemSeleccionado.foto_url) : null
+  const fotoElementoUrl = elementoSeleccionado ? fotoPublica(elementoSeleccionado.foto_url) : null
 
   function volverALista() {
     setFormActivo(null)
@@ -155,18 +155,18 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       if (seleccionado) setFormActivo(seleccionado)
     }
   }
-  function onKeyItems(e: React.KeyboardEvent) {
-    if (items.length === 0) return
-    const idx = items.findIndex((it) => it.id === itemSeleccionadoId)
+  function onKeyElementos(e: React.KeyboardEvent) {
+    if (elementos.length === 0) return
+    const idx = elementos.findIndex((it) => it.id === elementoSeleccionadoId)
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setItemSeleccionadoId(items[idx < 0 ? 0 : Math.min(idx + 1, items.length - 1)].id)
+      setElementoSeleccionadoId(elementos[idx < 0 ? 0 : Math.min(idx + 1, elementos.length - 1)].id)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setItemSeleccionadoId(items[idx < 0 ? 0 : Math.max(idx - 1, 0)].id)
+      setElementoSeleccionadoId(elementos[idx < 0 ? 0 : Math.max(idx - 1, 0)].id)
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (itemSeleccionado) setItemVista(itemSeleccionado)
+      if (elementoSeleccionado) setElementoVista(elementoSeleccionado)
     }
   }
 
@@ -188,17 +188,17 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     setRecargarTick((t) => t + 1)
   }
 
-  // Vista dedicada del item (procesos): ocupa todo el módulo.
-  if (itemVista) {
+  // Vista dedicada del elemento (procesos): ocupa todo el módulo.
+  if (elementoVista) {
     return (
-      <VistaItem
-        item={itemVista}
+      <VistaElemento
+        elemento={elementoVista}
         proyecto={
-          proyectos.find((p) => p.id === itemVista.proyecto_id) ?? seleccionado
+          proyectos.find((p) => p.id === elementoVista.proyecto_id) ?? seleccionado
         }
         onCerrar={() => {
-          setItemVista(null)
-          if (seleccionadoId != null) cargarItems(seleccionadoId)
+          setElementoVista(null)
+          if (seleccionadoId != null) cargarElementos(seleccionadoId)
         }}
       />
     )
@@ -487,7 +487,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       <div className="franja franja-detalle">
         {seleccionado ? (
           <div className="detalle detalle-proy">
-            {/* Columna de fotos: proyecto arriba, item seleccionado abajo */}
+            {/* Columna de fotos: proyecto arriba, elemento seleccionado abajo */}
             <div className="detalle-fotos">
               <div className="detalle-foto-wrap">
                 {fotoProyectoUrl ? (
@@ -498,27 +498,27 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                 <span className="detalle-foto-label">Proyecto</span>
               </div>
               <div className="detalle-foto-wrap">
-                {fotoItemUrl ? (
-                  <img src={fotoItemUrl} alt="" className="detalle-foto" />
+                {fotoElementoUrl ? (
+                  <img src={fotoElementoUrl} alt="" className="detalle-foto" />
                 ) : (
                   <div className="detalle-foto detalle-foto-vacia">
-                    {itemSeleccionado ? 'sin foto' : 'ítem'}
+                    {elementoSeleccionado ? 'sin foto' : 'ítem'}
                   </div>
                 )}
                 <span className="detalle-foto-label">Item</span>
               </div>
             </div>
 
-            {/* Contenido: título + tabla de items */}
+            {/* Contenido: título + tabla de elementos */}
             <div className="detalle-main">
               <div className="detalle-header">
                 <h3 className="detalle-titulo">
                   #{seleccionado.id} — {seleccionado.descripcion}
                 </h3>
               </div>
-              {itemsCargando ? (
+              {elementosCargando ? (
                 <span className="franja-placeholder">Cargando items…</span>
-              ) : items.length === 0 ? (
+              ) : elementos.length === 0 ? (
                 <span className="franja-placeholder">
                   Este proyecto todavía no tiene items.
                 </span>
@@ -526,8 +526,8 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                 <div
                   className="lista-focus"
                   tabIndex={0}
-                  ref={listaItemRef}
-                  onKeyDown={onKeyItems}
+                  ref={listaElementoRef}
+                  onKeyDown={onKeyElementos}
                 >
                   <table className="tabla">
                     <thead>
@@ -542,19 +542,19 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((it) => (
+                      {elementos.map((it) => (
                         <tr
                           key={it.id}
-                          ref={it.id === itemSeleccionadoId ? filaItemSelRef : undefined}
+                          ref={it.id === elementoSeleccionadoId ? filaElementoSelRef : undefined}
                           className={
                             'tabla-fila' +
-                            (it.id === itemSeleccionadoId ? ' seleccionada' : '')
+                            (it.id === elementoSeleccionadoId ? ' seleccionada' : '')
                           }
                           onClick={() => {
-                            setItemSeleccionadoId(it.id)
-                            listaItemRef.current?.focus()
+                            setElementoSeleccionadoId(it.id)
+                            listaElementoRef.current?.focus()
                           }}
-                          onDoubleClick={() => setItemVista(it)}
+                          onDoubleClick={() => setElementoVista(it)}
                         >
                           <td>{it.id}</td>
                           <td>{it.tipo}</td>
@@ -568,7 +568,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                               className="empresas-editar"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setItemVista(it)
+                                setElementoVista(it)
                               }}
                             >
                               Editar

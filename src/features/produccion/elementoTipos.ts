@@ -1,7 +1,7 @@
 import { supabase } from '../../shared/lib/supabaseClient'
 
-// Los 10 estados físicos del item (mismo orden que el flujo del taller).
-export const ESTADOS_ITEM = [
+// Los 10 estados físicos del elemento (mismo orden que el flujo del taller).
+export const ESTADOS_ELEMENTO = [
   'Espera MP',
   'Llegó MP',
   'Proceso',
@@ -16,8 +16,8 @@ export const ESTADOS_ITEM = [
 
 export type Material = { id: number; nombre: string }
 
-// Fila de la tabla items tal como vuelve de la base (solo lo que usa el form).
-export type Item = {
+// Fila de la tabla elementos tal como vuelve de la base (solo lo que usa el form).
+export type Elemento = {
   id: number
   proyecto_id: number
   tipo: string
@@ -33,10 +33,10 @@ export type Item = {
   es_dispositivo: boolean
 }
 
-// Borrador del item que vive en el estado del form del proyecto. Puede ya
+// Borrador del elemento que vive en el estado del form del proyecto. Puede ya
 // existir en la base (dbId != null) o ser nuevo (dbId == null). La foto se
 // retiene como archivo y se sube recién al guardar el proyecto.
-export type ItemDraft = {
+export type ElementoDraft = {
   key: string // clave estable para React (solo cliente)
   dbId: number | null
   descripcion: string
@@ -59,7 +59,7 @@ function nuevaKey() {
   return `it_${Date.now()}_${contadorKey}`
 }
 
-export function itemDraftVacio(): ItemDraft {
+export function elementoDraftVacio(): ElementoDraft {
   return {
     key: nuevaKey(),
     dbId: null,
@@ -78,7 +78,7 @@ export function itemDraftVacio(): ItemDraft {
   }
 }
 
-export function itemRowADraft(row: Item): ItemDraft {
+export function elementoRowADraft(row: Elemento): ElementoDraft {
   return {
     key: nuevaKey(),
     dbId: row.id,
@@ -97,8 +97,8 @@ export function itemRowADraft(row: Item): ItemDraft {
   }
 }
 
-// Duplica un item: copia los datos pero como item nuevo y sin foto.
-export function duplicarDraft(d: ItemDraft): ItemDraft {
+// Duplica un elemento: copia los datos pero como elemento nuevo y sin foto.
+export function duplicarDraft(d: ElementoDraft): ElementoDraft {
   return {
     ...d,
     key: nuevaKey(),
@@ -109,12 +109,12 @@ export function duplicarDraft(d: ItemDraft): ItemDraft {
   }
 }
 
-// Objeto para insertar/actualizar en items. La foto nueva se sube aparte
+// Objeto para insertar/actualizar en elementos. La foto nueva se sube aparte
 // (necesita el id); foto_url va con lo que esté guardado o limpiado.
-export function draftAGuardar(d: ItemDraft, proyectoId: number) {
+export function draftAGuardar(d: ElementoDraft, proyectoId: number) {
   return {
     proyecto_id: proyectoId,
-    parent_item_id: null,
+    parent_elemento_id: null,
     tipo: 'componente', // sin árbol todavía
     descripcion: d.descripcion.trim(),
     cantidad: d.cantidad.trim() ? Number(d.cantidad) : 1,

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import CajaFoto from './CajaFoto'
 import SelectorConAlta from '../../shared/components/SelectorConAlta'
-import { ESTADOS_ITEM } from './itemTipos'
-import type { ItemDraft, Material } from './itemTipos'
+import { ESTADOS_ELEMENTO } from './elementoTipos'
+import type { ElementoDraft, Material } from './elementoTipos'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -17,13 +17,13 @@ function ModalItem({
   onGuardar,
   onCancelar,
 }: {
-  draft: ItemDraft
+  draft: ElementoDraft
   materiales: Material[]
   onAgregarMaterial: (nombre: string) => Promise<Material | null>
-  onGuardar: (d: ItemDraft) => void
+  onGuardar: (d: ElementoDraft) => void
   onCancelar: () => void
 }) {
-  const [d, setD] = useState<ItemDraft>(draft)
+  const [d, setD] = useState<ElementoDraft>(draft)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const previewUrl =
@@ -88,7 +88,7 @@ function ModalItem({
             value={d.estado}
             onChange={(e) => setD({ ...d, estado: e.target.value })}
           >
-            {ESTADOS_ITEM.map((s) => (
+            {ESTADOS_ELEMENTO.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

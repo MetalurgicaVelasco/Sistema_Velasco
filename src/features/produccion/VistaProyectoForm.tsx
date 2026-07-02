@@ -18,13 +18,13 @@ import {
 } from './proyectoTipos'
 import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
 import {
-  itemDraftVacio,
-  itemRowADraft,
+  elementoDraftVacio,
+  elementoRowADraft,
   duplicarDraft,
   draftAGuardar,
   crearMaterial,
-} from './itemTipos'
-import type { ItemDraft, Material } from './itemTipos'
+} from './elementoTipos'
+import type { ElementoDraft, Material } from './elementoTipos'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -48,9 +48,9 @@ function VistaProyectoForm({
   const [modalCerrado, setModalCerrado] = useState(false)
 
   // ---- Items del proyecto (viven en el form, se persisten al guardar) ----
-  const [items, setItems] = useState<ItemDraft[]>([])
+  const [items, setItems] = useState<ElementoDraft[]>([])
   const [materiales, setMateriales] = useState<Material[]>([])
-  const [itemEditando, setItemEditando] = useState<ItemDraft | null>(null)
+  const [itemEditando, setItemEditando] = useState<ElementoDraft | null>(null)
   // ids de items que ya estaban en la base (para detectar los borrados).
   const [idsOriginales, setIdsOriginales] = useState<number[]>([])
 
@@ -122,7 +122,7 @@ function VistaProyectoForm({
       })
     if (proyecto) {
       supabase
-        .from('items')
+        .from('elementos')
         .select(
           'id, proyecto_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo',
         )
@@ -130,7 +130,7 @@ function VistaProyectoForm({
         .order('id')
         .then(({ data }) => {
           if (activo && data) {
-            setItems(data.map(itemRowADraft))
+            setItems(data.map(elementoRowADraft))
             setIdsOriginales(data.map((r) => r.id))
           }
         })
@@ -142,9 +142,9 @@ function VistaProyectoForm({
 
   // ---- Acciones de items ----
   function agregarItem() {
-    setItemEditando(itemDraftVacio())
+    setItemEditando(elementoDraftVacio())
   }
-  function duplicarItem(it: ItemDraft) {
+  function duplicarItem(it: ElementoDraft) {
     setItems((prev) => [...prev, duplicarDraft(it)])
   }
   function borrarItem(key: string) {
@@ -152,7 +152,7 @@ function VistaProyectoForm({
   }
   // Al guardar desde el modal: si el item ya está en la lista lo reemplaza,
   // si no, lo agrega.
-  function guardarItem(d: ItemDraft) {
+  function guardarItem(d: ElementoDraft) {
     setItems((prev) =>
       prev.some((x) => x.key === d.key)
         ? prev.map((x) => (x.key === d.key ? d : x))
@@ -301,7 +301,7 @@ function VistaProyectoForm({
         .map((d) => d.dbId as number)
       const aBorrar = idsOriginales.filter((id) => !idsActuales.includes(id))
       if (aBorrar.length) {
-        await supabase.from('items').delete().in('id', aBorrar)
+        await supabase.from('elementos').delete().in('id', aBorrar)
       }
 
       for (const d of items) {
@@ -309,13 +309,13 @@ function VistaProyectoForm({
         let itemId = d.dbId
         if (d.dbId == null) {
           const { data } = await supabase
-            .from('items')
+            .from('elementos')
             .insert(payload)
             .select('id')
             .single()
           itemId = data?.id ?? null
         } else {
-          await supabase.from('items').update(payload).eq('id', d.dbId)
+          await supabase.from('elementos').update(payload).eq('id', d.dbId)
         }
 
         // Foto nueva del item (si hay): subir a items/{itemId}/... y guardar path.
@@ -330,7 +330,7 @@ function VistaProyectoForm({
             .upload(ruta, d.fotoArchivo, { upsert: true })
           if (!eUp) {
             await supabase
-              .from('items')
+              .from('elementos')
               .update({ foto_url: ruta })
               .eq('id', itemId)
           }
@@ -364,8 +364,8 @@ function VistaProyectoForm({
   // Remitidos: por ahora siempre 0 (vendrá de remitos). Un item está
   // "completo" cuando lo remitido iguala a lo pedido; ahí el número va verde.
   // Si TODOS los items están completos, el título Remitidos también va verde.
-  const remitidosDe = (_it: ItemDraft) => 0
-  const cantidadDe = (it: ItemDraft) => Number(it.cantidad || '1')
+  const remitidosDe = (_it: ElementoDraft) => 0
+  const cantidadDe = (it: ElementoDraft) => Number(it.cantidad || '1')
   const todosRemitidos =
     items.length > 0 && items.every((it) => remitidosDe(it) === cantidadDe(it))
 
