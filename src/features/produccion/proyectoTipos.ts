@@ -68,6 +68,8 @@ export type Proyecto = {
   oc_cliente: string | null
   foto_url: string | null
   empresa: { nombre: string } | null
+  contacto: { apellido: string | null } | null
+  cliente_final: { nombre: string } | null
 }
 
 export type ProyectoForm = {

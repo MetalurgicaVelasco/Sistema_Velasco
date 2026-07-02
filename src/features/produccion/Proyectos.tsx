@@ -8,15 +8,20 @@ import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
 import type { Item } from './itemTipos'
 import { contarProcesosPorItems } from './procesosApi'
+import {
+  buscarProyectos,
+  hayFiltrosActivos,
+  FILTROS_VACIOS,
+  ESTADOS_PROYECTO,
+  FECHA_PRESETS,
+} from './proyectosApi'
+import type { FiltrosProyectos } from './proyectosApi'
 import type { Navegar } from '../../shared/types/navegacion'
 
 const BUCKET = 'proyectos-fotos'
 
 const SELECT_ITEM =
   'id, proyecto_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo'
-
-const SELECT_PROYECTO =
-  'id, empresa_id, contacto_id, pedido_nro, descripcion, urgencia, estado, sub_estado_cerrado, fecha_ingreso, fecha_entrega, fecha_limite_cotizar, plazo_dias_habiles, paso_por_solicitud, observaciones_mail, observaciones_anulacion, cliente_final_empresa_id, cliente_final_texto, moneda, oc_cliente, foto_url, empresa:empresas!empresa_id ( nombre )'
 
 function fotoPublica(path: string | null): string | null {
   return path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null
@@ -28,6 +33,10 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seleccionadoId, setSeleccionadoId] = useState<number | null>(null)
+
+  // Filtros (franja 1) + un "tick" para forzar recarga tras editar/borrar.
+  const [filtros, setFiltros] = useState<FiltrosProyectos>(FILTROS_VACIOS)
+  const [recargarTick, setRecargarTick] = useState(0)
 
   // Items del proyecto seleccionado (franja 3) + conteo de procesos por item.
   const [items, setItems] = useState<Item[]>([])
@@ -52,21 +61,30 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const filaProySelRef = useRef<HTMLTableRowElement>(null)
   const filaItemSelRef = useRef<HTMLTableRowElement>(null)
 
-  async function cargarProyectos() {
-    setCargando(true)
-    setError(null)
-    const { data, error } = await supabase
-      .from('proyectos')
-      .select(SELECT_PROYECTO)
-      .order('id', { ascending: false })
-    if (error) {
-      setError('No se pudieron cargar los proyectos.')
-      setCargando(false)
-      return
-    }
-    setProyectos((data as unknown as Proyecto[]) ?? [])
-    setCargando(false)
+  function setF<K extends keyof FiltrosProyectos>(
+    campo: K,
+    valor: FiltrosProyectos[K],
+  ) {
+    setFiltros((f) => ({ ...f, [campo]: valor }))
   }
+
+  // Búsqueda server-side con debounce (~250 ms) y cancelación: si cambian los
+  // filtros antes de que responda, se descarta el resultado viejo.
+  useEffect(() => {
+    let cancelado = false
+    setCargando(true)
+    const t = setTimeout(async () => {
+      const { data, error } = await buscarProyectos(filtros)
+      if (cancelado) return
+      setProyectos(data)
+      setError(error)
+      setCargando(false)
+    }, 250)
+    return () => {
+      cancelado = true
+      clearTimeout(t)
+    }
+  }, [filtros, recargarTick])
 
   async function cargarEmpresas() {
     const { data } = await supabase
@@ -77,7 +95,6 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   }
 
   useEffect(() => {
-    cargarProyectos()
     cargarEmpresas()
   }, [])
 
@@ -120,7 +137,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
 
   function volverALista() {
     setFormActivo(null)
-    cargarProyectos()
+    setRecargarTick((t) => t + 1)
   }
 
   // ── Navegación con teclado (↑/↓ mueve, Enter = acción principal) ──────
@@ -168,7 +185,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     }
     if (seleccionadoId === proyectoBorrando.id) setSeleccionadoId(null)
     setProyectoBorrando(null)
-    cargarProyectos()
+    setRecargarTick((t) => t + 1)
   }
 
   // Vista dedicada del item (procesos): ocupa todo el módulo.
@@ -201,9 +218,161 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   // Vista de lista (4 franjas).
   return (
     <div className="vista-franjas">
-      {/* Franja 1 — Filtros (placeholder) */}
+      {/* Franja 1 — Filtros */}
       <div className="franja franja-filtros">
-        <span className="franja-placeholder">Filtros (próximamente)</span>
+        <div className="filtros-barra filtros-barra-proy">
+          {/* Columna 1: Estado, Cliente (+ cliente final), Apellido */}
+          <div className="filtros-col">
+            <span className="filtro-lbl">Estado</span>
+            <select
+              className="filtro-input filtro-select"
+              value={filtros.estado}
+              onChange={(e) => setF('estado', e.target.value)}
+            >
+              <option value="">Todos</option>
+              {ESTADOS_PROYECTO.map((es) => (
+                <option key={es} value={es}>
+                  {es}
+                </option>
+              ))}
+            </select>
+
+            <span className="filtro-lbl">Cliente</span>
+            <div className="filtro-campo-col">
+              <input
+                className="filtro-input"
+                value={filtros.cliente}
+                onChange={(e) => setF('cliente', e.target.value)}
+              />
+              <label className="filtro-check-inline">
+                <input
+                  type="checkbox"
+                  checked={filtros.incluirClienteFinal}
+                  onChange={(e) => setF('incluirClienteFinal', e.target.checked)}
+                />
+                Incl. Cliente Final
+              </label>
+            </div>
+
+            <span className="filtro-lbl">Apellido</span>
+            <input
+              className="filtro-input"
+              value={filtros.apellido}
+              onChange={(e) => setF('apellido', e.target.value)}
+            />
+          </div>
+
+          {/* Columna 2: Nº Proyecto, Nº Pedido, Producto de Matriz (deshab.) */}
+          <div className="filtros-col">
+            <span className="filtro-lbl">Nº Proyecto</span>
+            <input
+              className="filtro-input"
+              value={filtros.nroProyecto}
+              onChange={(e) => setF('nroProyecto', e.target.value)}
+            />
+
+            <span className="filtro-lbl">Nº Pedido</span>
+            <input
+              className="filtro-input"
+              value={filtros.nroPedido}
+              onChange={(e) => setF('nroPedido', e.target.value)}
+            />
+
+            <span className="filtro-lbl">Prod. Matriz</span>
+            <input
+              className="filtro-input"
+              disabled
+              title="Disponible cuando exista la matriz de productos"
+            />
+          </div>
+
+          {/* Columna 3: descripciones */}
+          <div className="filtros-col">
+            <span className="filtro-lbl">Desc. Proyecto</span>
+            <input
+              className="filtro-input"
+              value={filtros.descProyecto}
+              onChange={(e) => setF('descProyecto', e.target.value)}
+            />
+
+            <span className="filtro-lbl">Desc. Item</span>
+            <input
+              className="filtro-input"
+              value={filtros.descItem}
+              onChange={(e) => setF('descItem', e.target.value)}
+            />
+
+            <span className="filtro-lbl">Desc. Global</span>
+            <input
+              className="filtro-input"
+              value={filtros.descGlobal}
+              onChange={(e) => setF('descGlobal', e.target.value)}
+            />
+          </div>
+
+          {/* Columna 4: fecha de creación */}
+          <div className="filtros-col">
+            <span className="filtro-lbl">Fecha creación</span>
+            <select
+              className="filtro-input filtro-select"
+              value={filtros.fechaPreset}
+              onChange={(e) => setF('fechaPreset', e.target.value)}
+            >
+              {FECHA_PRESETS.map((p) => (
+                <option key={p.valor} value={p.valor}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+
+            <span className="filtro-lbl">Rango inicio</span>
+            <input
+              type="date"
+              className="filtro-input filtro-date"
+              value={filtros.rangoInicio}
+              disabled={filtros.fechaPreset !== 'rango'}
+              onChange={(e) => setF('rangoInicio', e.target.value)}
+            />
+
+            <span className="filtro-lbl">Rango fin</span>
+            <input
+              type="date"
+              className="filtro-input filtro-date"
+              value={filtros.rangoFin}
+              disabled={filtros.fechaPreset !== 'rango'}
+              onChange={(e) => setF('rangoFin', e.target.value)}
+            />
+          </div>
+
+          {/* Columna 5: Creado por / Responsable (deshabilitados) */}
+          <div className="filtros-col">
+            <span className="filtro-lbl">Creado por</span>
+            <input
+              className="filtro-input"
+              disabled
+              title="Disponible cuando se registre el usuario creador"
+            />
+
+            <span className="filtro-lbl">Responsable</span>
+            <input
+              className="filtro-input"
+              disabled
+              title="Disponible cuando se registre el responsable interno"
+            />
+          </div>
+
+          {/* Columna 6: Limpiar (angosta, a todo el alto) */}
+          <div className="filtros-col-limpiar">
+            <button
+              type="button"
+              className="filtro-limpiar-alto"
+              disabled={!hayFiltrosActivos(filtros)}
+              onClick={() => setFiltros(FILTROS_VACIOS)}
+            >
+              Limpiar
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Franja 2 — Lista de proyectos */}
@@ -213,12 +382,12 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
             { label: 'Nuevo proyecto', onSelect: () => setFormActivo('nuevo') },
           ]}
         >
-          {cargando ? (
-            <div className="empresas-estado">Cargando proyectos…</div>
-          ) : error ? (
+          {error ? (
             <div className="empresas-estado">{error}</div>
           ) : proyectos.length === 0 ? (
-            <p className="empresas-vacio">No hay proyectos cargados todavía.</p>
+            <div className="empresas-estado">
+              {cargando ? 'Buscando…' : 'No hay proyectos que coincidan.'}
+            </div>
           ) : (
             <div
               className="lista-focus"

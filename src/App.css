@@ -910,31 +910,52 @@
 .filtros-barra {
   display: flex;
   align-items: flex-start;
-  gap: 24px;
+  gap: 40px;
   flex-wrap: wrap;
-  padding: 8px 14px;
+  padding: 6px 14px;
 }
-/* Cada columna apila filas de filtro (etiqueta izquierda + campo derecha). */
+/* Cada columna es una grilla título + campo: los 3 campos quedan del mismo
+   ancho y alineados; el título toma el ancho del más largo de esa columna. */
 .filtros-col {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: max-content 175px;
+  column-gap: 5px;
+  row-gap: 2px;
+  align-items: start;
+}
+/* En Proyectos la fila del medio (Cliente) lleva el checkbox debajo, así que
+   las 3 filas usan alto fijo para que coincidan entre columnas. */
+.filtros-barra-proy .filtros-col {
+  grid-template-rows: 26px 44px 26px;
 }
 .filtro-fila {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+}
+/* Filas cuyo campo tiene algo debajo (ej: Cliente + checkbox): el título se
+   alinea arriba, con el campo, no al medio. */
+.filtro-fila-top {
+  align-items: flex-start;
+}
+/* Campo con un control debajo (ej: el input Cliente + "Incl. Cliente Final"). */
+.filtro-campo-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .filtro-lbl {
-  width: 130px;
   flex-shrink: 0;
   white-space: nowrap;
+  padding-top: 4px;
   font-size: 12px;
   color: #52525b;
 }
 .filtro-input {
-  width: 180px;
-  padding: 3px 8px;
+  width: 100%;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 2px 8px;
   font-size: 13px;
   border: 1px solid #d4d4d8;
   border-radius: 6px;
@@ -2662,4 +2683,58 @@ textarea.ef-i {
   align-self: flex-end;
   margin-left: auto;
   gap: 8px;
+}
+
+/* ── Filtros de Proyectos: controles extra ────────────────────────────── */
+/* Desplegables (Estado, Fecha) y date pickers usan la base .filtro-input. */
+.filtro-select {
+  cursor: pointer;
+  background: #fff;
+}
+.filtro-date {
+  min-width: 0;
+}
+/* Campos deshabilitados (Producto de Matriz, Creado por, Responsable, y los
+   date pickers cuando no es "Rango personalizado"): gris, sin interacción. */
+.filtro-input:disabled {
+  background: #f1f1ef;
+  color: #9a978f;
+  cursor: not-allowed;
+}
+/* Checkbox "Incluir Cliente Final" a la derecha del campo Cliente. */
+.filtro-check-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #52525b;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.filtro-check-inline input {
+  cursor: pointer;
+}
+/* Columna angosta del botón Limpiar: ocupa todo el alto de la franja. */
+.filtros-col-limpiar {
+  align-self: stretch;
+  display: flex;
+  margin-left: auto;
+}
+.filtro-limpiar-alto {
+  width: 72px;
+  height: 100%;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  background: #fff;
+  color: #2c2c2a;
+  font-size: 13px;
+  cursor: pointer;
+}
+.filtro-limpiar-alto:not(:disabled):hover {
+  background: #f5f3ec;
+}
+.filtro-limpiar-alto:disabled {
+  color: #b8b6ae;
+  background: #f5f3ec;
+  cursor: not-allowed;
 }
