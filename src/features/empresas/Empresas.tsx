@@ -530,39 +530,57 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
       {/* Franja 1: Filtros */}
       <div className="franja franja-filtros">
         <div className="filtros-barra">
-          <input
-            className="filtro-busqueda"
-            placeholder="Buscar por nombre, código o CUIT…"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
-          <div className="filtros-campos">
-            <input
-              className="filtro-campo"
-              placeholder="Código"
-              value={filtroCodigo}
-              onChange={(e) => setFiltroCodigo(e.target.value)}
-            />
-            <input
-              className="filtro-campo"
-              placeholder="Nombre"
-              value={filtroNombre}
-              onChange={(e) => setFiltroNombre(e.target.value)}
-            />
-            <input
-              className="filtro-campo"
-              placeholder="Razón social"
-              value={filtroRazon}
-              onChange={(e) => setFiltroRazon(e.target.value)}
-            />
-            <input
-              className="filtro-campo"
-              placeholder="Apellido contacto"
-              value={filtroApellido}
-              onChange={(e) => setFiltroApellido(e.target.value)}
-            />
+          {/* Columna 1: búsqueda global + nombre + razón social (3 filas) */}
+          <div className="filtros-col">
+            <div className="filtro-fila">
+              <span className="filtro-lbl">Búsqueda global</span>
+              <input
+                className="filtro-input"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
+            <div className="filtro-fila">
+              <span className="filtro-lbl">Nombre Empresa</span>
+              <input
+                className="filtro-input"
+                value={filtroNombre}
+                onChange={(e) => setFiltroNombre(e.target.value)}
+              />
+            </div>
+            <div className="filtro-fila">
+              <span className="filtro-lbl">Razón social</span>
+              <input
+                className="filtro-input"
+                value={filtroRazon}
+                onChange={(e) => setFiltroRazon(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="filtro-roles">
+
+          {/* Columna 2: código + apellido de contacto */}
+          <div className="filtros-col">
+            <div className="filtro-fila">
+              <span className="filtro-lbl">Código</span>
+              <input
+                className="filtro-input"
+                value={filtroCodigo}
+                onChange={(e) => setFiltroCodigo(e.target.value)}
+              />
+            </div>
+            <div className="filtro-fila">
+              <span className="filtro-lbl">Apellido contacto</span>
+              <input
+                className="filtro-input"
+                value={filtroApellido}
+                onChange={(e) => setFiltroApellido(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Columna 3: cuadrito de roles (checkboxes apilados) */}
+          <div className="filtro-roles-caja">
+            <span className="filtro-roles-tit">Roles</span>
             <label className="filtro-check">
               <input
                 type="checkbox"
@@ -588,6 +606,7 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
               Transporte
             </label>
           </div>
+
           {hayFiltros && (
             <button
               type="button"
