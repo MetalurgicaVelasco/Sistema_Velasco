@@ -4,9 +4,9 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 03/07/2026 (vocabulario: **Componente** reemplaza a "Producto"
-> como nivel-hoja del árbol — ver nota en §8; §16 patrón de filtrado de listas; §8.3
-> procesos e items; §14 estándar de modales; §15 paleta de botones)
+> Última actualización: 03/07/2026 (vocabulario: tabla `items`→`elementos`, glosario
+> **Elemento / Item / Componente** en §4 y §8; **Componente** reemplaza a "Producto"
+> como nivel-hoja; §16 patrón de filtrado; §14 modales; §15 paleta de botones)
 
 ---
 
@@ -91,6 +91,19 @@ conexiones externas tipo DBeaver/TablePlus o migraciones masivas, no en el día 
 | `operarios` | `personal` |
 | `actividades_tablero` | `procesos` |
 | `clientes` | `empresas` |
+| `items` | `elementos` |
+
+**Glosario del árbol de producción** (importante — distingue negocio de técnica):
+- **Elemento**: cualquier nodo del árbol de un proyecto (raíz o anidado), sea del tipo
+  que sea. Es lo que guarda la tabla **`elementos`** (con `parent_elemento_id` para la
+  anidación). En el código, `elemento` = cualquier nodo.
+- **Item**: el elemento **raíz** de un proyecto — el que no cuelga de nadie
+  (`parent_elemento_id` nulo). Es la "fila" del pedido. Todo item es un elemento, pero
+  no todo elemento es un item. En el código, "item" solo se usa cuando significa *raíz*
+  (ej: los que se cargan en el formulario del proyecto).
+- **Tipo** de un elemento: Conjunto / Subconjunto / **Componente** (la hoja).
+- **Anidado**: subconjunto o componente que cuelga de un contenedor; un item nunca está
+  anidado. La FK de procesos hacia un nodo es `procesos.elemento_id`.
 
 `empresas` modela una entidad que puede ser cliente, proveedor o ambos
 (campos `es_cliente` / `es_proveedor`, más `es_transporte`).
@@ -224,7 +237,9 @@ definidos; se hilan más adelante.
 > **Matriz de Productos** por ser de venta recurrente / stock. Un componente puede
 > estar o no catalogado como producto. El árbol es **Conjunto → Subconjunto →
 > Componente → Procesos**; "Producto" ya no nombra un nivel. En la base, el campo
-> `items.tipo` acepta `conjunto / subconjunto / componente` (check actualizado).
+> `elementos.tipo` acepta `conjunto / subconjunto / componente` (check actualizado). La
+> tabla se llama `elementos` porque guarda **todos** los nodos; un **item** es un
+> elemento raíz (ver glosario en §4).
 
 Conviven **dos estructuras anidadas distintas**. Es importante no confundirlas.
 

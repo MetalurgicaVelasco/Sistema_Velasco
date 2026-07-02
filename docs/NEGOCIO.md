@@ -74,17 +74,23 @@
 
 ## 4. Conceptos centrales del dominio
 
-> **Vocabulario (definido 03/07/2026):** **Componente** es el nivel-hoja del árbol de
-> producción — la pieza o servicio individual e indivisible que se fabrica o se
-> resuelve. **Producto** es una categoría de negocio — lo que se cataloga en la
-> **Matriz de Productos** por ser de venta recurrente / stock. Un componente puede
-> estar o no catalogado como producto. "Producto" ya no nombra un nivel del árbol.
+> **Vocabulario (definido 03/07/2026):**
+> - **Elemento**: cualquier nodo del árbol de un proyecto (raíz o anidado). Es lo que
+>   guarda la tabla `elementos`.
+> - **Item**: el elemento **raíz** — la "fila" del pedido, la que no cuelga de ningún
+>   otro. Un item nunca está anidado. Su tipo puede ser Conjunto o Componente.
+> - **Tipo** de un elemento: **Conjunto** (contiene otros), **Subconjunto** (contenedor
+>   anidado) o **Componente** (la hoja: pieza o servicio individual e indivisible).
+> - **Producto**: categoría de negocio — lo que se cataloga en la **Matriz de Productos**
+>   por ser de venta recurrente / stock. Un componente puede estar o no catalogado como
+>   producto. "Producto" ya no nombra un nivel del árbol.
+> - **Anidado**: subconjunto o componente que cuelga de un contenedor (nunca un item).
 
 El sistema modela el avance en **dos niveles distintos**, y es clave no confundirlos:
 
 - **Estado del proyecto** = estado *comercial / de coordinación* (en qué punto está el
   trabajo de cara al cliente y a la organización).
-- **Estado del item** = avance *físico* de la pieza dentro del taller.
+- **Estado del elemento** = avance *físico* de la pieza dentro del taller.
 
 Conceptos:
 
@@ -96,15 +102,20 @@ Conceptos:
   - `Mantenimiento` es para trabajos internos del taller (cliente "Metalúrgica Velasco").
   - `Perdido` = consultas que no se concretaron.
   - `Anulado` = pedidos cancelados después de confirmarse.
-- **Item:** cada "fila" a fabricar o entregar dentro de un proyecto. Un item puede ser un
-  **Conjunto**, un **Subconjunto** o un **Componente** (estructura anidable). Nota sobre
-  el "item" de TacticaSoft: en Táctica, item es la fila plana e inmodificable de un
-  presupuesto/pedido/remito/factura; acá un item con estructura puede desplegarse en más
-  items (ej: la fila "boca de alimentación" de Táctica entra al sistema como un conjunto
-  con sus componentes adentro).
+- **Item:** cada "fila" del pedido dentro de un proyecto — un **elemento raíz** (no
+  cuelga de ningún otro). Su tipo puede ser directamente un **Componente** (pieza suelta)
+  o un **Conjunto** que contiene subconjuntos y componentes **anidados**. Un item, por
+  definición, nunca está anidado. Nota sobre el "item" de TacticaSoft: en Táctica el item
+  es la fila plana e inmodificable de un presupuesto/pedido/remito/factura; acá un item
+  que es Conjunto **se despliega en subconjuntos y componentes anidados** (no en "más
+  items"). Ej: la fila "boca de alimentación" de Táctica entra al sistema como un item de
+  tipo Conjunto con sus componentes adentro.
+- **Elemento:** cualquier nodo del árbol (raíz o anidado). Los items son los elementos
+  raíz; lo que cuelga de un conjunto/subconjunto son elementos anidados. En la base, la
+  tabla `elementos` guarda todos (con `parent_elemento_id` para la anidación).
 - **Componente:** la pieza o servicio individual e indivisible que efectivamente se
   fabrica o se resuelve (la hoja del árbol). Es donde viven los procesos.
-- **Proceso:** cada paso de trabajo de un item. Los procesos son lo que se planifica en el
+- **Proceso:** cada paso de trabajo de un elemento. Los procesos son lo que se planifica en el
   Tablero. Cada proceso tiene un tipo, una duración estimada, una máquina sugerida y un
   operario sugerido por Oficina Técnica. **Tipos de proceso estándar:** Agujereado, Armado,
   Compra, Control, Corte, Desarme y limpieza, Despacho, Electroerosión, Fresado, Plegado,
