@@ -74,6 +74,12 @@
 
 ## 4. Conceptos centrales del dominio
 
+> **Vocabulario (definido 03/07/2026):** **Componente** es el nivel-hoja del árbol de
+> producción — la pieza o servicio individual e indivisible que se fabrica o se
+> resuelve. **Producto** es una categoría de negocio — lo que se cataloga en la
+> **Matriz de Productos** por ser de venta recurrente / stock. Un componente puede
+> estar o no catalogado como producto. "Producto" ya no nombra un nivel del árbol.
+
 El sistema modela el avance en **dos niveles distintos**, y es clave no confundirlos:
 
 - **Estado del proyecto** = estado *comercial / de coordinación* (en qué punto está el
@@ -90,10 +96,14 @@ Conceptos:
   - `Mantenimiento` es para trabajos internos del taller (cliente "Metalúrgica Velasco").
   - `Perdido` = consultas que no se concretaron.
   - `Anulado` = pedidos cancelados después de confirmarse.
-- **Item:** cada cosa a fabricar o entregar dentro de un proyecto. Puede ser un **Producto**
-  o un **Conjunto** (estructura anidable). **Estados de item (avance físico):**
-  `Espera MP, Llegó MP, Proceso, Enviar a TT, TT, Llegó TT, Terminado, Enviado, Stockeado,
-  Anulado`.
+- **Item:** cada "fila" a fabricar o entregar dentro de un proyecto. Un item puede ser un
+  **Conjunto**, un **Subconjunto** o un **Componente** (estructura anidable). Nota sobre
+  el "item" de TacticaSoft: en Táctica, item es la fila plana e inmodificable de un
+  presupuesto/pedido/remito/factura; acá un item con estructura puede desplegarse en más
+  items (ej: la fila "boca de alimentación" de Táctica entra al sistema como un conjunto
+  con sus componentes adentro).
+- **Componente:** la pieza o servicio individual e indivisible que efectivamente se
+  fabrica o se resuelve (la hoja del árbol). Es donde viven los procesos.
 - **Proceso:** cada paso de trabajo de un item. Los procesos son lo que se planifica en el
   Tablero. Cada proceso tiene un tipo, una duración estimada, una máquina sugerida y un
   operario sugerido por Oficina Técnica. **Tipos de proceso estándar:** Agujereado, Armado,
@@ -110,9 +120,10 @@ Conceptos:
 ## 5. Matriz de Productos (catálogo del cliente)
 
 Representa cómo viven las piezas en la planta del cliente. Es información **reutilizable**:
-se carga una vez y se usa en muchos proyectos.
+se carga una vez y se usa en muchos proyectos. No se cataloga todo lo que se fabrica: se
+cargan los **productos** — lo que se vende con frecuencia o se suele tener en estantería.
 
-`Cliente → Sector → Equipo → Conjunto → Subconjunto → Producto → Procesos`
+`Cliente → Sector → Equipo → Conjunto → Subconjunto → Componente → Procesos`
 
 Cuando un proyecto necesita un producto que ya está en la matriz, se importa: se crea un
 item nuevo en el proyecto con todos los procesos, ubicaciones y datos del producto matriz

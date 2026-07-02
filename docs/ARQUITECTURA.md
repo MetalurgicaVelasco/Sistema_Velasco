@@ -4,10 +4,9 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 02/07/2026 (agregada §16 patrón de filtrado de listas —
-> cliente vs. servidor, índices de trigramas; §8.3 procesos e items, §14 estándar de
-> modales y §15 paleta de botones; notas en §5 sobre acciones en franja 2 y la vista
-> dedicada del item)
+> Última actualización: 03/07/2026 (vocabulario: **Componente** reemplaza a "Producto"
+> como nivel-hoja del árbol — ver nota en §8; §16 patrón de filtrado de listas; §8.3
+> procesos e items; §14 estándar de modales; §15 paleta de botones)
 
 ---
 
@@ -127,7 +126,7 @@ de referencia (se afinan al maquetar; alguna franja podría volverse ajustable/c
     - En **Ventas**, los items se ven **planos** (las filas tal cual, sin explotar). A
       Ventas le importa qué se vende, no la estructura de fabricación.
     - En **Producción**, la franja **sí permite explotar** la jerarquía: conjunto →
-      subconjuntos anidados (a cualquier profundidad) → productos → procesos.
+      subconjuntos anidados (a cualquier profundidad) → componentes → procesos.
   - Política de uso: ser estrictos y no pasar de **1 nivel de subconjunto** en la práctica,
     aunque el modelo recursivo (§8) soporte más si aparecen.
   - **Vista dedicada del item:** doble click (o el botón **Editar**) en una fila de item
@@ -219,6 +218,14 @@ definidos; se hilan más adelante.
 
 ## 8. Jerarquía de datos
 
+> **Vocabulario (definido 03/07/2026):** **Componente** es el nivel-hoja del árbol de
+> producción — la pieza o servicio individual e indivisible que se fabrica o se
+> resuelve. **Producto** es una categoría de negocio — lo que se cataloga en la
+> **Matriz de Productos** por ser de venta recurrente / stock. Un componente puede
+> estar o no catalogado como producto. El árbol es **Conjunto → Subconjunto →
+> Componente → Procesos**; "Producto" ya no nombra un nivel. En la base, el campo
+> `items.tipo` acepta `conjunto / subconjunto / componente` (check actualizado).
+
 Conviven **dos estructuras anidadas distintas**. Es importante no confundirlas.
 
 ### 8.1 Matriz de Productos (catálogo del cliente)
@@ -227,31 +234,31 @@ Representa cómo viven las piezas en la planta del cliente. Es información **re
 un producto matriz se carga una vez y se usa en muchos proyectos.
 
 ```
-Cliente → Sector → Equipo → Conjunto → Subconjunto → Producto → Procesos
+Cliente → Sector → Equipo → Conjunto → Subconjunto → Componente → Procesos
 ```
 
 - Conjunto y Subconjunto son **composición** (un conjunto agrupa subconjuntos, que agrupan
-  productos).
+  componentes).
 - La composición se arma **desde el contenedor** (editás el equipo y le agregás conjuntos,
-  editás el conjunto y le agregás subconjuntos/productos, etc.).
-- Las relaciones son **reutilizables** (un mismo conjunto/producto puede aparecer en varios
-  contenedores → relaciones N:M, estilo árbol de componentes / BOM).
+  editás el conjunto y le agregás subconjuntos/componentes, etc.).
+- Las relaciones son **reutilizables** (un mismo conjunto/componente puede aparecer en
+  varios contenedores → relaciones N:M, estilo árbol de componentes / BOM).
 
 **Anidado de N niveles.** El modelo se deja preparado de forma **recursiva**: un conjunto o
 subconjunto puede contener otros conjuntos/subconjuntos a cualquier profundidad, además de
-productos y procesos. Pensado para fabricación de máquinas complejas a futuro, aunque no se
+componentes y procesos. Pensado para fabricación de máquinas complejas a futuro, aunque no se
 use en el corto plazo. Se decidió así porque el costo de modelarlo recursivo ahora es casi
 nulo, mientras que retrofitearlo después sería costoso.
 
 **Navegación (vista de Conjunto / Subconjunto):**
-- La vista de un Conjunto es análoga a la de un Producto, pero en lugar de solo procesos
-  muestra sus **subconjuntos + productos + procesos**.
+- La vista de un Conjunto es análoga a la de un Componente, pero en lugar de solo procesos
+  muestra sus **subconjuntos + componentes + procesos**.
 - La vista de un Subconjunto es análoga a la del Conjunto.
 - **Expandir** (chevron): despliega los hijos en línea, para vistazo rápido sin perder
   contexto.
 - **Abrir** (click en el nombre): lleva a la vista dedicada de ese nivel.
-- Los productos se pueden expandir para ver sus procesos, o abrir para llegar a la vista
-  completa del producto.
+- Los componentes se pueden expandir para ver sus procesos, o abrir para llegar a la vista
+  completa del componente.
 
 ### 8.2 Proyecto → Items
 
@@ -260,7 +267,8 @@ Proyecto → Item → Proceso
 ```
 
 - En el HTML actual los items son **planos** (todos hermanos).
-- En React, el item del proyecto gana un campo **Tipo** (Conjunto / Producto), permitiendo
+- En React, el item del proyecto gana un campo **Tipo** (Conjunto / Subconjunto /
+  Componente), permitiendo
   estructura anidada dentro del proyecto (vía `tipo` + `parent_item_id`).
 - **El avance se modela en dos niveles distintos (no confundir):**
   - **Estado del proyecto** = estado *comercial / de coordinación*. Valores reales en uso:
@@ -329,7 +337,7 @@ El color comunica **qué tipo de cosa es** (no la profundidad). La profundidad s
 | Proyecto | Rojo pastel claro |
 | Conjunto | Naranja pastel claro |
 | Subconjunto | Amarillo pastel claro |
-| Producto | Blanco |
+| Componente | Blanco |
 
 > Los códigos hexadecimal exactos se afinan al maquetar, cuidando que entre rojo, naranja y
 > amarillo haya suficiente contraste aunque sean todos suaves.
@@ -355,7 +363,7 @@ El color comunica **qué tipo de cosa es** (no la profundidad). La profundidad s
 ### Tabla `adjuntos` (polimórfica)
 
 Mismo patrón que `notas`: `parent_type` (proyecto / item / conjunto / subconjunto /
-producto / proceso) + `parent_id` + metadatos (nombre, tipo, tamaño, referencia al
+componente / proceso) + `parent_id` + metadatos (nombre, tipo, tamaño, referencia al
 archivo, quién lo subió, fecha).
 
 ### Versionado de planos (revisiones)
@@ -459,9 +467,14 @@ sola vez** en `shared/` en lugar de duplicarse entre páginas como pasaba en el 
 ## 13. Decisiones pendientes
 
 - [ ] **Notas:** hasta qué niveles de la matriz soportar notas (hoy `notas` es polimórfica
-      con `parent_type` = proyecto / item / producto; falta decidir si se extiende a
-      conjunto, subconjunto, sector, equipo). Pendiente de definir.
+      con `parent_type` = proyecto / item / componente — antes "producto"; falta decidir
+      si se extiende a conjunto, subconjunto, sector, equipo). Pendiente de definir.
 - [ ] **Librerías a sumar** (drag-and-drop para el tablero, calendario, date picker, etc.).
+      - Tablas ordenables / redimensionables / reordenables: **TanStack Table** (ex
+        react-table). Es *headless*: maneja la lógica (ordenar por columna, cambiar el
+        ancho, reordenar columnas, filtrar, paginar) y el estilo lo controlamos nosotros.
+        Para las tablas de las franjas cuando queramos esa interacción; hoy se hacen a
+        mano con `<table>`.
 - [ ] **Códigos hexadecimal** de los colores pastel por nivel jerárquico (§9).
 - [ ] **Script de migración** de proyectos viejos desde la Supabase vieja a la nueva
       (los datos maestros —empresas, recursos— ya se migraron).
