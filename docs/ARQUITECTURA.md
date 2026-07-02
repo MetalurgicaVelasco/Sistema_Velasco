@@ -4,7 +4,8 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 01/07/2026 (agregadas §8.3 procesos e items, §14 estándar de
+> Última actualización: 02/07/2026 (agregada §16 patrón de filtrado de listas —
+> cliente vs. servidor, índices de trigramas; §8.3 procesos e items, §14 estándar de
 > modales y §15 paleta de botones; notas en §5 sobre acciones en franja 2 y la vista
 > dedicada del item)
 
@@ -497,3 +498,67 @@ Los botones usan los colores del **sistema viejo** (no índigo/gris):
 
 Los badges de modo de proceso en la tarjeta: MAN gris (`#E8E6DF`/`#5F5E5A`), SEMI violeta
 (`#5C4A8A`/blanco), AUTO negro (`#1A1A1A`/blanco).
+
+---
+
+## 16. Filtrado de listas (cliente vs. servidor)
+
+Regla de cuándo filtrar en el navegador y cuándo en la base, para no improvisar
+módulo por módulo.
+
+### Criterio
+
+- **Listas acotadas** (crecen poco, tienen un techo natural): empresas, personal,
+  máquinas, tipos de proceso. Se traen enteras una vez y se **filtran en el cliente**
+  (JavaScript). Es lo más simple y para estos volúmenes alcanza de sobra.
+- **Listas que crecen sin techo** (se acumulan para siempre): proyectos, y a futuro
+  items, procesos, comprobantes, movimientos. Se **filtran en el servidor**: la
+  consulta a Supabase ya trae solo las filas que cumplen los filtros.
+
+No se migra todo de golpe: Empresas y los recursos quedan en cliente; el criterio
+queda escrito para aplicarlo al construir cada módulo nuevo.
+
+### Cómo se filtra en servidor
+
+- Se arma la consulta con el **query builder** de Supabase (el mismo `.select().eq()…`
+  de siempre, sumándole condiciones según los filtros activos):
+  - `.eq()` para valores exactos (estado, ids).
+  - `.ilike('%texto%')` para búsquedas de texto "contiene" (sin distinguir
+    mayúsculas). Para ignorar tildes se normaliza el texto antes.
+  - `.or()` para condiciones alternativas (ej: cliente **o** cliente final).
+  - `.gte()` / `.lte()` para rangos de fecha.
+- Los campos de display de tablas relacionadas (nombre de empresa, apellido del
+  contacto, nombre del cliente final) vienen por **joins embebidos** en el mismo
+  `select` (ej: `empresa:empresas!empresa_id ( nombre )`).
+
+### Búsquedas que cruzan tablas
+
+Cuando el filtro es sobre una tabla relacionada (ej: "proyectos que tengan algún
+**item** cuya descripción contenga X"), se resuelve en **dos pasos**:
+
+1. Una consulta corta trae los `proyecto_id` de los items que matchean.
+2. La consulta principal de proyectos combina eso con el resto de los filtros. Para
+   "descripción global" es un `.or()` entre "la descripción del proyecto contiene X"
+   **o** "el proyecto está en esa lista de ids".
+
+Se evita a propósito meter toda la lógica en una **función de PostgreSQL (RPC)**: es
+más SQL para mantener y acopla la función a las columnas que se muestran. La RPC queda
+como recurso reservado para algún caso que el query builder no pueda expresar bien.
+
+### Índices (lo que hace que escale)
+
+`ILIKE '%texto%'` sin índice obliga a leer toda la tabla. Para que sea instantáneo con
+volumen se usan **índices de trigramas** (`pg_trgm`) sobre las columnas de texto que se
+buscan. Es un `CREATE INDEX` que se corre una vez en Supabase (SQL directo). Índices
+vigentes para el filtrado de Proyectos:
+
+- `proyectos.descripcion`, `proyectos.pedido_nro` (trigramas)
+- `items.descripcion` (trigramas) + `items.proyecto_id` (btree, para el paso 1)
+- `empresas.nombre`, `empresa_contactos.apellido` (trigramas)
+
+### UX de la consulta
+
+- Los campos de texto usan **debounce** (~250 ms): se espera a que el usuario deje de
+  escribir antes de consultar, en vez de disparar una consulta por tecla.
+- Se maneja un estado de "cargando" mientras la base responde.
+- Orden y paginación (cuando haga falta) se resuelven en la consulta, no en el cliente.
