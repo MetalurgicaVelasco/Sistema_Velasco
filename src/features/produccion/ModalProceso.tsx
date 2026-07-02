@@ -92,8 +92,8 @@ function ModalProceso({
     if (!tipoProceso) return
     const ok = window.confirm(
       `¿Eliminar el proceso "${tipoProceso.nombre}"? Los procesos ya cargados ` +
-        `en productos y proyectos no se ven afectados, pero no vas a poder ` +
-        `elegirlo para nuevos.`,
+        `en la matriz y en los proyectos no se ven afectados, pero no vas a ` +
+        `poder elegirlo para nuevos.`,
     )
     if (!ok) return
     setGuardando(true)

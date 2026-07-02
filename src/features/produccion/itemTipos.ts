@@ -115,7 +115,7 @@ export function draftAGuardar(d: ItemDraft, proyectoId: number) {
   return {
     proyecto_id: proyectoId,
     parent_item_id: null,
-    tipo: 'producto', // sin árbol todavía
+    tipo: 'componente', // sin árbol todavía
     descripcion: d.descripcion.trim(),
     cantidad: d.cantidad.trim() ? Number(d.cantidad) : 1,
     material_id: d.materialId,
