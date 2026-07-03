@@ -297,15 +297,24 @@ Proyecto → Item → Proceso
 - Los **procesos** del item son los que se convierten en bloques/actividades del Tablero
   (ver §8.3).
 
-### 8.3 Procesos del item (implementado)
+### 8.3 Procesos del elemento (implementado)
 
-Cada item tiene una lista ordenada de **procesos** (tabla `procesos`, el renombre
-normalizado de `actividades_tablero`). Un proceso es un paso de trabajo del item y es lo
-que se convierte en bloque del Tablero. Se editan en la **vista dedicada del item** (§5),
-sobre un item ya guardado.
+Cada elemento tiene una lista ordenada de **procesos** (tabla `procesos`, el renombre
+normalizado de `actividades_tablero`). Un proceso es un paso de trabajo y es lo que se
+convierte en bloque del Tablero. Se editan en la **vista dedicada del elemento** (§5),
+sobre un elemento ya guardado.
+
+> **Regla (definida 03/07/2026): los procesos viven solo en los Componentes (las
+> hojas).** Un Conjunto o Subconjunto NO tiene procesos propios. Un trabajo que opera
+> sobre el conjunto ya armado (soldar dos piezas entre sí, controlar, despachar, etc.) se
+> modela como un **Componente-servicio** hermano de las piezas, no como procesos colgados
+> del conjunto. Así el modelo tiene una sola regla ("procesos = hojas"), sin excepciones
+> al recorrer el árbol ni ambigüedad en el Tablero. Ejemplo real: el *alimentador*
+> (Conjunto, item) = *Cuerpo* (Componente) + *Boca* (Componente) + *Soldar boca a cuerpo*
+> (Componente-servicio, con los procesos soldadura / control / despacho).
 
 **Modelo de datos:**
-- `procesos`: `item_id`, `orden`, `tipo_proceso_id` (FK al catálogo de tipos) **o**
+- `procesos`: `elemento_id`, `orden`, `tipo_proceso_id` (FK al catálogo de tipos) **o**
   `proceso_otro` (texto libre cuando es "Otro"), `modo`, los tres tiempos (`setup_min`,
   `operacion_min`, `margen_min`), `maquina_id` / `maquina_otra`, `operario_id`,
   `detalle_trabajo`, `es_retrabajo`. **No denormaliza** cliente/pedido/fotos (eso sale por
