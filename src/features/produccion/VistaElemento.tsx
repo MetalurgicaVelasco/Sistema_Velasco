@@ -5,6 +5,7 @@ import { nombrePersonal } from '../../shared/types/recursos'
 import type { RecursosData } from '../../shared/types/recursos'
 import {
   cargarProcesosDeElemento,
+  contarProcesosPorElementos,
   eliminarProceso,
   moverProceso,
   moverProcesoAPos,
@@ -12,6 +13,7 @@ import {
   redefinirPredecesores,
   quitarCorrelatividad,
 } from './procesosApi'
+import { cargarHijos, esContenedor, tipoLabel } from './elementosApi'
 import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
 import { fechaCorta } from './proyectoTipos'
@@ -30,8 +32,15 @@ function VistaElemento({
   proyecto: Proyecto | null
   onCerrar: () => void
 }) {
+  // Pila de navegación: arranca en el elemento por el que se entró; entrar a un
+  // hijo lo agrega, el breadcrumb y "Volver" retroceden. El "actual" es el tope.
+  const [pila, setPila] = useState<Elemento[]>([elemento])
+  const actual = pila[pila.length - 1]
+
   const [procesos, setProcesos] = useState<Proceso[]>([])
   const [correlatividades, setCorrelatividades] = useState<Correlatividad[]>([])
+  const [hijos, setHijos] = useState<Elemento[]>([])
+  const [contarProcHijos, setContarProcHijos] = useState<Record<number, number>>({})
   const [recursos, setRecursos] = useState<RecursosData | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,34 +49,55 @@ function VistaElemento({
   const [editandoPosId, setEditandoPosId] = useState<number | null>(null)
   const [posInput, setPosInput] = useState('')
 
-  async function cargar() {
+  // Recursos (tipos de proceso, máquinas, personal): se cargan una sola vez.
+  useEffect(() => {
+    cargarRecursos().then(setRecursos)
+  }, [])
+
+  // Procesos + hijos del elemento ACTUAL (se recargan al navegar).
+  async function recargar(el: Elemento) {
     setCargando(true)
     try {
-      const [pr, rec] = await Promise.all([
-        cargarProcesosDeElemento(elemento.id),
-        cargarRecursos(),
-      ])
+      const pr = await cargarProcesosDeElemento(el.id)
       setProcesos(pr.procesos)
       setCorrelatividades(pr.correlatividades)
-      setRecursos(rec)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar los procesos.')
-    } finally {
-      setCargando(false)
     }
+    if (esContenedor(el)) {
+      const hs = await cargarHijos(el.id)
+      setHijos(hs)
+      setContarProcHijos(await contarProcesosPorElementos(hs.map((h) => h.id)))
+    } else {
+      setHijos([])
+      setContarProcHijos({})
+    }
+    setCargando(false)
   }
 
   useEffect(() => {
-    cargar()
+    recargar(actual)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elemento.id])
+  }, [actual.id])
 
-  const cantidad = Number(elemento.cantidad ?? 1)
+  const cantidad = Number(actual.cantidad ?? 1)
 
-  const fotoUrl = elemento.foto_url
-    ? supabase.storage.from(BUCKET).getPublicUrl(elemento.foto_url).data.publicUrl
+  const fotoUrl = actual.foto_url
+    ? supabase.storage.from(BUCKET).getPublicUrl(actual.foto_url).data.publicUrl
     : null
+
+  // ---- Navegación ----
+  function entrar(hijo: Elemento) {
+    setPila([...pila, hijo])
+  }
+  function irACrumb(idx: number) {
+    setPila(pila.slice(0, idx + 1))
+  }
+  function volver() {
+    if (pila.length > 1) setPila(pila.slice(0, -1))
+    else onCerrar()
+  }
 
   // ---- Resolución de nombres con recursos ----
   function nombreProceso(p: Proceso): string {
@@ -114,29 +144,29 @@ function VistaElemento({
       .join(', ')
   }
 
-  // ---- Acciones ----
+  // ---- Acciones sobre procesos ----
   function onGuardado() {
     setModal(null)
-    cargar()
+    recargar(actual)
   }
   async function onEliminar(p: Proceso) {
     if (!window.confirm(`¿Eliminar el proceso "${nombreProceso(p)}"?`)) return
     await eliminarProceso(p.id)
-    cargar()
+    recargar(actual)
   }
   async function onMover(p: Proceso, delta: number) {
-    await moverProceso(elemento.id, p.id, delta)
-    cargar()
+    await moverProceso(actual.id, p.id, delta)
+    recargar(actual)
   }
   async function aplicarPos(p: Proceso) {
     const n = Number(posInput)
     setEditandoPosId(null)
-    const { error: err } = await moverProcesoAPos(elemento.id, p.id, n)
+    const { error: err } = await moverProcesoAPos(actual.id, p.id, n)
     if (err) {
       window.alert(err)
       return
     }
-    cargar()
+    recargar(actual)
   }
   async function onDuplicar(p: Proceso, asRetrabajo: boolean) {
     const msg = asRetrabajo
@@ -144,7 +174,7 @@ function VistaElemento({
       : `¿Duplicar "${nombreProceso(p)}" al final de la lista?`
     if (!window.confirm(msg)) return
     await duplicarProceso(p.id, asRetrabajo)
-    cargar()
+    recargar(actual)
   }
   async function onRedefinir() {
     if (
@@ -154,30 +184,51 @@ function VistaElemento({
       )
     )
       return
-    await redefinirPredecesores(elemento.id)
-    cargar()
+    await redefinirPredecesores(actual.id)
+    recargar(actual)
   }
   async function onQuitarPred(c: Correlatividad) {
     await quitarCorrelatividad(c.id)
-    cargar()
+    recargar(actual)
   }
 
   return (
     <div className="vista-item">
       <div className="vista-topbar">
-        <button type="button" className="empresa-boton-secundario" onClick={onCerrar}>
-          ← Volver al proyecto
+        <button type="button" className="empresa-boton-secundario" onClick={volver}>
+          ← Volver
         </button>
+      </div>
+
+      {/* Breadcrumb: Proyecto › … › elemento actual */}
+      <div className="vi-breadcrumb">
+        <span className="vi-crumb vi-crumb-link" onClick={onCerrar}>
+          Proyecto{proyecto?.pedido_nro ? ` (Ped. ${proyecto.pedido_nro})` : ''}
+        </span>
+        {pila.map((el, idx) => (
+          <span key={el.id} className="vi-crumb-grupo">
+            <span className="vi-crumb-sep">›</span>
+            {idx < pila.length - 1 ? (
+              <span className="vi-crumb vi-crumb-link" onClick={() => irACrumb(idx)}>
+                {el.descripcion}
+              </span>
+            ) : (
+              <span className="vi-crumb vi-crumb-actual">{el.descripcion}</span>
+            )}
+          </span>
+        ))}
       </div>
 
       {/* Encabezado del elemento */}
       <div className="vi-header">
         <div className="vi-titulo">
           <h2>
-            Elemento: {elemento.descripcion}{' '}
-            <span className="vi-cant">×{cantidad}</span>
+            <span className={'vi-tipo-badge vi-tipo-' + actual.tipo}>
+              {tipoLabel(actual.tipo)}
+            </span>{' '}
+            {actual.descripcion} <span className="vi-cant">×{cantidad}</span>
           </h2>
-          <span className="vi-estado">{elemento.estado}</span>
+          <span className="vi-estado">{actual.estado}</span>
         </div>
         <div className="vi-datos">
           {fotoUrl ? (
@@ -197,18 +248,63 @@ function VistaElemento({
               {cantidad}
             </div>
             <div>
-              <b>Presentación:</b> {elemento.presentacion_mat_prima ?? '—'}
+              <b>Presentación:</b> {actual.presentacion_mat_prima ?? '—'}
             </div>
             <div>
-              <b>Fin estipulado:</b> {fechaCorta(elemento.fecha_fin_estipulada)}
+              <b>Fin estipulado:</b> {fechaCorta(actual.fecha_fin_estipulada)}
             </div>
           </div>
         </div>
       </div>
 
+      {/* Contenido (hijos) — solo si el elemento es contenedor */}
+      {esContenedor(actual) && (
+        <div className="vi-hijos">
+          <div className="vi-proc-head">
+            <h3 className="rec-titulo">Contenido</h3>
+          </div>
+          {hijos.length === 0 ? (
+            <div className="rec-vacio">
+              Este {tipoLabel(actual.tipo).toLowerCase()} todavía no tiene elementos
+              adentro.
+            </div>
+          ) : (
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Nº</th>
+                  <th>Tipo</th>
+                  <th>Descripción</th>
+                  <th>Cant.</th>
+                  <th>Estado</th>
+                  <th>Procesos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hijos.map((h) => (
+                  <tr
+                    key={h.id}
+                    className="tabla-fila"
+                    title="Doble click para entrar"
+                    onDoubleClick={() => entrar(h)}
+                  >
+                    <td>{h.id}</td>
+                    <td>{tipoLabel(h.tipo)}</td>
+                    <td>{h.descripcion}</td>
+                    <td>{h.cantidad ?? 1}</td>
+                    <td>{h.estado}</td>
+                    <td>{contarProcHijos[h.id] ?? 0} proceso(s)</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {/* Procesos */}
       <div className="vi-proc-head">
-        <h3 className="rec-titulo">Procesos del elemento</h3>
+        <h3 className="rec-titulo">Procesos</h3>
         <div className="vi-proc-head-btns">
           <button
             type="button"
@@ -421,7 +517,7 @@ function VistaElemento({
       {modal && recursos && (
         <ModalProcesoElemento
           proceso={modal.proceso}
-          elementoId={elemento.id}
+          elementoId={actual.id}
           tiposProceso={recursos.tiposProceso}
           maquinas={recursos.maquinas}
           personal={recursos.personal.filter((p) => p.activo)}

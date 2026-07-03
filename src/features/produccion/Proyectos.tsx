@@ -236,6 +236,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   if (elementoVista) {
     return (
       <VistaElemento
+        key={elementoVista.id}
         elemento={elementoVista}
         proyecto={
           proyectos.find((p) => p.id === elementoVista.proyecto_id) ?? seleccionado
@@ -622,6 +623,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                                     e.stopPropagation()
                                     toggleColapso(fila.el.id)
                                   }}
+                                  onDoubleClick={(e) => e.stopPropagation()}
                                 >
                                   {colapsados.has(fila.el.id) ? '▸' : '▾'}
                                 </button>
