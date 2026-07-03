@@ -124,7 +124,7 @@ function VistaProyectoForm({
       supabase
         .from('elementos')
         .select(
-          'id, proyecto_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo',
+          'id, proyecto_id, parent_elemento_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo',
         )
         .eq('proyecto_id', proyecto.id)
         .order('id')

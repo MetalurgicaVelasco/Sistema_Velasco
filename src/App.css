@@ -2738,3 +2738,29 @@ textarea.ef-i {
   background: #f5f3ec;
   cursor: not-allowed;
 }
+
+/* ── Árbol de elementos en la franja 3 (Producción) ───────────────────── */
+/* La descripción lleva la indentación por nivel + el chevron de expandir. */
+.arbol-desc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.arbol-chevron {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  width: 14px;
+  font-size: 10px;
+  line-height: 1;
+  color: #6b6a66;
+}
+.arbol-chevron-espacio {
+  display: inline-block;
+  width: 14px;
+}
+/* En la fila seleccionada (fondo azul) el chevron va blanco para que se lea. */
+.tabla-fila.seleccionada .arbol-chevron {
+  color: #fff;
+}

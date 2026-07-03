@@ -21,10 +21,39 @@ import type { Navegar } from '../../shared/types/navegacion'
 const BUCKET = 'proyectos-fotos'
 
 const SELECT_ELEMENTO =
-  'id, proyecto_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo'
+  'id, proyecto_id, parent_elemento_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo'
 
 function fotoPublica(path: string | null): string | null {
   return path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null
+}
+
+// Una fila del árbol ya aplanado en orden visible (para render y teclado).
+type FilaArbol = { el: Elemento; nivel: number; tieneHijos: boolean }
+
+// Arma la jerarquía en memoria con parent_elemento_id y la aplana en el orden
+// en que se ve (saltea los hijos de los nodos colapsados). Los hermanos van por id.
+function construirFilasArbol(
+  elementos: Elemento[],
+  colapsados: Set<number>,
+): FilaArbol[] {
+  const hijos = new Map<number | null, Elemento[]>()
+  for (const e of elementos) {
+    const k = e.parent_elemento_id ?? null
+    const arr = hijos.get(k)
+    if (arr) arr.push(e)
+    else hijos.set(k, [e])
+  }
+  for (const arr of hijos.values()) arr.sort((a, b) => a.id - b.id)
+  const filas: FilaArbol[] = []
+  const visitar = (padreId: number | null, nivel: number) => {
+    for (const el of hijos.get(padreId) ?? []) {
+      const tieneHijos = (hijos.get(el.id) ?? []).length > 0
+      filas.push({ el, nivel, tieneHijos })
+      if (tieneHijos && !colapsados.has(el.id)) visitar(el.id, nivel + 1)
+    }
+  }
+  visitar(null, 0)
+  return filas
 }
 
 function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
@@ -43,6 +72,8 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const [elementosCargando, setElementosCargando] = useState(false)
   const [contarProc, setContarProc] = useState<Record<number, number>>({})
   const [elementoSeleccionadoId, setElementoSeleccionadoId] = useState<number | null>(null)
+  // Nodos colapsados del árbol. Vacío = todo expandido (el default acordado).
+  const [colapsados, setColapsados] = useState<Set<number>>(new Set())
 
   // Elemento cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
   const [elementoVista, setElementoVista] = useState<Elemento | null>(null)
@@ -113,6 +144,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
 
   useEffect(() => {
     setElementoSeleccionadoId(null)
+    setColapsados(new Set())
     if (seleccionadoId == null) {
       setElementos([])
       setContarProc({})
@@ -132,6 +164,16 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
 
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
   const elementoSeleccionado = elementos.find((it) => it.id === elementoSeleccionadoId) ?? null
+  const filasArbol = construirFilasArbol(elementos, colapsados)
+
+  function toggleColapso(id: number) {
+    setColapsados((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   const fotoProyectoUrl = seleccionado ? fotoPublica(seleccionado.foto_url) : null
   const fotoElementoUrl = elementoSeleccionado ? fotoPublica(elementoSeleccionado.foto_url) : null
 
@@ -156,14 +198,16 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     }
   }
   function onKeyElementos(e: React.KeyboardEvent) {
-    if (elementos.length === 0) return
-    const idx = elementos.findIndex((it) => it.id === elementoSeleccionadoId)
+    if (filasArbol.length === 0) return
+    const idx = filasArbol.findIndex((f) => f.el.id === elementoSeleccionadoId)
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setElementoSeleccionadoId(elementos[idx < 0 ? 0 : Math.min(idx + 1, elementos.length - 1)].id)
+      setElementoSeleccionadoId(
+        filasArbol[idx < 0 ? 0 : Math.min(idx + 1, filasArbol.length - 1)].el.id,
+      )
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setElementoSeleccionadoId(elementos[idx < 0 ? 0 : Math.max(idx - 1, 0)].id)
+      setElementoSeleccionadoId(filasArbol[idx < 0 ? 0 : Math.max(idx - 1, 0)].el.id)
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (elementoSeleccionado) setElementoVista(elementoSeleccionado)
@@ -542,33 +586,61 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {elementos.map((it) => (
+                      {filasArbol.map((fila) => (
                         <tr
-                          key={it.id}
-                          ref={it.id === elementoSeleccionadoId ? filaElementoSelRef : undefined}
+                          key={fila.el.id}
+                          ref={
+                            fila.el.id === elementoSeleccionadoId
+                              ? filaElementoSelRef
+                              : undefined
+                          }
                           className={
                             'tabla-fila' +
-                            (it.id === elementoSeleccionadoId ? ' seleccionada' : '')
+                            (fila.el.id === elementoSeleccionadoId ? ' seleccionada' : '')
                           }
                           onClick={() => {
-                            setElementoSeleccionadoId(it.id)
+                            setElementoSeleccionadoId(fila.el.id)
                             listaElementoRef.current?.focus()
                           }}
-                          onDoubleClick={() => setElementoVista(it)}
+                          onDoubleClick={() => setElementoVista(fila.el)}
                         >
-                          <td>{it.id}</td>
-                          <td>{it.tipo}</td>
-                          <td>{it.descripcion}</td>
-                          <td>{it.cantidad ?? 1}</td>
-                          <td>{it.estado}</td>
-                          <td>{contarProc[it.id] ?? 0} proceso(s)</td>
+                          <td>{fila.el.id}</td>
+                          <td>{fila.el.tipo}</td>
+                          <td>
+                            <span
+                              className="arbol-desc"
+                              style={{ paddingLeft: fila.nivel * 18 }}
+                            >
+                              {fila.tieneHijos ? (
+                                <button
+                                  type="button"
+                                  className="arbol-chevron"
+                                  title={
+                                    colapsados.has(fila.el.id) ? 'Expandir' : 'Colapsar'
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleColapso(fila.el.id)
+                                  }}
+                                >
+                                  {colapsados.has(fila.el.id) ? '▸' : '▾'}
+                                </button>
+                              ) : (
+                                <span className="arbol-chevron-espacio" />
+                              )}
+                              {fila.el.descripcion}
+                            </span>
+                          </td>
+                          <td>{fila.el.cantidad ?? 1}</td>
+                          <td>{fila.el.estado}</td>
+                          <td>{contarProc[fila.el.id] ?? 0} proceso(s)</td>
                           <td className="tabla-acciones">
                             <button
                               type="button"
                               className="empresas-editar"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setElementoVista(it)
+                                setElementoVista(fila.el)
                               }}
                             >
                               Editar

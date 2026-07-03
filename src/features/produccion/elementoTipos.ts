@@ -20,6 +20,7 @@ export type Material = { id: number; nombre: string }
 export type Elemento = {
   id: number
   proyecto_id: number
+  parent_elemento_id: number | null
   tipo: string
   descripcion: string
   cantidad: number | null
