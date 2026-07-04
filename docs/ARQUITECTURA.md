@@ -297,6 +297,19 @@ Proyecto → Item → Proceso
 - Los **procesos** del item son los que se convierten en bloques/actividades del Tablero
   (ver §8.3).
 
+> **Vista del proyecto = contenedor raíz (implementado, Entrega 2).** El proyecto se
+> comporta como la raíz del árbol: debajo de sus datos tiene una sección **Contenido**
+> con sus elementos raíz (el mismo componente `SeccionContenido` que usa la vista de un
+> conjunto). Los elementos se crean/editan/borran con **persistencia inmediata** (como
+> los procesos), no por un "Guardar cambios" batch; los **datos del proyecto** (cliente,
+> fechas, foto) sí siguen con "Guardar cambios". Doble-click en un elemento raíz abre su
+> vista (navegable con breadcrumb). En el **alta**, el Contenido se habilita recién al
+> crear el proyecto (antes muestra la leyenda "creá el proyecto para poder cargar
+> elementos"), y crear no cierra el form. **Atajo "un solo item":** un checkbox en el
+> alta que, al crear, genera automáticamente un Componente que hereda descripción y foto
+> del proyecto (cantidad 1) y lo abre directo para cargarle el resto — pensado para los
+> muchos pedidos de un solo item.
+
 ### 8.3 Procesos del elemento (implementado)
 
 Cada elemento tiene una lista ordenada de **procesos** (tabla `procesos`, el renombre
