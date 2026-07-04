@@ -304,14 +304,16 @@ normalizado de `actividades_tablero`). Un proceso es un paso de trabajo y es lo 
 convierte en bloque del Tablero. Se editan en la **vista dedicada del elemento** (§5),
 sobre un elemento ya guardado.
 
-> **Regla (definida 03/07/2026): los procesos viven solo en los Componentes (las
-> hojas).** Un Conjunto o Subconjunto NO tiene procesos propios. Un trabajo que opera
-> sobre el conjunto ya armado (soldar dos piezas entre sí, controlar, despachar, etc.) se
-> modela como un **Componente-servicio** hermano de las piezas, no como procesos colgados
-> del conjunto. Así el modelo tiene una sola regla ("procesos = hojas"), sin excepciones
-> al recorrer el árbol ni ambigüedad en el Tablero. Ejemplo real: el *alimentador*
-> (Conjunto, item) = *Cuerpo* (Componente) + *Boca* (Componente) + *Soldar boca a cuerpo*
-> (Componente-servicio, con los procesos soldadura / control / despacho).
+> **Regla (revisada 03/07/2026): los procesos pueden vivir en cualquier nivel**
+> (Conjunto, Subconjunto o Componente), no solo en las hojas. Cada proceso se multiplica
+> por la **cantidad del elemento que lo contiene**. Esto permite modelar trabajos que
+> operan sobre el conjunto ya armado (soldar dos piezas entre sí, controlar, despachar)
+> **colgándolos del propio conjunto**, en vez de forzar un componente-servicio artificial
+> que arrastraría procesos que no le pertenecen. La base ya lo soporta sin cambios
+> (`procesos.elemento_id` puede apuntar a cualquier elemento; ningún CHECK lo restringe).
+> Ejemplo: el *alimentador* (Conjunto) = *Cuerpo* (Componente) + *Boca* (Componente),
+> con los procesos de soldadura / control / despacho colgados directamente del alimentador.
+> *(Reemplaza la regla previa "procesos solo en componentes", que quedó descartada.)*
 
 **Modelo de datos:**
 - `procesos`: `elemento_id`, `orden`, `tipo_proceso_id` (FK al catálogo de tipos) **o**

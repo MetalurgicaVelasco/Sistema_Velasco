@@ -114,8 +114,11 @@ Conceptos:
   raíz; lo que cuelga de un conjunto/subconjunto son elementos anidados. En la base, la
   tabla `elementos` guarda todos (con `parent_elemento_id` para la anidación).
 - **Componente:** la pieza o servicio individual e indivisible que efectivamente se
-  fabrica o se resuelve (la hoja del árbol). Es donde viven los procesos.
-- **Proceso:** cada paso de trabajo de un elemento. Los procesos son lo que se planifica en el
+  fabrica o se resuelve (la hoja del árbol).
+- **Proceso:** cada paso de trabajo de un elemento. Los procesos **pueden colgar de
+  cualquier nivel** (conjunto, subconjunto o componente) y se multiplican por la cantidad
+  del elemento que los contiene: por ejemplo, la soldadura/control/despacho del conjunto
+  armado cuelgan del propio conjunto. Los procesos son lo que se planifica en el
   Tablero. Cada proceso tiene un tipo, una duración estimada, una máquina sugerida y un
   operario sugerido por Oficina Técnica. **Tipos de proceso estándar:** Agujereado, Armado,
   Compra, Control, Corte, Desarme y limpieza, Despacho, Electroerosión, Fresado, Plegado,
