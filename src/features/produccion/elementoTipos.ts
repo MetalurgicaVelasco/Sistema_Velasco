@@ -40,6 +40,7 @@ export type Elemento = {
 export type ElementoDraft = {
   key: string // clave estable para React (solo cliente)
   dbId: number | null
+  tipo: string // conjunto / subconjunto / componente
   descripcion: string
   cantidad: string
   estado: string
@@ -64,6 +65,7 @@ export function elementoDraftVacio(): ElementoDraft {
   return {
     key: nuevaKey(),
     dbId: null,
+    tipo: 'componente',
     descripcion: '',
     cantidad: '1',
     estado: 'Espera MP',
@@ -83,6 +85,7 @@ export function elementoRowADraft(row: Elemento): ElementoDraft {
   return {
     key: nuevaKey(),
     dbId: row.id,
+    tipo: row.tipo,
     descripcion: row.descripcion ?? '',
     cantidad: row.cantidad != null ? String(row.cantidad) : '1',
     estado: row.estado ?? 'Espera MP',
@@ -112,11 +115,15 @@ export function duplicarDraft(d: ElementoDraft): ElementoDraft {
 
 // Objeto para insertar/actualizar en elementos. La foto nueva se sube aparte
 // (necesita el id); foto_url va con lo que esté guardado o limpiado.
-export function draftAGuardar(d: ElementoDraft, proyectoId: number) {
+export function draftAGuardar(
+  d: ElementoDraft,
+  proyectoId: number,
+  parentId: number | null = null,
+) {
   return {
     proyecto_id: proyectoId,
-    parent_elemento_id: null,
-    tipo: 'componente', // sin árbol todavía
+    parent_elemento_id: parentId,
+    tipo: d.tipo,
     descripcion: d.descripcion.trim(),
     cantidad: d.cantidad.trim() ? Number(d.cantidad) : 1,
     material_id: d.materialId,

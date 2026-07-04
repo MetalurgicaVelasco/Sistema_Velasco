@@ -4,6 +4,7 @@ import CajaFoto from './CajaFoto'
 import SelectorConAlta from '../../shared/components/SelectorConAlta'
 import { ESTADOS_ELEMENTO } from './elementoTipos'
 import type { ElementoDraft, Material } from './elementoTipos'
+import { tipoLabel } from './elementosApi'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -54,8 +55,24 @@ function ModalItem({
     <div className="pf-modal-fondo" onClick={onCancelar}>
       <div className="item-modal" onClick={(e) => e.stopPropagation()}>
         <h3 className="pf-modal-titulo">
-          {d.dbId == null ? 'Nuevo item' : 'Editar item'}
+          {d.dbId == null
+            ? 'Nuevo ' + tipoLabel(d.tipo)
+            : 'Editar ' + tipoLabel(d.tipo)}
         </h3>
+
+        {/* Tipo del elemento */}
+        <label className="empresa-campo">
+          Tipo
+          <select
+            className="empresa-input"
+            value={d.tipo}
+            onChange={(e) => setD({ ...d, tipo: e.target.value })}
+          >
+            <option value="conjunto">Conjunto</option>
+            <option value="subconjunto">Subconjunto</option>
+            <option value="componente">Componente</option>
+          </select>
+        </label>
 
         {/* Descripción + Cantidad */}
         <div className="empresa-campo-fila">
@@ -192,7 +209,7 @@ function ModalItem({
             Cancelar
           </button>
           <button type="button" className="empresa-boton" onClick={guardar}>
-            Guardar item
+            Guardar
           </button>
         </div>
       </div>
