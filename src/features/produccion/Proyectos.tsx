@@ -77,6 +77,9 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
 
   // Elemento cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
   const [elementoVista, setElementoVista] = useState<Elemento | null>(null)
+  // Proyecto a mostrar en la vista de elemento cuando lo pasa el form (ej. un
+  // proyecto recién creado que todavía no está en la lista).
+  const [proyectoVista, setProyectoVista] = useState<Proyecto | null>(null)
 
   // null = lista; 'nuevo' = formulario nuevo; Proyecto = formulario editar
   const [formActivo, setFormActivo] = useState<'nuevo' | Proyecto | null>(null)
@@ -242,7 +245,10 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
             proyecto={formActivo === 'nuevo' ? null : formActivo}
             empresas={empresas}
             onCerrar={volverALista}
-            onAbrirElemento={(el) => setElementoVista(el)}
+            onAbrirElemento={(el, proy) => {
+              setElementoVista(el)
+              setProyectoVista(proy ?? null)
+            }}
           />
         </div>
       )}
@@ -253,10 +259,13 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
           key={elementoVista.id}
           elemento={elementoVista}
           proyecto={
-            proyectos.find((p) => p.id === elementoVista.proyecto_id) ?? seleccionado
+            proyectoVista ??
+            proyectos.find((p) => p.id === elementoVista.proyecto_id) ??
+            seleccionado
           }
           onCerrar={() => {
             setElementoVista(null)
+            setProyectoVista(null)
             if (seleccionadoId != null) cargarElementos(seleccionadoId)
           }}
         />

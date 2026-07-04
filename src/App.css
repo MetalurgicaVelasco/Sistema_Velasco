@@ -2882,3 +2882,19 @@ textarea.ef-i {
   text-align: right;
   white-space: nowrap;
 }
+
+/* Checkbox del atajo "un solo item" en el alta del proyecto. */
+.pf-check-unitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+  font-size: 14px;
+  color: #2c2c2a;
+  cursor: pointer;
+}
+.pf-check-unitem input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}

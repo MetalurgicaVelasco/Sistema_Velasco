@@ -17,6 +17,7 @@ import {
 import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
 import SeccionContenido from './SeccionContenido'
+import { crearComponenteInicial } from './elementosApi'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -29,7 +30,7 @@ function VistaProyectoForm({
   proyecto: Proyecto | null // null = nuevo
   empresas: Empresa[]
   onCerrar: () => void // vuelve a la lista (y recarga)
-  onAbrirElemento: (el: Elemento) => void
+  onAbrirElemento: (el: Elemento, proyecto?: Proyecto) => void
 }) {
   const esNuevo = proyecto == null
 
@@ -45,6 +46,8 @@ function VistaProyectoForm({
   // el form y hace que los guardados siguientes actualicen en vez de insertar.
   const [proyectoIdCreado, setProyectoIdCreado] = useState<number | null>(null)
   const idExistente = proyecto?.id ?? proyectoIdCreado
+  // Atajo "un solo item" (solo en alta).
+  const [unSoloItem, setUnSoloItem] = useState(false)
 
   // ---- Foto (se retiene y se sube al guardar) ----
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -156,6 +159,25 @@ function VistaProyectoForm({
     setModalCerrado(false)
   }
 
+  // Construye un Proyecto para el encabezado de la vista de elemento a partir de
+  // lo cargado en el form (usado cuando el proyecto todavía no está en la lista,
+  // ej. recién creado). En edición usamos el proyecto real, que ya trae los joins.
+  function construirProyectoVista(id: number): Proyecto {
+    const empresaNombre =
+      empresas.find((e) => e.id === form.empresaId)?.nombre ?? ''
+    return {
+      ...(formAGuardar(form) as object),
+      id,
+      empresa: { nombre: empresaNombre },
+      contacto: null,
+      cliente_final: null,
+    } as unknown as Proyecto
+  }
+  function proyVista(): Proyecto | undefined {
+    if (proyecto) return proyecto
+    return idExistente != null ? construirProyectoVista(idExistente) : undefined
+  }
+
   async function guardar() {
     setError(null)
     if (form.empresaId == null) {
@@ -195,6 +217,7 @@ function VistaProyectoForm({
     }
 
     // Foto: subir la retenida, o borrar la actual si se quitó.
+    let fotoProyectoUrl: string | null = fotoUrlActual
     if (proyectoId != null) {
       if (fotoFile) {
         const ext =
@@ -213,6 +236,7 @@ function VistaProyectoForm({
             .from('proyectos')
             .update({ foto_url: ruta })
             .eq('id', proyectoId)
+          fotoProyectoUrl = ruta
         }
       } else if (fotoQuitada && fotoUrlActual) {
         await supabase.storage.from(BUCKET).remove([fotoUrlActual])
@@ -220,7 +244,23 @@ function VistaProyectoForm({
           .from('proyectos')
           .update({ foto_url: null })
           .eq('id', proyectoId)
+        fotoProyectoUrl = null
       }
+    }
+
+    // Atajo "un solo item": crea un componente que hereda descripción y foto del
+    // proyecto y lo abre directamente para cargarle el resto (cantidad, etc.).
+    if (creando && unSoloItem && proyectoId != null) {
+      const comp = await crearComponenteInicial(
+        proyectoId,
+        form.descripcion.trim(),
+        fotoProyectoUrl,
+      )
+      setGuardando(false)
+      setProyectoIdCreado(proyectoId)
+      setUnSoloItem(false)
+      if (comp) onAbrirElemento(comp, construirProyectoVista(proyectoId))
+      return
     }
 
     setGuardando(false)
@@ -562,14 +602,34 @@ function VistaProyectoForm({
           </div>
         </div>
 
+        {/* Atajo "un solo item" (solo en el alta, antes de crear) */}
+        {idExistente == null && (
+          <label className="pf-check-unitem">
+            <input
+              type="checkbox"
+              checked={unSoloItem}
+              onChange={(e) => setUnSoloItem(e.target.checked)}
+            />
+            Es un proyecto de un solo item (crea un componente con la descripción y
+            la foto del proyecto, y lo abre para cargar el resto)
+          </label>
+        )}
+
         {/* Contenido del proyecto (elementos raíz) */}
-        <SeccionContenido
-          proyectoId={idExistente ?? 0}
-          parentId={null}
-          onEntrar={onAbrirElemento}
-          deshabilitado={idExistente == null}
-          leyenda="Creá el proyecto para poder cargar elementos."
-        />
+        {unSoloItem ? (
+          <p className="rec-vacio">
+            Al crear el proyecto se genera un componente que hereda la descripción y
+            la foto, y se abre para cargar cantidad, material y procesos.
+          </p>
+        ) : (
+          <SeccionContenido
+            proyectoId={idExistente ?? 0}
+            parentId={null}
+            onEntrar={(el) => onAbrirElemento(el, proyVista())}
+            deshabilitado={idExistente == null}
+            leyenda="Creá el proyecto para poder cargar elementos."
+          />
+        )}
         {error && <p className="empresa-form-error">{error}</p>}
 
         <div className="pf-acciones">

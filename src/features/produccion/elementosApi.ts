@@ -98,3 +98,26 @@ export async function actualizarElemento(
 export async function eliminarElemento(id: number): Promise<void> {
   await supabase.from('elementos').delete().eq('id', id)
 }
+
+// Atajo "un solo item": crea un Componente raíz que hereda descripción y foto del
+// proyecto (cantidad 1; el resto se completa después). Devuelve el elemento creado.
+export async function crearComponenteInicial(
+  proyectoId: number,
+  descripcion: string,
+  fotoUrl: string | null,
+): Promise<Elemento | null> {
+  const { data } = await supabase
+    .from('elementos')
+    .insert({
+      proyecto_id: proyectoId,
+      parent_elemento_id: null,
+      tipo: 'componente',
+      descripcion,
+      cantidad: 1,
+      foto_url: fotoUrl,
+      estado: 'Espera MP',
+    })
+    .select(SELECT_ELEMENTO)
+    .single()
+  return (data as unknown as Elemento) ?? null
+}
