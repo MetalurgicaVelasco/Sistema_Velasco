@@ -5,7 +5,6 @@ import { nombrePersonal } from '../../shared/types/recursos'
 import type { RecursosData } from '../../shared/types/recursos'
 import {
   cargarProcesosDeElemento,
-  contarProcesosPorElementos,
   eliminarProceso,
   moverProceso,
   moverProcesoAPos,
@@ -13,23 +12,14 @@ import {
   redefinirPredecesores,
   quitarCorrelatividad,
 } from './procesosApi'
-import {
-  cargarHijos,
-  esContenedor,
-  tipoLabel,
-  crearElemento,
-  actualizarElemento,
-  eliminarElemento,
-  tieneHijos,
-} from './elementosApi'
+import { esContenedor, tipoLabel } from './elementosApi'
 import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto } from './proyectoTipos'
-import { elementoDraftVacio, elementoRowADraft, crearMaterial } from './elementoTipos'
-import type { Elemento, ElementoDraft, Material } from './elementoTipos'
+import type { Elemento } from './elementoTipos'
 import ModalProcesoElemento from './ModalProcesoElemento'
-import ModalItem from './ModalItem'
+import SeccionContenido from './SeccionContenido'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -49,8 +39,6 @@ function VistaElemento({
 
   const [procesos, setProcesos] = useState<Proceso[]>([])
   const [correlatividades, setCorrelatividades] = useState<Correlatividad[]>([])
-  const [hijos, setHijos] = useState<Elemento[]>([])
-  const [contarProcHijos, setContarProcHijos] = useState<Record<number, number>>({})
   const [recursos, setRecursos] = useState<RecursosData | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,19 +46,6 @@ function VistaElemento({
   // Editor de posición: id del proceso cuyo "N/Total" está en modo edición.
   const [editandoPosId, setEditandoPosId] = useState<number | null>(null)
   const [posInput, setPosInput] = useState('')
-  // Alta/edición de hijos (1b).
-  const [materiales, setMateriales] = useState<Material[]>([])
-  const [modalElem, setModalElem] = useState<{ draft: ElementoDraft } | null>(null)
-  const [menuAgregar, setMenuAgregar] = useState(false)
-
-  // Materiales para el modal de alta (se cargan una vez).
-  useEffect(() => {
-    supabase
-      .from('materiales')
-      .select('id, nombre')
-      .order('nombre')
-      .then(({ data }) => setMateriales((data as Material[] | null) ?? []))
-  }, [])
 
   // Recursos (tipos de proceso, máquinas, personal): se cargan una sola vez.
   useEffect(() => {
@@ -88,14 +63,6 @@ function VistaElemento({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar los procesos.')
     }
-    if (esContenedor(el)) {
-      const hs = await cargarHijos(el.id)
-      setHijos(hs)
-      setContarProcHijos(await contarProcesosPorElementos(hs.map((h) => h.id)))
-    } else {
-      setHijos([])
-      setContarProcHijos({})
-    }
     setCargando(false)
   }
 
@@ -110,12 +77,6 @@ function VistaElemento({
     ? supabase.storage.from(BUCKET).getPublicUrl(actual.foto_url).data.publicUrl
     : null
 
-  function fotoPublicUrl(path: string | null): string | null {
-    return path
-      ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
-      : null
-  }
-
   // ---- Navegación ----
   function entrar(hijo: Elemento) {
     setPila([...pila, hijo])
@@ -126,56 +87,6 @@ function VistaElemento({
   function volver() {
     if (pila.length > 1) setPila(pila.slice(0, -1))
     else onCerrar()
-  }
-
-  // ---- Alta / edición / borrado de hijos (persistencia inmediata) ----
-  function nuevoHijo(tipo: string) {
-    setMenuAgregar(false)
-    setModalElem({ draft: { ...elementoDraftVacio(), tipo } })
-  }
-  function editarHijo(h: Elemento) {
-    setModalElem({ draft: elementoRowADraft(h) })
-  }
-  async function borrarHijo(h: Elemento) {
-    if (!window.confirm(`¿Borrar "${h.descripcion}"?`)) return
-    if (await tieneHijos(h.id)) {
-      window.alert(
-        'Este elemento tiene elementos adentro. Vaciá o mové su contenido antes de borrarlo.',
-      )
-      return
-    }
-    await eliminarElemento(h.id)
-    recargar(actual)
-  }
-  async function guardarElemento(draft: ElementoDraft) {
-    // Un elemento con hijos no puede volverse Componente (un componente es hoja).
-    if (
-      draft.dbId != null &&
-      draft.tipo === 'componente' &&
-      (await tieneHijos(draft.dbId))
-    ) {
-      window.alert(
-        'Este elemento tiene elementos adentro; no puede pasar a Componente. ' +
-          'Primero vaciá o mové su contenido.',
-      )
-      return
-    }
-    if (draft.dbId == null) {
-      await crearElemento(draft, actual.proyecto_id, actual.id)
-    } else {
-      await actualizarElemento(draft, actual.proyecto_id, actual.id)
-    }
-    setModalElem(null)
-    recargar(actual)
-  }
-  async function onAgregarMaterial(nombre: string): Promise<Material | null> {
-    const m = await crearMaterial(nombre)
-    if (m) {
-      setMateriales((prev) =>
-        [...prev, m].sort((a, b) => a.nombre.localeCompare(b.nombre)),
-      )
-    }
-    return m
   }
 
   // ---- Resolución de nombres con recursos ----
@@ -338,103 +249,11 @@ function VistaElemento({
 
       {/* Contenido (hijos) — solo si el elemento es contenedor */}
       {esContenedor(actual) && (
-        <div className="vi-hijos">
-          <div className="vi-proc-head">
-            <h3 className="rec-titulo">Contenido</h3>
-            <div className="vi-agregar">
-              <button
-                type="button"
-                className="empresa-boton"
-                onClick={() => setMenuAgregar((v) => !v)}
-              >
-                + Agregar elemento ▾
-              </button>
-              {menuAgregar && (
-                <div className="vi-agregar-menu">
-                  <button type="button" onClick={() => nuevoHijo('conjunto')}>
-                    Conjunto
-                  </button>
-                  <button type="button" onClick={() => nuevoHijo('subconjunto')}>
-                    Subconjunto
-                  </button>
-                  <button type="button" onClick={() => nuevoHijo('componente')}>
-                    Componente
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          {hijos.length === 0 ? (
-            <div className="rec-vacio">
-              Este {tipoLabel(actual.tipo).toLowerCase()} todavía no tiene elementos
-              adentro.
-            </div>
-          ) : (
-            <table className="tabla">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th>Nº</th>
-                  <th>Tipo</th>
-                  <th>Descripción</th>
-                  <th>Cant.</th>
-                  <th>Estado</th>
-                  <th>Procesos</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {hijos.map((h) => {
-                  const mini = fotoPublicUrl(h.foto_url)
-                  return (
-                    <tr
-                      key={h.id}
-                      className="tabla-fila"
-                      title="Doble click para entrar"
-                      onDoubleClick={() => entrar(h)}
-                    >
-                      <td>
-                        {mini ? (
-                          <img src={mini} alt="" className="vi-mini" />
-                        ) : (
-                          <span className="vi-mini vi-mini-vacia" />
-                        )}
-                      </td>
-                      <td>{h.id}</td>
-                      <td>{tipoLabel(h.tipo)}</td>
-                      <td>{h.descripcion}</td>
-                      <td>{h.cantidad ?? 1}</td>
-                      <td>{h.estado}</td>
-                      <td>{contarProcHijos[h.id] ?? 0} proceso(s)</td>
-                      <td className="tabla-acciones">
-                        <button
-                          type="button"
-                          className="empresas-editar"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            editarHijo(h)
-                          }}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="empresas-borrar"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            borrarHijo(h)
-                          }}
-                        >
-                          Borrar
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <SeccionContenido
+          proyectoId={actual.proyecto_id}
+          parentId={actual.id}
+          onEntrar={entrar}
+        />
       )}
 
       {/* Procesos */}
@@ -658,16 +477,6 @@ function VistaElemento({
           personal={recursos.personal.filter((p) => p.activo)}
           onGuardado={onGuardado}
           onCancelar={() => setModal(null)}
-        />
-      )}
-
-      {modalElem && (
-        <ModalItem
-          draft={modalElem.draft}
-          materiales={materiales}
-          onAgregarMaterial={onAgregarMaterial}
-          onGuardar={guardarElemento}
-          onCancelar={() => setModalElem(null)}
         />
       )}
     </div>

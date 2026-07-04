@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import BuscadorEmpresa from '../../shared/components/BuscadorEmpresa'
-import MenuContextual from '../../shared/components/MenuContextual'
 import CajaFoto from './CajaFoto'
-import ModalItem from './ModalItem'
 import {
   URGENCIAS,
   SUB_ESTADOS_CERRADO,
@@ -17,14 +15,8 @@ import {
   formAGuardar,
 } from './proyectoTipos'
 import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
-import {
-  elementoDraftVacio,
-  elementoRowADraft,
-  duplicarDraft,
-  draftAGuardar,
-  crearMaterial,
-} from './elementoTipos'
-import type { ElementoDraft, Material } from './elementoTipos'
+import type { Elemento } from './elementoTipos'
+import SeccionContenido from './SeccionContenido'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -32,10 +24,12 @@ function VistaProyectoForm({
   proyecto,
   empresas,
   onCerrar,
+  onAbrirElemento,
 }: {
   proyecto: Proyecto | null // null = nuevo
   empresas: Empresa[]
   onCerrar: () => void // vuelve a la lista (y recarga)
+  onAbrirElemento: (el: Elemento) => void
 }) {
   const esNuevo = proyecto == null
 
@@ -47,12 +41,10 @@ function VistaProyectoForm({
   const [error, setError] = useState<string | null>(null)
   const [modalCerrado, setModalCerrado] = useState(false)
 
-  // ---- Items del proyecto (viven en el form, se persisten al guardar) ----
-  const [items, setItems] = useState<ElementoDraft[]>([])
-  const [materiales, setMateriales] = useState<Material[]>([])
-  const [itemEditando, setItemEditando] = useState<ElementoDraft | null>(null)
-  // ids de items que ya estaban en la base (para detectar los borrados).
-  const [idsOriginales, setIdsOriginales] = useState<number[]>([])
+  // Id del proyecto una vez creado en el alta: habilita el Contenido sin cerrar
+  // el form y hace que los guardados siguientes actualicen en vez de insertar.
+  const [proyectoIdCreado, setProyectoIdCreado] = useState<number | null>(null)
+  const idExistente = proyecto?.id ?? proyectoIdCreado
 
   // ---- Foto (se retiene y se sube al guardar) ----
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -109,69 +101,6 @@ function VistaProyectoForm({
       activo = false
     }
   }, [form.empresaId, form.cfEmpresaId, form.cfHabilitado, form.cfLibre])
-
-  // Catálogo de materiales (para el selector) + items existentes (en edición).
-  useEffect(() => {
-    let activo = true
-    supabase
-      .from('materiales')
-      .select('id, nombre')
-      .order('nombre')
-      .then(({ data }) => {
-        if (activo) setMateriales(data ?? [])
-      })
-    if (proyecto) {
-      supabase
-        .from('elementos')
-        .select(
-          'id, proyecto_id, parent_elemento_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo',
-        )
-        .eq('proyecto_id', proyecto.id)
-        .order('id')
-        .then(({ data }) => {
-          if (activo && data) {
-            setItems(data.map(elementoRowADraft))
-            setIdsOriginales(data.map((r) => r.id))
-          }
-        })
-    }
-    return () => {
-      activo = false
-    }
-  }, [proyecto])
-
-  // ---- Acciones de items ----
-  function agregarItem() {
-    setItemEditando(elementoDraftVacio())
-  }
-  function duplicarItem(it: ElementoDraft) {
-    setItems((prev) => [...prev, duplicarDraft(it)])
-  }
-  function borrarItem(key: string) {
-    setItems((prev) => prev.filter((x) => x.key !== key))
-  }
-  // Al guardar desde el modal: si el item ya está en la lista lo reemplaza,
-  // si no, lo agrega.
-  function guardarItem(d: ElementoDraft) {
-    setItems((prev) =>
-      prev.some((x) => x.key === d.key)
-        ? prev.map((x) => (x.key === d.key ? d : x))
-        : [...prev, d],
-    )
-    setItemEditando(null)
-  }
-  // Alta de material desde el selector: crea en la base y lo suma a la lista.
-  async function agregarMaterial(nombre: string) {
-    const m = await crearMaterial(nombre)
-    if (m) {
-      setMateriales((prev) =>
-        prev.some((x) => x.id === m.id)
-          ? prev
-          : [...prev, m].sort((a, b) => a.nombre.localeCompare(b.nombre)),
-      )
-    }
-    return m
-  }
 
   const estadosPosibles = esNuevo
     ? ESTADOS_INICIALES
@@ -239,12 +168,13 @@ function VistaProyectoForm({
     }
     setGuardando(true)
 
-    let proyectoId = proyecto?.id ?? null
-    if (proyecto) {
+    const creando = idExistente == null
+    let proyectoId = idExistente
+    if (!creando) {
       const { error } = await supabase
         .from('proyectos')
         .update(formAGuardar(form))
-        .eq('id', proyecto.id)
+        .eq('id', idExistente as number)
       if (error) {
         setGuardando(false)
         setError('No se pudieron guardar los cambios.')
@@ -293,53 +223,13 @@ function VistaProyectoForm({
       }
     }
 
-    // Sincronizar items: borrar los quitados, insertar los nuevos, actualizar
-    // los existentes, y subir la foto de cada uno (necesita el id del item).
-    if (proyectoId != null) {
-      const idsActuales = items
-        .filter((d) => d.dbId != null)
-        .map((d) => d.dbId as number)
-      const aBorrar = idsOriginales.filter((id) => !idsActuales.includes(id))
-      if (aBorrar.length) {
-        await supabase.from('elementos').delete().in('id', aBorrar)
-      }
-
-      for (const d of items) {
-        const payload = draftAGuardar(d, proyectoId)
-        let itemId = d.dbId
-        if (d.dbId == null) {
-          const { data } = await supabase
-            .from('elementos')
-            .insert(payload)
-            .select('id')
-            .single()
-          itemId = data?.id ?? null
-        } else {
-          await supabase.from('elementos').update(payload).eq('id', d.dbId)
-        }
-
-        // Foto nueva del item (si hay): subir a items/{itemId}/... y guardar path.
-        if (itemId != null && d.fotoArchivo) {
-          const ext =
-            d.fotoArchivo.name.split('.').pop() ||
-            d.fotoArchivo.type.split('/')[1] ||
-            'png'
-          const ruta = `items/${itemId}/${Date.now()}.${ext}`
-          const { error: eUp } = await supabase.storage
-            .from(BUCKET)
-            .upload(ruta, d.fotoArchivo, { upsert: true })
-          if (!eUp) {
-            await supabase
-              .from('elementos')
-              .update({ foto_url: ruta })
-              .eq('id', itemId)
-          }
-        }
-      }
-    }
-
     setGuardando(false)
-    onCerrar()
+    if (creando) {
+      // Alta: no cerramos; el proyecto queda creado y se habilita el Contenido.
+      setProyectoIdCreado(proyectoId)
+    } else {
+      onCerrar()
+    }
   }
 
   // Banderas de habilitación de campos según el estado.
@@ -360,14 +250,6 @@ function VistaProyectoForm({
     }
     return s
   }
-
-  // Remitidos: por ahora siempre 0 (vendrá de remitos). Un item está
-  // "completo" cuando lo remitido iguala a lo pedido; ahí el número va verde.
-  // Si TODOS los items están completos, el título Remitidos también va verde.
-  const remitidosDe = (_it: ElementoDraft) => 0
-  const cantidadDe = (it: ElementoDraft) => Number(it.cantidad || '1')
-  const todosRemitidos =
-    items.length > 0 && items.every((it) => remitidosDe(it) === cantidadDe(it))
 
   return (
     <div className="pf-vista">
@@ -680,144 +562,14 @@ function VistaProyectoForm({
           </div>
         </div>
 
-        {/* Items del proyecto */}
-        <div className="item-seccion">
-          <div className="item-seccion-head">
-            <h3 className="item-seccion-titulo">
-              Items del proyecto
-              {items.length === 0 && (
-                <span className="item-aviso"> · al menos uno</span>
-              )}
-            </h3>
-            <div className="item-seccion-botones">
-              <span className="item-contador">
-                {items.length} item(s) cargado(s)
-              </span>
-              <button
-                type="button"
-                className="empresa-boton"
-                onClick={agregarItem}
-              >
-                + Agregar item
-              </button>
-              <button
-                type="button"
-                className="empresa-boton-secundario"
-                disabled
-                title="Próximamente"
-              >
-                + Agregar desde Matriz
-              </button>
-            </div>
-          </div>
-
-          <MenuContextual
-            items={[{ label: '+ Agregar item', onSelect: agregarItem }]}
-          >
-            {items.length === 0 ? (
-              <p className="item-vacio">
-                Aún no hay items. Apretá "+ Agregar item" para empezar.
-              </p>
-            ) : (
-              <div className="item-tabla">
-                {/* Encabezados (alineados con las columnas de cada fila) */}
-                <div className="item-grid item-tabla-head">
-                  <span className="item-c-num">N°</span>
-                  <span className="item-c-cant">CANT.</span>
-                  <span
-                    className={`item-c-rem${
-                      todosRemitidos ? ' item-rem-ok' : ''
-                    }`}
-                  >
-                    REMITIDOS
-                  </span>
-                  <span className="item-c-foto">FOTO</span>
-                  <span className="item-c-item">ITEM</span>
-                  <span className="item-c-acc" />
-                </div>
-
-                {items.map((it, i) => {
-                  const thumb =
-                    it.fotoPreview ??
-                    (it.fotoUrl
-                      ? supabase.storage.from(BUCKET).getPublicUrl(it.fotoUrl)
-                          .data.publicUrl
-                      : null)
-                  const itemCompleto = remitidosDe(it) === cantidadDe(it)
-                  return (
-                    <div key={it.key} className="item-grid item-fila">
-                      <span className="item-c-num">{i + 1}</span>
-                      <span className="item-c-cant">{it.cantidad || '1'}</span>
-                      <span
-                        className={`item-c-rem${
-                          itemCompleto ? ' item-rem-ok' : ''
-                        }`}
-                      >
-                        {remitidosDe(it)}
-                      </span>
-                      <span className="item-c-foto">
-                        {thumb ? (
-                          <img src={thumb} alt="" className="item-thumb" />
-                        ) : (
-                          <span className="item-thumb item-thumb-vacia">
-                            <svg
-                              viewBox="0 0 24 24"
-                              width="18"
-                              height="18"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                            </svg>
-                          </span>
-                        )}
-                      </span>
-                      <div className="item-c-item">
-                        <span className="item-desc-texto">
-                          {it.descripcion || '(sin descripción)'}
-                          {it.codigoCliente && (
-                            <span className="item-codigo">
-                              {' '}
-                              ({it.codigoCliente})
-                            </span>
-                          )}
-                        </span>
-                        <span className="item-badge">{it.estado}</span>
-                      </div>
-                      <div className="item-c-acc">
-                        <button
-                          type="button"
-                          className="empresas-editar"
-                          onClick={() => setItemEditando(it)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="empresas-editar"
-                          onClick={() => duplicarItem(it)}
-                        >
-                          Duplicar
-                        </button>
-                        <button
-                          type="button"
-                          className="empresas-borrar"
-                          onClick={() => borrarItem(it.key)}
-                        >
-                          Borrar
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </MenuContextual>
-        </div>
-
+        {/* Contenido del proyecto (elementos raíz) */}
+        <SeccionContenido
+          proyectoId={idExistente ?? 0}
+          parentId={null}
+          onEntrar={onAbrirElemento}
+          deshabilitado={idExistente == null}
+          leyenda="Creá el proyecto para poder cargar elementos."
+        />
         {error && <p className="empresa-form-error">{error}</p>}
 
         <div className="pf-acciones">
@@ -836,8 +588,8 @@ function VistaProyectoForm({
           >
             {guardando
               ? 'Guardando…'
-              : esNuevo
-                ? `Crear proyecto con ${items.length} item(s)`
+              : idExistente == null
+                ? 'Crear proyecto'
                 : 'Guardar cambios'}
           </button>
         </div>
@@ -872,16 +624,6 @@ function VistaProyectoForm({
         </div>
       )}
 
-      {/* Modal: alta/edición de un item */}
-      {itemEditando && (
-        <ModalItem
-          draft={itemEditando}
-          materiales={materiales}
-          onAgregarMaterial={agregarMaterial}
-          onGuardar={guardarItem}
-          onCancelar={() => setItemEditando(null)}
-        />
-      )}
     </div>
   )
 }

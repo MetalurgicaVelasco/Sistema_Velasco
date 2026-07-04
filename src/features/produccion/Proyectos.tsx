@@ -28,7 +28,7 @@ function fotoPublica(path: string | null): string | null {
 }
 
 // Una fila del árbol ya aplanado en orden visible (para render y teclado).
-type FilaArbol = { el: Elemento; nivel: number; tieneHijos: boolean }
+type FilaArbol = { el: Elemento; nivel: number; tieneHijos: boolean; numero: number }
 
 // Arma la jerarquía en memoria con parent_elemento_id y la aplana en el orden
 // en que se ve (saltea los hijos de los nodos colapsados). Los hermanos van por id.
@@ -46,11 +46,11 @@ function construirFilasArbol(
   for (const arr of hijos.values()) arr.sort((a, b) => a.id - b.id)
   const filas: FilaArbol[] = []
   const visitar = (padreId: number | null, nivel: number) => {
-    for (const el of hijos.get(padreId) ?? []) {
+    ;(hijos.get(padreId) ?? []).forEach((el, i) => {
       const tieneHijos = (hijos.get(el.id) ?? []).length > 0
-      filas.push({ el, nivel, tieneHijos })
+      filas.push({ el, nivel, tieneHijos, numero: i + 1 })
       if (tieneHijos && !colapsados.has(el.id)) visitar(el.id, nivel + 1)
-    }
+    })
   }
   visitar(null, 0)
   return filas
@@ -232,37 +232,39 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     setRecargarTick((t) => t + 1)
   }
 
-  // Vista dedicada del elemento (procesos): ocupa todo el módulo.
-  if (elementoVista) {
-    return (
-      <VistaElemento
-        key={elementoVista.id}
-        elemento={elementoVista}
-        proyecto={
-          proyectos.find((p) => p.id === elementoVista.proyecto_id) ?? seleccionado
-        }
-        onCerrar={() => {
-          setElementoVista(null)
-          if (seleccionadoId != null) cargarElementos(seleccionadoId)
-        }}
-      />
-    )
-  }
-
-  // Vista de formulario (alta o edición): ocupa todo el módulo.
-  if (formActivo !== null) {
-    return (
-      <VistaProyectoForm
-        proyecto={formActivo === 'nuevo' ? null : formActivo}
-        empresas={empresas}
-        onCerrar={volverALista}
-      />
-    )
-  }
-
-  // Vista de lista (4 franjas).
   return (
-    <div className="vista-franjas">
+    <>
+      {/* Formulario (alta o edición). Queda montado (oculto) si se abre un
+          elemento, para no perder su estado al volver. */}
+      {formActivo !== null && (
+        <div style={elementoVista ? { display: 'none' } : undefined}>
+          <VistaProyectoForm
+            proyecto={formActivo === 'nuevo' ? null : formActivo}
+            empresas={empresas}
+            onCerrar={volverALista}
+            onAbrirElemento={(el) => setElementoVista(el)}
+          />
+        </div>
+      )}
+
+      {/* Vista dedicada del elemento (contenido + procesos): ocupa el módulo. */}
+      {elementoVista && (
+        <VistaElemento
+          key={elementoVista.id}
+          elemento={elementoVista}
+          proyecto={
+            proyectos.find((p) => p.id === elementoVista.proyecto_id) ?? seleccionado
+          }
+          onCerrar={() => {
+            setElementoVista(null)
+            if (seleccionadoId != null) cargarElementos(seleccionadoId)
+          }}
+        />
+      )}
+
+      {/* Vista de lista (4 franjas). */}
+      {formActivo === null && elementoVista === null && (
+        <div className="vista-franjas">
       {/* Franja 1 — Filtros */}
       <div className="franja franja-filtros">
         <div className="filtros-barra filtros-barra-proy">
@@ -605,7 +607,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                           }}
                           onDoubleClick={() => setElementoVista(fila.el)}
                         >
-                          <td>{fila.el.id}</td>
+                          <td>{fila.numero}</td>
                           <td>{fila.el.tipo}</td>
                           <td>
                             <span
@@ -699,7 +701,9 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
           </div>
         </Modal>
       )}
-    </div>
+        </div>
+      )}
+    </>
   )
 }
 

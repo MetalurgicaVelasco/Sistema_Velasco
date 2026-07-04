@@ -16,13 +16,19 @@ export function tipoLabel(tipo: string): string {
   return tipo
 }
 
-// Hijos directos de un elemento (los que cuelgan de él).
-export async function cargarHijos(elementoId: number): Promise<Elemento[]> {
-  const { data } = await supabase
-    .from('elementos')
-    .select(SELECT_ELEMENTO)
-    .eq('parent_elemento_id', elementoId)
-    .order('id')
+// Hijos directos de un contenedor. Si parentId es null, devuelve los elementos
+// RAÍZ del proyecto (los que no cuelgan de ningún otro); si no, los que cuelgan
+// del elemento indicado.
+export async function cargarHijos(
+  proyectoId: number,
+  parentId: number | null,
+): Promise<Elemento[]> {
+  const base = supabase.from('elementos').select(SELECT_ELEMENTO)
+  const q =
+    parentId != null
+      ? base.eq('parent_elemento_id', parentId)
+      : base.eq('proyecto_id', proyectoId).is('parent_elemento_id', null)
+  const { data } = await q.order('id')
   return (data as unknown as Elemento[]) ?? []
 }
 

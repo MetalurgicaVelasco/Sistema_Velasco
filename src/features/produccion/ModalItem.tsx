@@ -21,11 +21,12 @@ function ModalItem({
   draft: ElementoDraft
   materiales: Material[]
   onAgregarMaterial: (nombre: string) => Promise<Material | null>
-  onGuardar: (d: ElementoDraft) => void
+  onGuardar: (d: ElementoDraft) => void | Promise<void>
   onCancelar: () => void
 }) {
   const [d, setD] = useState<ElementoDraft>(draft)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [guardando, setGuardando] = useState(false)
 
   const previewUrl =
     d.fotoPreview ??
@@ -43,12 +44,18 @@ function ModalItem({
     setD({ ...d, fotoArchivo: null, fotoPreview: null, fotoUrl: null })
   }
 
-  function guardar() {
+  async function guardar() {
+    if (guardando) return
     if (d.descripcion.trim() === '') {
       setErrorMsg('La descripción es obligatoria.')
       return
     }
-    onGuardar(d)
+    setGuardando(true)
+    try {
+      await onGuardar(d)
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
@@ -208,8 +215,13 @@ function ModalItem({
           >
             Cancelar
           </button>
-          <button type="button" className="empresa-boton" onClick={guardar}>
-            Guardar
+          <button
+            type="button"
+            className="empresa-boton"
+            onClick={guardar}
+            disabled={guardando}
+          >
+            {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </div>
