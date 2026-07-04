@@ -2898,3 +2898,42 @@ textarea.ef-i {
   height: 16px;
   cursor: pointer;
 }
+
+/* En pantallas de poca altura (notebooks), los filtros se comprimen para entrar
+   en la franja sin scroll. En pantallas altas quedan con el tamaño cómodo. */
+@media (max-height: 860px) {
+  .filtro-input {
+    height: 22px;
+    padding: 1px 8px;
+    font-size: 12px;
+  }
+  .filtros-col {
+    row-gap: 1px;
+  }
+  .filtros-barra {
+    padding: 3px 14px;
+    gap: 26px;
+  }
+  .filtros-barra-proy .filtros-col {
+    grid-template-rows: 22px 40px 22px;
+  }
+  .filtro-lbl {
+    padding-top: 3px;
+    font-size: 11px;
+  }
+  .filtro-check-inline {
+    font-size: 10px;
+  }
+  /* Cuadro de Roles (Empresas): es lo más alto de la franja; se comprime. */
+  .filtro-roles-caja {
+    padding: 2px 8px;
+    gap: 1px;
+  }
+  .filtro-roles-tit {
+    font-size: 11px;
+    margin-bottom: 0;
+  }
+  .filtro-check {
+    font-size: 11px;
+  }
+}
