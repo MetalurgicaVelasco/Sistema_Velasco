@@ -16,6 +16,7 @@ import {
   cargarPersonalTablero,
   cargarMaquinasTablero,
   cargarVacaciones,
+  cargarCorrelatividadesDe,
 } from './consultas'
 import {
   armarBloquesVisuales,
@@ -23,7 +24,10 @@ import {
   type ElementoMin,
   type ProyectoMin,
 } from './bloquesVisuales'
+import { materialSimulacion, type MaterialSimulacion } from './materialSim'
+import { diaLaboralAnterior } from '../motor/pasado'
 import type { PersonalTablero } from '../tipos'
+import type { Correlatividad } from '../../produccion/procesoTipos'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -84,6 +88,10 @@ export type TableroCargado = {
   hasta: string
   ventanaInicio: string // 'HH:MM'
   ventanaFin: string // 'HH:MM'
+  // Material para simular movimientos (drag & drop):
+  materialSim: MaterialSimulacion
+  correlatividades: Correlatividad[]
+  gap: number
 }
 
 export async function cargarTablero(): Promise<TableroCargado> {
@@ -105,15 +113,24 @@ export async function cargarTablero(): Promise<TableroCargado> {
   const elementos = await cargarElementos([...new Set(procesos.map((p) => p.elementoId))])
   const proyectos = await cargarProyectos([...new Set([...elementos.values()].map((e) => e.proyectoId))])
 
+  const personalMap = new Map(personalArr.map((p) => [p.id, p]))
+
   const bloques = armarBloquesVisuales({
     procesos,
     elementos,
     proyectos,
     tiposProceso,
     maquinas: new Map(maquinasArr.map((mq) => [mq.id, mq])),
-    personal: new Map(personalArr.map((p) => [p.id, p])),
+    personal: personalMap,
     vacaciones,
   })
+
+  // Material para simular movimientos: items del motor + contextos de operarios.
+  const cantidadPorElemento = new Map<number, number>()
+  for (const [id, e] of elementos) cantidadPorElemento.set(id, e.cantidad)
+  const corte = diaLaboralAnterior(hoy)
+  const materialSim = materialSimulacion(procesos, cantidadPorElemento, personalMap, vacaciones, corte)
+  const correlatividades = await cargarCorrelatividadesDe(procesos.map((p) => p.id))
 
   return {
     bloques,
@@ -122,5 +139,8 @@ export async function cargarTablero(): Promise<TableroCargado> {
     hasta,
     ventanaInicio: config.ventanaInicio,
     ventanaFin: config.ventanaFin,
+    materialSim,
+    correlatividades,
+    gap: config.gapMin,
   }
 }

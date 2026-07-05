@@ -15,9 +15,13 @@ import {
 } from '@dnd-kit/core'
 import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
+import { snapearInsercion, type Ocupacion } from './calculos/insercion'
+import { simular } from './motor/simular'
+import { armarPlan, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { PersonalTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, type FechaISO } from '../../shared/lib/fechas'
+import { jornada } from '../../shared/lib/jornada'
 import './tablero.css'
 
 // Urgencia → fondo y color de texto del bloque (del CSS viejo).
@@ -48,14 +52,14 @@ function minAHora(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-type DropInfo = { desc: string; operario: string; fecha: string }
+type PlanCrudo = { ok: true; cambios: CambioPlan[] } | { ok: false; error: string }
 
 export default function Tablero() {
   const [datos, setDatos] = useState<TableroCargado | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tip, setTip] = useState<{ b: BloqueVisual; x: number; y: number } | null>(null)
   const [dragActivo, setDragActivo] = useState<BloqueVisual | null>(null)
-  const [dropInfo, setDropInfo] = useState<DropInfo | null>(null)
+  const [planCrudo, setPlanCrudo] = useState<PlanCrudo | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hay que mover ~5px para que empiece el arrastre (un click simple no dispara drag).
@@ -97,16 +101,48 @@ export default function Tablero() {
 
   function onDragEnd(e: DragEndEvent) {
     setDragActivo(null)
+    if (!datos) return
     const procesoId = e.active.data.current?.procesoId as number | undefined
-    const info = e.over?.data.current as { operarioId: number; fecha: string } | undefined
-    if (procesoId == null || !info) return
-    const b = bloques.find((x) => x.procesoId === procesoId)
-    const op = personal.find((p) => p.id === info.operarioId)
-    setDropInfo({
-      desc: b?.descripcion ?? `#${procesoId}`,
-      operario: op ? nombreCorto(op) : `operario ${info.operarioId}`,
-      fecha: info.fecha,
-    })
+    const info = e.over?.data.current as { operarioId: number; fecha: FechaISO } | undefined
+    const dragRect = e.active.rect.current.translated
+    const overRect = e.over?.rect
+    if (procesoId == null || !info || !dragRect || !overRect) return
+
+    // Posición horizontal del bloque soltado → minuto (redondeado a 5).
+    const xRel = dragRect.left - overRect.left
+    const dropMinCrudo = vIni + (xRel / overRect.width) * vTotal
+    const dropMin = Math.max(vIni, Math.round(dropMinCrudo / 5) * 5)
+
+    // Ocupaciones del operario destino ese día (para automáticas, solo el setup),
+    // sin contar el bloque que se está moviendo.
+    const ocupaciones: Ocupacion[] = bloques
+      .filter((b) => b.operarioId === info.operarioId && b.fecha === info.fecha && b.procesoId !== procesoId)
+      .map((b) => (b.esAuto ? { inicio: b.inicioMin, fin: b.inicioMin + b.setupMin } : { inicio: b.inicioMin, fin: b.finMin }))
+      .filter((o) => o.fin > o.inicio)
+
+    const ctx = datos.materialSim.ctxs.get(info.operarioId)
+    const inicioJornada = ctx ? jornada(ctx.operario, info.fecha).inicioMin : vIni
+    const dropMinSnap = snapearInsercion(dropMin, ocupaciones, inicioJornada, datos.gap)
+
+    // Reemplazar el proceso movido con su nueva posición (ancla) y simular.
+    const original = datos.materialSim.items.find((it) => it.id === procesoId)
+    if (!original) {
+      setPlanCrudo({ ok: false, error: 'No se puede mover este bloque (no está en el material de simulación; puede ser pasado).' })
+      return
+    }
+    const items = datos.materialSim.items.map((it) =>
+      it.id === procesoId ? { ...it, operarioId: info.operarioId, inicio: { fecha: info.fecha, min: dropMinSnap } } : it,
+    )
+    const resultado = simular(items, [procesoId], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
+    if (!resultado.ok) {
+      const msg =
+        resultado.error === 'conflicto_no_resoluble'
+          ? 'Conflicto: dos bloques fijos se pisan y no se pueden resolver.'
+          : 'El motor no logró acomodar el cambio.'
+      setPlanCrudo({ ok: false, error: msg })
+      return
+    }
+    setPlanCrudo({ ok: true, cambios: armarPlan(resultado, [procesoId]) })
   }
 
   // Días visibles (sin domingos) entre desde y hasta.
@@ -163,9 +199,44 @@ export default function Tablero() {
           })}
         </div>
         {tip ? <Tooltip tip={tip} /> : null}
-        {dropInfo ? (
-          <div className="tab-drop-aviso" onClick={() => setDropInfo(null)}>
-            Soltaste “{dropInfo.desc}” en {dropInfo.operario} · {dropInfo.fecha} — todavía no se guarda (clic para cerrar)
+        {planCrudo ? (
+          <div className="tab-plan-crudo">
+            <div className="tab-plan-t">Plan calculado — todavía no se guarda</div>
+            {planCrudo.ok ? (
+              planCrudo.cambios.length ? (
+                <ul className="tab-plan-lista">
+                  {planCrudo.cambios.map((c) => {
+                    const b = bloques.find((x) => x.procesoId === c.procesoId)
+                    const orig = datos.materialSim.items.find((it) => it.id === c.procesoId)
+                    const op = personal.find((p) => p.id === c.planOperarioId)
+                    return (
+                      <li key={c.procesoId}>
+                        <strong>
+                          {b?.descripcion ?? 'Proceso'} <span className="tab-plan-id">#{c.procesoId}</span>
+                        </strong>
+                        <div className="tab-plan-mov">
+                          <span className="tab-plan-antes">
+                            {orig ? `${orig.inicio.fecha} ${minAHora(orig.inicio.min)}` : 'sin planificar'}
+                          </span>
+                          {' → '}
+                          <span className="tab-plan-despues">
+                            {c.planFecha} {c.planHora}
+                            {op ? ` · ${nombreCorto(op)}` : ''}
+                          </span>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <div className="tab-plan-vacio">Sin cambios.</div>
+              )
+            ) : (
+              <div className="tab-plan-error">{planCrudo.error}</div>
+            )}
+            <button className="tab-plan-cerrar" onClick={() => setPlanCrudo(null)}>
+              Cerrar
+            </button>
           </div>
         ) : null}
       </div>
