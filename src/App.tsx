@@ -11,6 +11,7 @@ import Proyectos from './features/produccion/Proyectos'
 import Procesos from './features/produccion/Procesos'
 import Maquinas from './features/activos/Maquinas'
 import Personal from './features/rrhh/Personal'
+import Tablero from './features/tablero/Tablero'
 import './App.css'
 
 function App() {
@@ -62,6 +63,10 @@ function App() {
       seleccion.moduloId === 'procesos'
     ) {
       return <Procesos />
+    }
+
+    if (seleccion.seccionId === 'produccion' && seleccion.moduloId === 'tablero') {
+      return <Tablero />
     }
 
     if (
