@@ -42,7 +42,7 @@ describe('armarBloquesVisuales', () => {
     expect(bv).toHaveLength(1)
     expect(bv[0]).toMatchObject({
       procesoId: 1, elementoId: 10, operarioId: 3,
-      fecha: '2026-07-06', inicioMin: 360, finMin: 480, track: 0, parte: 1, totalPartes: 1,
+      fecha: '2026-07-06', inicioMin: 360, finMin: 480, setupMin: 0, esAuto: false, track: 0, parte: 1, totalPartes: 1,
       descripcion: 'Eje principal', cantidad: 1, tipoProceso: 'Torneado',
       cliente: 'ACME', pedidoNro: '4130', operarioNombre: 'Juan Pérez', maquinaNombre: 'VF4',
       urgencia: 'alta', maquinaColor: '#73bbf5', hecho: false,

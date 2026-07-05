@@ -4,11 +4,15 @@
 // en cada celda del tablero. Un bloque que cruza días se muestra como varios
 // fragmentos, numerados parte/totalPartes. (Porta computeVB del sistema viejo.)
 //
+// Cada fragmento lleva `setupMin`: cuántos de sus minutos son setup (trabajo del
+// operario a mano). Sirve para dibujar la frontera setup/máquina en auto y semi.
+// En manual es 0 (todo es trabajo del operario, no hay distinción).
+//
 // Dos casos:
 //   - Manual/semi: todo respeta la jornada; un tramo por día usado.
 //   - Automática: el setup respeta la jornada; la parte de máquina corre 24/7
-//     pero SOLO se dibuja donde hay jornada (de noche la máquina sigue, pero no
-//     hay dónde pintarla). Los tramos contiguos del mismo día se fusionan.
+//     pero SOLO se dibuja donde hay jornada. Los tramos contiguos del mismo día
+//     se fusionan.
 // -----------------------------------------------------------------------------
 
 import { jornada } from '../../../shared/lib/jornada'
@@ -22,6 +26,7 @@ export type Fragmento = {
   fecha: FechaISO
   inicioMin: number
   finMin: number
+  setupMin: number // cuántos de estos minutos son setup (0 en manual)
   parte: number
   totalPartes: number
 }
@@ -56,7 +61,7 @@ function tramosJornada(inicio: Momento, minutos: number, ctx: ContextoOperario):
       continue
     }
     const usa = Math.min(rem, disp)
-    out.push({ fecha, inicioMin: min, finMin: min + usa, parte: 0, totalPartes: 0 })
+    out.push({ fecha, inicioMin: min, finMin: min + usa, setupMin: 0, parte: 0, totalPartes: 0 })
     rem -= usa
     if (rem > 0) {
       fecha = proximoDiaLaboral(ctx, fecha)
@@ -86,7 +91,7 @@ function tramos247(desde: Momento, minutos: number, ctx: ContextoOperario): Frag
     if (t.trabaja) {
       const visIni = Math.max(min, t.inicioMin)
       const visFin = Math.min(finMaquinaHoy, t.finMin)
-      if (visFin > visIni) out.push({ fecha, inicioMin: visIni, finMin: visFin, parte: 0, totalPartes: 0 })
+      if (visFin > visIni) out.push({ fecha, inicioMin: visIni, finMin: visFin, setupMin: 0, parte: 0, totalPartes: 0 })
     }
     rem -= consumeHoy
     if (rem > 0) {
@@ -97,7 +102,20 @@ function tramos247(desde: Momento, minutos: number, ctx: ContextoOperario): Frag
   return out
 }
 
-// Une tramos contiguos del mismo día (el fin de uno coincide con el inicio del otro).
+// Reparte `setupTotal` minutos de setup sobre los primeros tramos (el setup es lo
+// primero que hace el operario). Cada tramo recibe la porción que le toca.
+function repartirSetup(tramos: Fragmento[], setupTotal: number): Fragmento[] {
+  let acumulado = 0
+  return tramos.map((t) => {
+    const dur = t.finMin - t.inicioMin
+    const setupEnTramo = Math.max(0, Math.min(dur, setupTotal - acumulado))
+    acumulado += dur
+    return { ...t, setupMin: setupEnTramo }
+  })
+}
+
+// Une tramos contiguos del mismo día (el fin de uno coincide con el inicio del
+// otro); suma su setupMin.
 function fusionar(tramos: Fragmento[]): Fragmento[] {
   const orden = [...tramos].sort((a, b) =>
     a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.inicioMin - b.inicioMin,
@@ -107,6 +125,7 @@ function fusionar(tramos: Fragmento[]): Fragmento[] {
     const ult = out[out.length - 1]
     if (ult && ult.fecha === f.fecha && Math.abs(ult.finMin - f.inicioMin) < 1) {
       ult.finMin = f.finMin
+      ult.setupMin += f.setupMin
     } else {
       out.push({ ...f })
     }
@@ -116,10 +135,17 @@ function fusionar(tramos: Fragmento[]): Fragmento[] {
 
 // Parte un proceso en los tramos visibles por día, numerados parte/totalPartes.
 export function fragmentos(inicio: Momento, tiempos: Tiempos, ctx: ContextoOperario): Fragmento[] {
+  // El setup solo se distingue en modos donde el operario hace únicamente el
+  // setup (auto y semi); en manual todo es del operario.
+  const setupTotal = reglaDe(tiempos.modo).operarioSoloSetup ? tiempos.setupMin : 0
   let tramos: Fragmento[]
 
   if (reglaDe(tiempos.modo).maquina247) {
-    const setup = tramosJornada(inicio, tiempos.setupMin, ctx)
+    // El setup respeta la jornada (todo setup); la máquina corre 24/7 (todo máquina).
+    const setup = tramosJornada(inicio, tiempos.setupMin, ctx).map((t) => ({
+      ...t,
+      setupMin: t.finMin - t.inicioMin,
+    }))
     const finSetup: Momento = setup.length
       ? { fecha: setup[setup.length - 1].fecha, min: setup[setup.length - 1].finMin }
       : inicio
@@ -127,7 +153,8 @@ export function fragmentos(inicio: Momento, tiempos: Tiempos, ctx: ContextoOpera
     const maquina = restoMaquina > 0 ? tramos247(finSetup, restoMaquina, ctx) : []
     tramos = fusionar([...setup, ...maquina])
   } else {
-    tramos = tramosJornada(inicio, duracionMaquina(tiempos), ctx)
+    // Manual/semi: todo respeta la jornada; el setup (si aplica) va primero.
+    tramos = repartirSetup(tramosJornada(inicio, duracionMaquina(tiempos), ctx), setupTotal)
   }
 
   tramos.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.inicioMin - b.inicioMin))

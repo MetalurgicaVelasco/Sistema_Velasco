@@ -169,6 +169,54 @@
   font-weight: 700;
 }
 
+/* Contenedor de texto: por encima del rayado, se corre a la derecha del setup */
+.tab-tx {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Frontera setup / máquina (auto y semi) */
+.tab-rayado {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.08) 0 6px, transparent 6px 12px);
+  border-radius: 0 4px 4px 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.tab-sep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2;
+  pointer-events: none;
+}
+.tab-manual {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
+  font-family: Arial, sans-serif;
+  font-weight: 800;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.85);
+}
+
 /* Badge parte N/M */
 .tab-parte {
   display: inline-block;

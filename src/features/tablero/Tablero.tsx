@@ -127,6 +127,14 @@ function Bloque({
   const left = porcentajeLeft(b.inicioMin, vIni, vTotal)
   const width = Math.min(porcentajeAncho(dur, vTotal), 100 - left)
 
+  // Frontera setup/máquina (solo en auto/semi; en manual setupMin es 0 y esAuto false).
+  const setupPct = dur > 0 ? (b.setupMin / dur) * 100 : 0
+  const rayarMaquina = b.esAuto && b.setupMin < dur // hay porción de máquina sola
+  const haySetup = b.esAuto && b.setupMin > 0 // hay porción de setup
+  const anchoSetupPx = (width / 100) * 400 * (dur > 0 ? b.setupMin / dur : 0)
+  const cabeManual = haySetup && anchoSetupPx >= 12 && altoBloque - 4 >= 56
+  const fontManual = Math.max(7, Math.min(11, Math.floor(((altoBloque - 4) * 0.7) / 6)))
+
   return (
     <div
       className={`tab-bk ${b.hecho ? 'es-hecho' : ''}`}
@@ -141,15 +149,27 @@ function Bloque({
       }}
       title={`${b.descripcion}${b.tipoProceso ? ' · ' + b.tipoProceso : ''}\n${b.cliente}${b.pedidoNro ? ' · Ped. ' + b.pedidoNro : ''}\n${minAHora(b.inicioMin)}–${minAHora(b.finMin)}`}
     >
-      <div className="tab-bt">
-        {b.descripcion}
-        {b.tipoProceso ? <span className="tab-bt-proc"> · {b.tipoProceso}</span> : null}
-        {b.totalPartes > 1 ? <span className="tab-parte">{b.parte}/{b.totalPartes}</span> : null}
-      </div>
-      {b.cliente ? <div className="tab-bs">{b.cliente}</div> : null}
-      <div className="tab-bm">
-        {minAHora(b.inicioMin)}–{minAHora(b.finMin)}
-        {b.pedidoNro ? <span className="tab-ped"> · Ped. {b.pedidoNro}</span> : null}
+      {rayarMaquina ? <div className="tab-rayado" style={{ left: `${setupPct}%` }} /> : null}
+      {haySetup ? <div className="tab-sep" style={{ left: `${setupPct}%` }} /> : null}
+      {cabeManual ? (
+        <div className="tab-manual" style={{ width: `${setupPct}%`, fontSize: fontManual }}>
+          {'MANUAL'.split('').map((c, i) => (
+            <span key={i}>{c}</span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="tab-tx" style={haySetup ? { paddingLeft: `calc(${setupPct}% + 6px)` } : undefined}>
+        <div className="tab-bt">
+          {b.descripcion}
+          {b.tipoProceso ? <span className="tab-bt-proc"> · {b.tipoProceso}</span> : null}
+          {b.totalPartes > 1 ? <span className="tab-parte">{b.parte}/{b.totalPartes}</span> : null}
+        </div>
+        {b.cliente ? <div className="tab-bs">{b.cliente}</div> : null}
+        <div className="tab-bm">
+          {minAHora(b.inicioMin)}–{minAHora(b.finMin)}
+          {b.pedidoNro ? <span className="tab-ped"> · Ped. {b.pedidoNro}</span> : null}
+        </div>
       </div>
     </div>
   )

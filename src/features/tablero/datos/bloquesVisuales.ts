@@ -53,9 +53,11 @@ export type BloqueVisual = {
   fecha: FechaISO
   inicioMin: number
   finMin: number
+  setupMin: number
   track: number
   parte: number
   totalPartes: number
+  esAuto: boolean
   // Contenido
   descripcion: string
   cantidad: number
@@ -85,7 +87,7 @@ function estaPlanificado(p: ProcesoTablero): boolean {
 
 export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
   // Parte intermedia: cada fragmento con sus datos de display (sin carril todavía).
-  const conDatos: Array<Omit<BloqueVisual, 'track'> & { esAuto: boolean }> = []
+  const conDatos: Array<Omit<BloqueVisual, 'track'>> = []
 
   for (const p of datos.procesos) {
     if (!estaPlanificado(p) || p.procesoEliminado) continue
@@ -134,6 +136,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
         fecha: f.fecha,
         inicioMin: f.inicioMin,
         finMin: f.finMin,
+        setupMin: f.setupMin,
         parte: f.parte,
         totalPartes: f.totalPartes,
       })
@@ -152,9 +155,5 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
     })),
   )
 
-  return conDatos.map((c, i) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { esAuto, ...resto } = c
-    return { ...resto, track: tracks[i].track }
-  })
+  return conDatos.map((c, i) => ({ ...c, track: tracks[i].track }))
 }
