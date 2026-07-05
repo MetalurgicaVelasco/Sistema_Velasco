@@ -4,9 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 03/07/2026 (vocabulario: tabla `items`→`elementos`, glosario
-> **Elemento / Item / Componente** en §4 y §8; **Componente** reemplaza a "Producto"
-> como nivel-hoja; §16 patrón de filtrado; §14 modales; §15 paleta de botones)
+> Última actualización: 04/07/2026 (agregada §14 Tablero de planificación y actualizada §13 con la decisión de dnd-kit)
 
 ---
 
@@ -91,22 +89,9 @@ conexiones externas tipo DBeaver/TablePlus o migraciones masivas, no en el día 
 | `operarios` | `personal` |
 | `actividades_tablero` | `procesos` |
 | `clientes` | `empresas` |
-| `items` | `elementos` |
-
-**Glosario del árbol de producción** (importante — distingue negocio de técnica):
-- **Elemento**: cualquier nodo del árbol de un proyecto (raíz o anidado), sea del tipo
-  que sea. Es lo que guarda la tabla **`elementos`** (con `parent_elemento_id` para la
-  anidación). En el código, `elemento` = cualquier nodo.
-- **Item**: el elemento **raíz** de un proyecto — el que no cuelga de nadie
-  (`parent_elemento_id` nulo). Es la "fila" del pedido. Todo item es un elemento, pero
-  no todo elemento es un item. En el código, "item" solo se usa cuando significa *raíz*
-  (ej: los que se cargan en el formulario del proyecto).
-- **Tipo** de un elemento: Conjunto / Subconjunto / **Componente** (la hoja).
-- **Anidado**: subconjunto o componente que cuelga de un contenedor; un item nunca está
-  anidado. La FK de procesos hacia un nodo es `procesos.elemento_id`.
 
 `empresas` modela una entidad que puede ser cliente, proveedor o ambos
-(campos `es_cliente` / `es_proveedor`, más `es_transporte`).
+(campos `es_cliente` / `es_proveedor`).
 
 ---
 
@@ -127,25 +112,17 @@ de referencia (se afinan al maquetar; alguna franja podría volverse ajustable/c
   proyectos del HTML).
 - **Franja 2 — Lista:** los registros que cumplen los filtros. Columnas (ej. Proyectos):
   Nº Proyecto, Nº Pedido, Cliente, Descripción, Estado, Fecha Creación, Plazo de Entrega,
-  Moneda, Importe, OC Cliente, Contacto, Responsable, Creado por, IVA, Notas. **Las
-  acciones del registro (Editar / Borrar) viven en esta franja** (en la fila del
-  registro), no en el detalle, para no confundirlas con la edición de los items del
-  detalle.
+  Moneda, Importe, OC Cliente, Contacto, Responsable, Creado por, IVA, Notas.
 - **Franja 3 — Detalle:** los items del registro seleccionado. Columnas (ej.): Nº Item,
   Tipo, Cant. Pedida, Cant. Remitida, Descripción, Estado, Plazo, Urgencia, Fecha Remitido,
-  Código de Matriz, Sector, Equipo, Stock disponible, Stock en producción, y el conteo
-  **"N proceso(s)"** por item.
+  Código de Matriz, Sector, Equipo, Stock disponible, Stock en producción.
   - **Despliegue según sección** (un mismo módulo se ve distinto según dónde se mira):
     - En **Ventas**, los items se ven **planos** (las filas tal cual, sin explotar). A
       Ventas le importa qué se vende, no la estructura de fabricación.
     - En **Producción**, la franja **sí permite explotar** la jerarquía: conjunto →
-      subconjuntos anidados (a cualquier profundidad) → componentes → procesos.
+      subconjuntos anidados (a cualquier profundidad) → productos → procesos.
   - Política de uso: ser estrictos y no pasar de **1 nivel de subconjunto** en la práctica,
     aunque el modelo recursivo (§8) soporte más si aparecen.
-  - **Vista dedicada del item:** doble click (o el botón **Editar**) en una fila de item
-    abre una **vista a módulo completo** con el encabezado del item (foto, cliente,
-    pedido, cantidad, etc.) y sus **procesos** (ver §8.3). Los procesos NO se editan dentro
-    del form del proyecto, sino en esta vista, sobre un item ya guardado.
 - **Franja 4 — Enlazados:** pestañas con los conceptos vinculados al registro seleccionado
   (Presupuestos, Pedidos, Facturas, Remitos, Recibos, Órdenes de Compra, Compras, Pagos,
   Recepciones, Logística, etc.). Cada pestaña lista los conceptos de ese tipo enlazados al
@@ -231,16 +208,6 @@ definidos; se hilan más adelante.
 
 ## 8. Jerarquía de datos
 
-> **Vocabulario (definido 03/07/2026):** **Componente** es el nivel-hoja del árbol de
-> producción — la pieza o servicio individual e indivisible que se fabrica o se
-> resuelve. **Producto** es una categoría de negocio — lo que se cataloga en la
-> **Matriz de Productos** por ser de venta recurrente / stock. Un componente puede
-> estar o no catalogado como producto. El árbol es **Conjunto → Subconjunto →
-> Componente → Procesos**; "Producto" ya no nombra un nivel. En la base, el campo
-> `elementos.tipo` acepta `conjunto / subconjunto / componente` (check actualizado). La
-> tabla se llama `elementos` porque guarda **todos** los nodos; un **item** es un
-> elemento raíz (ver glosario en §4).
-
 Conviven **dos estructuras anidadas distintas**. Es importante no confundirlas.
 
 ### 8.1 Matriz de Productos (catálogo del cliente)
@@ -249,31 +216,31 @@ Representa cómo viven las piezas en la planta del cliente. Es información **re
 un producto matriz se carga una vez y se usa en muchos proyectos.
 
 ```
-Cliente → Sector → Equipo → Conjunto → Subconjunto → Componente → Procesos
+Cliente → Sector → Equipo → Conjunto → Subconjunto → Producto → Procesos
 ```
 
 - Conjunto y Subconjunto son **composición** (un conjunto agrupa subconjuntos, que agrupan
-  componentes).
+  productos).
 - La composición se arma **desde el contenedor** (editás el equipo y le agregás conjuntos,
-  editás el conjunto y le agregás subconjuntos/componentes, etc.).
-- Las relaciones son **reutilizables** (un mismo conjunto/componente puede aparecer en
-  varios contenedores → relaciones N:M, estilo árbol de componentes / BOM).
+  editás el conjunto y le agregás subconjuntos/productos, etc.).
+- Las relaciones son **reutilizables** (un mismo conjunto/producto puede aparecer en varios
+  contenedores → relaciones N:M, estilo árbol de componentes / BOM).
 
 **Anidado de N niveles.** El modelo se deja preparado de forma **recursiva**: un conjunto o
 subconjunto puede contener otros conjuntos/subconjuntos a cualquier profundidad, además de
-componentes y procesos. Pensado para fabricación de máquinas complejas a futuro, aunque no se
+productos y procesos. Pensado para fabricación de máquinas complejas a futuro, aunque no se
 use en el corto plazo. Se decidió así porque el costo de modelarlo recursivo ahora es casi
 nulo, mientras que retrofitearlo después sería costoso.
 
 **Navegación (vista de Conjunto / Subconjunto):**
-- La vista de un Conjunto es análoga a la de un Componente, pero en lugar de solo procesos
-  muestra sus **subconjuntos + componentes + procesos**.
+- La vista de un Conjunto es análoga a la de un Producto, pero en lugar de solo procesos
+  muestra sus **subconjuntos + productos + procesos**.
 - La vista de un Subconjunto es análoga a la del Conjunto.
 - **Expandir** (chevron): despliega los hijos en línea, para vistazo rápido sin perder
   contexto.
 - **Abrir** (click en el nombre): lleva a la vista dedicada de ese nivel.
-- Los componentes se pueden expandir para ver sus procesos, o abrir para llegar a la vista
-  completa del componente.
+- Los productos se pueden expandir para ver sus procesos, o abrir para llegar a la vista
+  completa del producto.
 
 ### 8.2 Proyecto → Items
 
@@ -282,9 +249,8 @@ Proyecto → Item → Proceso
 ```
 
 - En el HTML actual los items son **planos** (todos hermanos).
-- En React, el item del proyecto gana un campo **Tipo** (Conjunto / Subconjunto /
-  Componente), permitiendo
-  estructura anidada dentro del proyecto (vía `tipo` + `parent_item_id`).
+- En React, el item del proyecto gana un campo **Tipo** (Conjunto / Producto), permitiendo
+  estructura anidada dentro del proyecto.
 - **El avance se modela en dos niveles distintos (no confundir):**
   - **Estado del proyecto** = estado *comercial / de coordinación*. Valores reales en uso:
     `Proyectando, Solicitud, Pedido, Mantenimiento, Cerrado, Anulado, Perdido` (con
@@ -294,75 +260,7 @@ Proyecto → Item → Proceso
     `Espera MP, Llegó MP, Proceso, Enviar a TT, TT, Llegó TT, Terminado, Enviado,
     Stockeado, Anulado`.
   - El detalle del significado de cada estado vive en `NEGOCIO.md` (sección 4).
-- Los **procesos** del item son los que se convierten en bloques/actividades del Tablero
-  (ver §8.3).
-
-> **Vista del proyecto = contenedor raíz (implementado, Entrega 2).** El proyecto se
-> comporta como la raíz del árbol: debajo de sus datos tiene una sección **Contenido**
-> con sus elementos raíz (el mismo componente `SeccionContenido` que usa la vista de un
-> conjunto). Los elementos se crean/editan/borran con **persistencia inmediata** (como
-> los procesos), no por un "Guardar cambios" batch; los **datos del proyecto** (cliente,
-> fechas, foto) sí siguen con "Guardar cambios". Doble-click en un elemento raíz abre su
-> vista (navegable con breadcrumb). En el **alta**, el Contenido se habilita recién al
-> crear el proyecto (antes muestra la leyenda "creá el proyecto para poder cargar
-> elementos"), y crear no cierra el form. **Atajo "un solo item":** un checkbox en el
-> alta que, al crear, genera automáticamente un Componente que hereda descripción y foto
-> del proyecto (cantidad 1) y lo abre directo para cargarle el resto — pensado para los
-> muchos pedidos de un solo item.
-
-### 8.3 Procesos del elemento (implementado)
-
-Cada elemento tiene una lista ordenada de **procesos** (tabla `procesos`, el renombre
-normalizado de `actividades_tablero`). Un proceso es un paso de trabajo y es lo que se
-convierte en bloque del Tablero. Se editan en la **vista dedicada del elemento** (§5),
-sobre un elemento ya guardado.
-
-> **Regla (revisada 03/07/2026): los procesos pueden vivir en cualquier nivel**
-> (Conjunto, Subconjunto o Componente), no solo en las hojas. Cada proceso se multiplica
-> por la **cantidad del elemento que lo contiene**. Esto permite modelar trabajos que
-> operan sobre el conjunto ya armado (soldar dos piezas entre sí, controlar, despachar)
-> **colgándolos del propio conjunto**, en vez de forzar un componente-servicio artificial
-> que arrastraría procesos que no le pertenecen. La base ya lo soporta sin cambios
-> (`procesos.elemento_id` puede apuntar a cualquier elemento; ningún CHECK lo restringe).
-> Ejemplo: el *alimentador* (Conjunto) = *Cuerpo* (Componente) + *Boca* (Componente),
-> con los procesos de soldadura / control / despacho colgados directamente del alimentador.
-> *(Reemplaza la regla previa "procesos solo en componentes", que quedó descartada.)*
-
-**Modelo de datos:**
-- `procesos`: `elemento_id`, `orden`, `tipo_proceso_id` (FK al catálogo de tipos) **o**
-  `proceso_otro` (texto libre cuando es "Otro"), `modo`, los tres tiempos (`setup_min`,
-  `operacion_min`, `margen_min`), `maquina_id` / `maquina_otra`, `operario_id`,
-  `detalle_trabajo`, `es_retrabajo`. **No denormaliza** cliente/pedido/fotos (eso sale por
-  join cuando haga falta, a diferencia del viejo).
-- `correlatividades`: tabla propia (`predecesor_id` → `sucesor_id`), muchos-a-muchos;
-  puede cruzar items del mismo proyecto. Se crean lineales al agregar procesos (el nuevo
-  encadena con el anterior) y se pueden editar a mano o **redefinir** (borra las internas
-  del item y las recrea lineales según el orden actual, sin tocar las que van a otros items).
-
-**Duraciones — tres tiempos de entrada, el total se deriva:**
-- **Setup** (`setup_min`): seteo de máquina, una sola vez.
-- **Operación** (`operacion_min`): por pieza (admite decimales).
-- **Margen** (`margen_min`): global.
-- Total = `setup + cantidad_del_item × operación (+ margen)`. **No se guarda
-  pre-calculado**, para que no quede viejo si cambia la cantidad del item.
-
-**Modo** (define la ocupación operario/máquina en el Tablero, badge MAN/SEMI/AUTO):
-- `manual`: el operario está presente todo el tiempo.
-- `semi_automatica`: setup y la máquina sigue sola hasta fin de jornada; retoma al otro día.
-- `automatica`: setup y la máquina corre 24/7 hasta terminar.
-
-**"Otro" proceso:** `tipo_proceso_id` null + `proceso_otro` (texto). Se decidió así en vez
-de una fila fija "Otro" en el catálogo, porque el nombre concreto varía por caso
-(Granallado, etc.).
-
-**Suplentes derivados:** los suplentes de máquina y operario **no se guardan por proceso**;
-se derivan de recursos (otras máquinas que hacen ese tipo de proceso; los suplentes de la
-máquina elegida, o del tipo de proceso si no lleva máquina). Si más adelante hace falta
-override por proceso, se agregan tablas de cruce.
-
-**Fase 2 (con el Tablero):** estados de planificación, ✓Hecho/Desanclar, grupo de división
-(sub-procesos por pieza), buscador de predecesores entre items, duración del planificador.
-Nada de eso está todavía en el esquema.
+- Los **procesos** del item son los que se convierten en bloques/actividades del Tablero.
 
 ---
 
@@ -376,12 +274,10 @@ El color comunica **qué tipo de cosa es** (no la profundidad). La profundidad s
 | Proyecto | Rojo pastel claro |
 | Conjunto | Naranja pastel claro |
 | Subconjunto | Amarillo pastel claro |
-| Componente | Blanco |
+| Producto | Blanco |
 
 > Los códigos hexadecimal exactos se afinan al maquetar, cuidando que entre rojo, naranja y
 > amarillo haya suficiente contraste aunque sean todos suaves.
-
-(Para los colores de los **botones de acción**, ver §15.)
 
 ---
 
@@ -402,7 +298,7 @@ El color comunica **qué tipo de cosa es** (no la profundidad). La profundidad s
 ### Tabla `adjuntos` (polimórfica)
 
 Mismo patrón que `notas`: `parent_type` (proyecto / item / conjunto / subconjunto /
-componente / proceso) + `parent_id` + metadatos (nombre, tipo, tamaño, referencia al
+producto / proceso) + `parent_id` + metadatos (nombre, tipo, tamaño, referencia al
 archivo, quién lo subió, fecha).
 
 ### Versionado de planos (revisiones)
@@ -506,111 +402,50 @@ sola vez** en `shared/` en lugar de duplicarse entre páginas como pasaba en el 
 ## 13. Decisiones pendientes
 
 - [ ] **Notas:** hasta qué niveles de la matriz soportar notas (hoy `notas` es polimórfica
-      con `parent_type` = proyecto / item / componente — antes "producto"; falta decidir
-      si se extiende a conjunto, subconjunto, sector, equipo). Pendiente de definir.
-- [ ] **Librerías a sumar** (drag-and-drop para el tablero, calendario, date picker, etc.).
-      - Tablas ordenables / redimensionables / reordenables: **TanStack Table** (ex
-        react-table). Es *headless*: maneja la lógica (ordenar por columna, cambiar el
-        ancho, reordenar columnas, filtrar, paginar) y el estilo lo controlamos nosotros.
-        Para las tablas de las franjas cuando queramos esa interacción; hoy se hacen a
-        mano con `<table>`.
-- [ ] **Códigos hexadecimal** de los colores pastel por nivel jerárquico (§9).
-- [ ] **Script de migración** de proyectos viejos desde la Supabase vieja a la nueva
-      (los datos maestros —empresas, recursos— ya se migraron).
+      con `parent_type` = proyecto / item / producto; falta decidir si se extiende a
+      conjunto, subconjunto, sector, equipo). Pendiente de definir.
+- [x] **Librería de drag-and-drop del tablero:** **dnd-kit** (decidido 04/07/2026; ver §14).
+      Calendario / date picker siguen pendientes.
+- [ ] **Códigos hexadecimal** de los colores pastel.
+- [ ] **Script de migración** de datos maestros desde la Supabase vieja a la nueva.
+- [ ] **Por qué módulo empezar** el desarrollo.
 
 ---
 
-## 14. Estándar de modales
+## 14. Tablero de planificación (módulo React)
 
-Todos los modales del sistema usan el componente compartido
-`shared/components/Modal.tsx`, que garantiza **tres reglas**:
+**Documentos del módulo:** `TABLERO_PLAN.md` (decisiones y roadmap),
+`AUDITORIA_SISTEMA_VIEJO.md` (restricciones: qué no repetir),
+`TABLERO_SPEC_VISUAL.md` (réplica visual del tablero viejo).
 
-1. **No se cierran al clickear afuera.** Solo se cierran con la × del header, con sus
-   botones (Cancelar) o con **Esc**. Evita perder lo cargado por un click accidental en
-   el fondo.
-2. **Se arrastran** tomándolos de la barra de título.
-3. **La × queda siempre visible:** el header es fijo y solo el cuerpo scrollea.
+**Modelo de planificación (decidido 04/07/2026):**
 
-El ancho se controla con el prop `ancho` (px). Los modales que todavía usan divs ad-hoc
-(`ModalItem`, `ModalProceso`, `ModalPersonal`, `ModalMaquina`) se van migrando a `<Modal>`
-para cumplir el estándar.
+- La planificación vive en `procesos` con columnas nullable: `plan_fecha`,
+  `plan_hora`, `plan_operario_id`, `plan_maquina_id` (nullable: hay procesos sin
+  máquina). Un solo `estado` (enum: `sin_planificar / planificado / hecho`); sin
+  sentinels (`NULL` = sin planificar). Tiempos reales `real_*` para `hecho`.
+- `plan_aceptado` (jsonb) es el snapshot de lo que el planificador aceptó
+  (setup, operación por pieza, margen, cantidad, modo). El ancho y comportamiento
+  del bloque se **derivan** de este snapshot; los cambios de Oficina Técnica
+  generan "divergencia" (⚠) hasta que el planificador los aplica o ignora.
+  Reemplaza a las columnas espejo `ot_ack_*` del sistema viejo.
+- `proceso_eliminado` (soft-delete visible en tablero), `setup_solapable`,
+  `grupo_division_id` (uuid) se conservan del contrato viejo.
+- Tablas de soporte: `pulmones` (bloques de reserva, tabla propia),
+  `personal_vacaciones`, `configuraciones` (clave/valor; la ventana horaria del
+  tablero — default 06:00–17:00 — el gap de cascada y el máximo de simultáneas se
+  leen de la clave `tablero`). Colores de máquinas y de operarios como columnas
+  (`maquinas.color`, `personal.color`); horarios de jornada y sábado en `personal`.
 
----
+**Motor de planificación:** funciones puras TypeScript en
+`features/tablero/motor/`, sin acceso a DB ni DOM. Simulación y aplicación usan el
+mismo código; la única vía de escritura es la RPC atómica `aplicar_plan_tablero`.
+Testeado con Vitest (los 34 tests sintéticos del motor viejo portados + regresiones
+de los bugs de la auditoría). Reglas portadas del motor viejo: anclas, excepción
+setup_solapable, pulmones pisar/cascadear, filtro de pasado, hechas como anclas
+duras, detección de conflictos residuales.
 
-## 15. Paleta de colores de acción (botones)
-
-Los botones usan los colores del **sistema viejo** (no índigo/gris):
-
-| Rol | Fondo | Borde | Texto | Hover |
-|---|---|---|---|---|
-| **Primario** (acción principal) | `#0C447C` | — | `#FFFFFF` | fondo `#0A3866` |
-| **Secundario / base** | `#FFFFFF` | `#C8C6BE` | `#2C2C2A` | fondo `#F5F3EC` |
-| **Peligro / eliminar** | `#FEF0F0` | `#E24B4A` | `#A32D2D` | fondo `#FEDADA` |
-| **Retrabajo** (acento naranja) | `#FFF4E6` | `#E69138` | `#854F0B` | fondo `#FFE9CF` |
-
-Los badges de modo de proceso en la tarjeta: MAN gris (`#E8E6DF`/`#5F5E5A`), SEMI violeta
-(`#5C4A8A`/blanco), AUTO negro (`#1A1A1A`/blanco).
-
----
-
-## 16. Filtrado de listas (cliente vs. servidor)
-
-Regla de cuándo filtrar en el navegador y cuándo en la base, para no improvisar
-módulo por módulo.
-
-### Criterio
-
-- **Listas acotadas** (crecen poco, tienen un techo natural): empresas, personal,
-  máquinas, tipos de proceso. Se traen enteras una vez y se **filtran en el cliente**
-  (JavaScript). Es lo más simple y para estos volúmenes alcanza de sobra.
-- **Listas que crecen sin techo** (se acumulan para siempre): proyectos, y a futuro
-  items, procesos, comprobantes, movimientos. Se **filtran en el servidor**: la
-  consulta a Supabase ya trae solo las filas que cumplen los filtros.
-
-No se migra todo de golpe: Empresas y los recursos quedan en cliente; el criterio
-queda escrito para aplicarlo al construir cada módulo nuevo.
-
-### Cómo se filtra en servidor
-
-- Se arma la consulta con el **query builder** de Supabase (el mismo `.select().eq()…`
-  de siempre, sumándole condiciones según los filtros activos):
-  - `.eq()` para valores exactos (estado, ids).
-  - `.ilike('%texto%')` para búsquedas de texto "contiene" (sin distinguir
-    mayúsculas). Para ignorar tildes se normaliza el texto antes.
-  - `.or()` para condiciones alternativas (ej: cliente **o** cliente final).
-  - `.gte()` / `.lte()` para rangos de fecha.
-- Los campos de display de tablas relacionadas (nombre de empresa, apellido del
-  contacto, nombre del cliente final) vienen por **joins embebidos** en el mismo
-  `select` (ej: `empresa:empresas!empresa_id ( nombre )`).
-
-### Búsquedas que cruzan tablas
-
-Cuando el filtro es sobre una tabla relacionada (ej: "proyectos que tengan algún
-**item** cuya descripción contenga X"), se resuelve en **dos pasos**:
-
-1. Una consulta corta trae los `proyecto_id` de los items que matchean.
-2. La consulta principal de proyectos combina eso con el resto de los filtros. Para
-   "descripción global" es un `.or()` entre "la descripción del proyecto contiene X"
-   **o** "el proyecto está en esa lista de ids".
-
-Se evita a propósito meter toda la lógica en una **función de PostgreSQL (RPC)**: es
-más SQL para mantener y acopla la función a las columnas que se muestran. La RPC queda
-como recurso reservado para algún caso que el query builder no pueda expresar bien.
-
-### Índices (lo que hace que escale)
-
-`ILIKE '%texto%'` sin índice obliga a leer toda la tabla. Para que sea instantáneo con
-volumen se usan **índices de trigramas** (`pg_trgm`) sobre las columnas de texto que se
-buscan. Es un `CREATE INDEX` que se corre una vez en Supabase (SQL directo). Índices
-vigentes para el filtrado de Proyectos:
-
-- `proyectos.descripcion`, `proyectos.pedido_nro` (trigramas)
-- `items.descripcion` (trigramas) + `items.proyecto_id` (btree, para el paso 1)
-- `empresas.nombre`, `empresa_contactos.apellido` (trigramas)
-
-### UX de la consulta
-
-- Los campos de texto usan **debounce** (~250 ms): se espera a que el usuario deje de
-  escribir antes de consultar, en vez de disparar una consulta por tecla.
-- Se maneja un estado de "cargando" mientras la base responde.
-- Orden y paginación (cuando haga falta) se resuelven en la consulta, no en el cliente.
+**Dos tableros:** el de operarios (edición, drag & drop con **dnd-kit**) y, a futuro,
+el de máquinas (visor de solo lectura sobre el mismo motor). En la vista por
+operarios el borde del bloque codifica la máquina; en la futura vista por máquinas,
+el operario (ver `NEGOCIO.md` §6).

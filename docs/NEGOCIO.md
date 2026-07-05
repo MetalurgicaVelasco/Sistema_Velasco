@@ -74,23 +74,11 @@
 
 ## 4. Conceptos centrales del dominio
 
-> **Vocabulario (definido 03/07/2026):**
-> - **Elemento**: cualquier nodo del árbol de un proyecto (raíz o anidado). Es lo que
->   guarda la tabla `elementos`.
-> - **Item**: el elemento **raíz** — la "fila" del pedido, la que no cuelga de ningún
->   otro. Un item nunca está anidado. Su tipo puede ser Conjunto o Componente.
-> - **Tipo** de un elemento: **Conjunto** (contiene otros), **Subconjunto** (contenedor
->   anidado) o **Componente** (la hoja: pieza o servicio individual e indivisible).
-> - **Producto**: categoría de negocio — lo que se cataloga en la **Matriz de Productos**
->   por ser de venta recurrente / stock. Un componente puede estar o no catalogado como
->   producto. "Producto" ya no nombra un nivel del árbol.
-> - **Anidado**: subconjunto o componente que cuelga de un contenedor (nunca un item).
-
 El sistema modela el avance en **dos niveles distintos**, y es clave no confundirlos:
 
 - **Estado del proyecto** = estado *comercial / de coordinación* (en qué punto está el
   trabajo de cara al cliente y a la organización).
-- **Estado del elemento** = avance *físico* de la pieza dentro del taller.
+- **Estado del item** = avance *físico* de la pieza dentro del taller.
 
 Conceptos:
 
@@ -102,23 +90,11 @@ Conceptos:
   - `Mantenimiento` es para trabajos internos del taller (cliente "Metalúrgica Velasco").
   - `Perdido` = consultas que no se concretaron.
   - `Anulado` = pedidos cancelados después de confirmarse.
-- **Item:** cada "fila" del pedido dentro de un proyecto — un **elemento raíz** (no
-  cuelga de ningún otro). Su tipo puede ser directamente un **Componente** (pieza suelta)
-  o un **Conjunto** que contiene subconjuntos y componentes **anidados**. Un item, por
-  definición, nunca está anidado. Nota sobre el "item" de TacticaSoft: en Táctica el item
-  es la fila plana e inmodificable de un presupuesto/pedido/remito/factura; acá un item
-  que es Conjunto **se despliega en subconjuntos y componentes anidados** (no en "más
-  items"). Ej: la fila "boca de alimentación" de Táctica entra al sistema como un item de
-  tipo Conjunto con sus componentes adentro.
-- **Elemento:** cualquier nodo del árbol (raíz o anidado). Los items son los elementos
-  raíz; lo que cuelga de un conjunto/subconjunto son elementos anidados. En la base, la
-  tabla `elementos` guarda todos (con `parent_elemento_id` para la anidación).
-- **Componente:** la pieza o servicio individual e indivisible que efectivamente se
-  fabrica o se resuelve (la hoja del árbol).
-- **Proceso:** cada paso de trabajo de un elemento. Los procesos **pueden colgar de
-  cualquier nivel** (conjunto, subconjunto o componente) y se multiplican por la cantidad
-  del elemento que los contiene: por ejemplo, la soldadura/control/despacho del conjunto
-  armado cuelgan del propio conjunto. Los procesos son lo que se planifica en el
+- **Item:** cada cosa a fabricar o entregar dentro de un proyecto. Puede ser un **Producto**
+  o un **Conjunto** (estructura anidable). **Estados de item (avance físico):**
+  `Espera MP, Llegó MP, Proceso, Enviar a TT, TT, Llegó TT, Terminado, Enviado, Stockeado,
+  Anulado`.
+- **Proceso:** cada paso de trabajo de un item. Los procesos son lo que se planifica en el
   Tablero. Cada proceso tiene un tipo, una duración estimada, una máquina sugerida y un
   operario sugerido por Oficina Técnica. **Tipos de proceso estándar:** Agujereado, Armado,
   Compra, Control, Corte, Desarme y limpieza, Despacho, Electroerosión, Fresado, Plegado,
@@ -134,10 +110,9 @@ Conceptos:
 ## 5. Matriz de Productos (catálogo del cliente)
 
 Representa cómo viven las piezas en la planta del cliente. Es información **reutilizable**:
-se carga una vez y se usa en muchos proyectos. No se cataloga todo lo que se fabrica: se
-cargan los **productos** — lo que se vende con frecuencia o se suele tener en estantería.
+se carga una vez y se usa en muchos proyectos.
 
-`Cliente → Sector → Equipo → Conjunto → Subconjunto → Componente → Procesos`
+`Cliente → Sector → Equipo → Conjunto → Subconjunto → Producto → Procesos`
 
 Cuando un proyecto necesita un producto que ya está en la matriz, se importa: se crea un
 item nuevo en el proyecto con todos los procesos, ubicaciones y datos del producto matriz
@@ -163,14 +138,15 @@ mismo dato**.
 
 ### Dos vistas del mismo dato
 
-- **Vista por operarios (vigente, de planificación):** operarios en columnas, días en
-  filas. Es la que se usa en el día a día y donde se **edita**: se arrastran bloques, se
-  asigna y se reprograma. La planificación real se hace acá.
-- **Vista por máquinas (complementaria, de revisión):** sirve para **detectar máquinas
-  ociosas** (paradas sin trabajo) o sobrecargadas — algo que no se ve planificando por
-  operario. Es principalmente de lectura. Existió una versión vieja (días × máquina) que
-  quedó en desuso y puede tener bugs; en React se rehace como **visor** sobre el mismo
-  modelo, más simple que el editor de operarios.
+- **Vista por operarios (vigente, de planificación):** operarios en columnas, días
+  en filas. Es la que se usa en el día a día y donde se **edita**: se arrastran
+  bloques, se asigna y se reprograma. Como la columna ya identifica al operario, el
+  **color del borde del bloque codifica la máquina** asignada.
+- **Vista por máquinas (futura, complementaria, de solo lectura):** visor
+  informativo para detectar máquinas ociosas o sobrecargadas — algo que no se ve
+  planificando por operario. Sin drag & drop. Como la columna identifica a la
+  máquina, el **color del borde del bloque codifica al operario**. Se construye
+  sobre el mismo motor y componentes, cambiando la agrupación.
 
 Cada celda representa la jornada de ese operario (o máquina) ese día; los bloques se ubican
 dentro con drag and drop. Si un item tiene tres procesos (ej. torneado, fresado,
@@ -203,7 +179,8 @@ correlatividad entre ellos.
 - Días pasados con fondo gris.
 - Sábados con la zona post-12:00 en gris (jornada parcial). Los domingos no se muestran.
 - Color de **fondo del bloque** = urgencia del proyecto (rojo, amarillo, gris/verde).
-- Color del **borde del bloque** = operario asignado.
+- Color del **borde del bloque** = máquina (en vista por operarios) / operario (en
+  la futura vista por máquinas).
 - Ancho del bloque proporcional a la duración del proceso.
 - Procesos automáticos largos pueden cruzar varios días; el sistema los parte
   visualmente respetando la jornada laboral.
