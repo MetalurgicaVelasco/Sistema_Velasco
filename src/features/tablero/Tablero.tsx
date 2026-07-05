@@ -104,6 +104,11 @@ export default function Tablero() {
                     {delDia.map((b) => (
                       <Bloque key={`${b.procesoId}-${b.parte}`} b={b} altoBloque={altoBloque} vIni={vIni} vTotal={vTotal} />
                     ))}
+                    {delDia
+                      .filter((b) => b.esAuto && b.setupMin > 0 && b.track >= 1)
+                      .map((b) => (
+                        <GhostSetup key={`g-${b.procesoId}-${b.parte}`} b={b} altoBloque={altoBloque} vIni={vIni} vTotal={vTotal} />
+                      ))}
                   </div>
                 )
               })}
@@ -171,6 +176,34 @@ function Bloque({
           {b.pedidoNro ? <span className="tab-ped"> · Ped. {b.pedidoNro}</span> : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Fantasma del setup: bloquecito no interactivo en el carril 0 que marca que el
+// operario está ocupado durante el setup de una automática/semi cuyo bloque vive
+// en un carril de abajo.
+function GhostSetup({
+  b, altoBloque, vIni, vTotal,
+}: {
+  b: BloqueVisual
+  altoBloque: number
+  vIni: number
+  vTotal: number
+}) {
+  const left = porcentajeLeft(b.inicioMin, vIni, vTotal)
+  const width = porcentajeAncho(b.setupMin, vTotal)
+  return (
+    <div
+      className="tab-ghost"
+      style={{ left: `calc(${left}% + 1px)`, width: `${width}%`, top: 2, height: altoBloque - 4 }}
+      title={`Setup — el operario está ocupado\n${b.descripcion}${b.pedidoNro ? ' · Ped. ' + b.pedidoNro : ''}`}
+    >
+      <span className="tab-ghost-lock">🔒</span>
+      <span className="tab-ghost-desc">
+        {b.descripcion}
+        {b.pedidoNro ? ` · Ped. ${b.pedidoNro}` : ''}
+      </span>
     </div>
   )
 }
