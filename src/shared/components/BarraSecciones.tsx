@@ -32,9 +32,9 @@ const SECCIONES: Seccion[] = [
     titulo: 'Producción',
     modulos: [
       { id: 'proyectos', emoji: '📋', titulo: 'Proyectos', disponible: true },
+      { id: 'tablero', emoji: '📅', titulo: 'Tablero', disponible: true },
       { id: 'productos', emoji: '🔩', titulo: 'Productos', disponible: true },
       { id: 'procesos', emoji: '⚙️', titulo: 'Procesos', disponible: true },
-      { id: 'tablero', emoji: '📅', titulo: 'Tablero', disponible: true },
       { id: 'matriz', emoji: '🧩', titulo: 'Matriz de Productos', disponible: true },
       { id: 'mantenimientos', emoji: '🔧', titulo: 'Mantenimientos', disponible: true },
       { id: 'dashboard', emoji: '📈', titulo: 'Dashboard', disponible: true },
