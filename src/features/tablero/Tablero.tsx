@@ -7,7 +7,7 @@
 // solo lectura por ahora; la interacción (drag & drop, edición) viene después.
 // -----------------------------------------------------------------------------
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import type { BloqueVisual } from './datos/bloquesVisuales'
@@ -46,6 +46,8 @@ function minAHora(min: number): string {
 export default function Tablero() {
   const [datos, setDatos] = useState<TableroCargado | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [tip, setTip] = useState<{ b: BloqueVisual; x: number; y: number } | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     cargarTablero()
@@ -60,6 +62,20 @@ export default function Tablero() {
   const vIni = horaAMin(ventanaInicio)
   const vTotal = horaAMin(ventanaFin) - vIni
   const hoy = hoyISO()
+
+  function mostrarTip(b: BloqueVisual, e: MouseEvent) {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    const x = e.clientX
+    const y = e.clientY
+    timerRef.current = setTimeout(() => setTip({ b, x, y }), 800)
+  }
+  function moverTip(e: MouseEvent) {
+    setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t))
+  }
+  function ocultarTip() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    setTip(null)
+  }
 
   // Días visibles (sin domingos) entre desde y hasta.
   const dias: FechaISO[] = []
@@ -102,7 +118,16 @@ export default function Tablero() {
                   <div key={op.id} className={`tab-cl ${claseCelda}`} style={{ height: ALTO_FILA + 2 }}>
                     <div className="tab-mediodia" style={{ left: `${mediodiaPct}%` }} />
                     {delDia.map((b) => (
-                      <Bloque key={`${b.procesoId}-${b.parte}`} b={b} altoBloque={altoBloque} vIni={vIni} vTotal={vTotal} />
+                      <Bloque
+                        key={`${b.procesoId}-${b.parte}`}
+                        b={b}
+                        altoBloque={altoBloque}
+                        vIni={vIni}
+                        vTotal={vTotal}
+                        onEnter={mostrarTip}
+                        onMove={moverTip}
+                        onLeave={ocultarTip}
+                      />
                     ))}
                     {delDia
                       .filter((b) => b.esAuto && b.setupMin > 0 && b.track >= 1)
@@ -116,17 +141,21 @@ export default function Tablero() {
           )
         })}
       </div>
+      {tip ? <Tooltip tip={tip} /> : null}
     </div>
   )
 }
 
 function Bloque({
-  b, altoBloque, vIni, vTotal,
+  b, altoBloque, vIni, vTotal, onEnter, onMove, onLeave,
 }: {
   b: BloqueVisual
   altoBloque: number
   vIni: number
   vTotal: number
+  onEnter: (b: BloqueVisual, e: MouseEvent) => void
+  onMove: (e: MouseEvent) => void
+  onLeave: () => void
 }) {
   const dur = b.finMin - b.inicioMin
   const left = porcentajeLeft(b.inicioMin, vIni, vTotal)
@@ -153,7 +182,9 @@ function Bloque({
         color: TEXTO_URGENCIA[b.urgencia] ?? '#000',
         borderColor: b.maquinaColor ?? '#888780',
       }}
-      title={`${b.descripcion}${b.tipoProceso ? ' · ' + b.tipoProceso : ''}\n${b.cliente}${b.pedidoNro ? ' · Ped. ' + b.pedidoNro : ''}\n${minAHora(b.inicioMin)}–${minAHora(b.finMin)}`}
+      onMouseEnter={(e) => onEnter(b, e)}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
     >
       {rayarMaquina ? <div className="tab-rayado" style={{ left: `${setupPct}%` }} /> : null}
       {haySetup ? <div className="tab-sep" style={{ left: `${setupPct}%` }} /> : null}
@@ -215,6 +246,41 @@ function GhostSetup({
         {b.descripcion}
         {b.pedidoNro ? ` · Ped. ${b.pedidoNro}` : ''}
       </span>
+    </div>
+  )
+}
+
+// Tarjeta de detalle que sigue al mouse (aparece tras el delay de hover).
+function Tooltip({ tip }: { tip: { b: BloqueVisual; x: number; y: number } }) {
+  const { b, x, y } = tip
+  const left = Math.min(x + 12, window.innerWidth - 290)
+  const top = y + 16
+  const tipoLabel =
+    b.modo === 'automatica' ? 'Automática' : b.modo === 'semi_automatica' ? 'Semi-automática' : 'Manual'
+  return (
+    <div className="tab-tip" style={{ left, top }}>
+      <div className="tab-tip-t">
+        {b.descripcion}
+        {b.tipoProceso ? ` · ${b.tipoProceso}` : ''}
+      </div>
+      {b.cliente ? (
+        <div>
+          {b.cliente}
+          {b.pedidoNro ? ` · Ped. ${b.pedidoNro}` : ''}
+        </div>
+      ) : null}
+      <div>Urgencia: {b.urgencia}</div>
+      {b.maquinaNombre ? <div>Máquina: {b.maquinaNombre}</div> : null}
+      <div>Operario: {b.operarioNombre}</div>
+      <div>
+        Horario: {minAHora(b.inicioMin)}–{minAHora(b.finMin)}
+      </div>
+      <div>Tipo: {tipoLabel}</div>
+      {b.totalPartes > 1 ? (
+        <div>
+          Parte {b.parte}/{b.totalPartes}
+        </div>
+      ) : null}
     </div>
   )
 }

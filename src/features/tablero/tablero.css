@@ -245,6 +245,26 @@
   text-overflow: ellipsis;
 }
 
+/* Tarjeta de detalle (tooltip) que sigue al mouse */
+.tab-tip {
+  position: fixed;
+  z-index: 400;
+  max-width: 320px;
+  background: #2c2c2a;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.tab-tip-t {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
 /* Badge parte N/M */
 .tab-parte {
   display: inline-block;
