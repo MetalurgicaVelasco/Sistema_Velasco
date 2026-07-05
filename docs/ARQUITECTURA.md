@@ -431,19 +431,22 @@ sola vez** en `shared/` en lugar de duplicarse entre páginas como pasaba en el 
   Reemplaza a las columnas espejo `ot_ack_*` del sistema viejo.
 - `proceso_eliminado` (soft-delete visible en tablero), `setup_solapable`,
   `grupo_division_id` (uuid) se conservan del contrato viejo.
-- Tablas de soporte: `pulmones` (bloques de reserva, tabla propia),
-  `personal_vacaciones`, `configuraciones` (clave/valor; la ventana horaria del
-  tablero — default 06:00–17:00 — el gap de cascada y el máximo de simultáneas se
-  leen de la clave `tablero`). Colores de máquinas y de operarios como columnas
-  (`maquinas.color`, `personal.color`); horarios de jornada y sábado en `personal`.
+- Tablas de soporte: `personal_vacaciones`, `configuraciones` (clave/valor; la
+  ventana horaria del tablero — default 06:00–17:00 — el gap de cascada y el máximo de
+  simultáneas se leen de la clave `tablero`). Colores de máquinas y de operarios como
+  columnas (`maquinas.color`, `personal.color`); horarios de jornada y sábado en
+  `personal`.
+- **Pulmones: no se usan.** La tabla `pulmones` (reservas de tiempo del operario)
+  quedó creada pero **inerte**: el planificador deja espacios a mano en lugar de
+  reservas duras. El motor de cascada no tiene pasada de pulmones. No reintroducir
+  salvo pedido explícito.
 
 **Motor de planificación:** funciones puras TypeScript en
 `features/tablero/motor/`, sin acceso a DB ni DOM. Simulación y aplicación usan el
 mismo código; la única vía de escritura es la RPC atómica `aplicar_plan_tablero`.
-Testeado con Vitest (los 34 tests sintéticos del motor viejo portados + regresiones
-de los bugs de la auditoría). Reglas portadas del motor viejo: anclas, excepción
-setup_solapable, pulmones pisar/cascadear, filtro de pasado, hechas como anclas
-duras, detección de conflictos residuales.
+Testeado con Vitest. Reglas portadas del motor viejo: anclas, excepción
+setup_solapable, filtro de pasado, hechas como anclas duras, detección de conflictos
+residuales. (No se portó la lógica de pulmones: no se usan.)
 
 **Dos tableros:** el de operarios (edición, drag & drop con **dnd-kit**) y, a futuro,
 el de máquinas (visor de solo lectura sobre el mismo motor). En la vista por

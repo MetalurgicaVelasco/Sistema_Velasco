@@ -171,6 +171,11 @@ correlatividad entre ellos.
   afectados y muestra un modal con la lista; el usuario acepta o cancela.
 - **Marcar como hecho:** los bloques completados se muestran desaturados (grayscale + leve
   opacidad), conservando el color base de urgencia.
+- **Márgenes de tiempo (sin pulmones):** para dejar aire entre trabajos, el planificador
+  deja **espacios a mano** en el tablero. No se usan "pulmones" (reservas de tiempo del
+  operario): esa función quedó descartada por ser difícil de mantener al planificar. La
+  cascada respeta los bloques existentes, pero no protege los huecos vacíos: si al
+  reacomodar necesita lugar, puede usar un espacio que se había dejado libre.
 
 ### Visualización
 
