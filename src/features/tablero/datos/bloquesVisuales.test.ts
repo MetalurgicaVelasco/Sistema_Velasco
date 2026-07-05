@@ -42,7 +42,7 @@ describe('armarBloquesVisuales', () => {
     expect(bv).toHaveLength(1)
     expect(bv[0]).toMatchObject({
       procesoId: 1, elementoId: 10, operarioId: 3,
-      fecha: '2026-07-06', inicioMin: 360, finMin: 480, setupMin: 0, esAuto: false, track: 0, parte: 1, totalPartes: 1,
+      fecha: '2026-07-06', inicioMin: 360, finMin: 480, setupMin: 0, esAuto: false, modo: 'manual', track: 0, parte: 1, totalPartes: 1,
       descripcion: 'Eje principal', cantidad: 1, tipoProceso: 'Torneado',
       cliente: 'ACME', pedidoNro: '4130', operarioNombre: 'Juan Pérez', maquinaNombre: 'VF4',
       urgencia: 'alta', maquinaColor: '#73bbf5', hecho: false,
@@ -60,8 +60,10 @@ describe('armarBloquesVisuales', () => {
     ])
   })
 
-  it('ignora procesos eliminados', () => {
-    expect(armarBloquesVisuales(datosCon([proc({ procesoEliminado: true })]))).toHaveLength(0)
+  it('incluye los eliminados que estaban planificados, marcados con procesoEliminado', () => {
+    const bv = armarBloquesVisuales(datosCon([proc({ procesoEliminado: true })]))
+    expect(bv).toHaveLength(1)
+    expect(bv[0].procesoEliminado).toBe(true)
   })
 
   it('ignora procesos sin planificar', () => {

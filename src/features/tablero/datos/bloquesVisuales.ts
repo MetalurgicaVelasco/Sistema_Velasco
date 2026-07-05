@@ -18,6 +18,7 @@ import { contextoOperario } from '../motor/preparar'
 import { hayDivergencia } from '../motor/divergencias'
 import { fragmentos } from '../calculos/fragmentos'
 import { asignarTracks } from '../calculos/geometria'
+import type { ModoProceso } from '../../produccion/procesoTipos'
 import type { ProcesoTablero, PersonalTablero, MaquinaTablero, Vacacion } from '../tipos'
 
 // Datos mínimos que el cruce necesita de cada tabla.
@@ -58,6 +59,7 @@ export type BloqueVisual = {
   parte: number
   totalPartes: number
   esAuto: boolean
+  modo: ModoProceso
   // Contenido
   descripcion: string
   cantidad: number
@@ -90,7 +92,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
   const conDatos: Array<Omit<BloqueVisual, 'track'>> = []
 
   for (const p of datos.procesos) {
-    if (!estaPlanificado(p) || p.procesoEliminado) continue
+    if (!estaPlanificado(p)) continue
     const elemento = datos.elementos.get(p.elementoId)
     const operario = datos.personal.get(p.planOperarioId as number)
     if (!elemento || !operario) continue
@@ -128,6 +130,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
       procesoEliminado: p.procesoEliminado,
       fotoUrl: elemento.fotoUrl,
       esAuto,
+      modo: tiempos.modo,
     }
 
     for (const f of frags) {

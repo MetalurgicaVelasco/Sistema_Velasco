@@ -139,6 +139,7 @@ function Bloque({
   const anchoSetupPx = (width / 100) * 400 * (dur > 0 ? b.setupMin / dur : 0)
   const cabeManual = haySetup && anchoSetupPx >= 12 && altoBloque - 4 >= 56
   const fontManual = Math.max(7, Math.min(11, Math.floor(((altoBloque - 4) * 0.7) / 6)))
+  const marca = b.modo === 'automatica' ? 'A' : b.modo === 'semi_automatica' ? 'S' : null
 
   return (
     <div
@@ -176,6 +177,16 @@ function Bloque({
           {b.pedidoNro ? <span className="tab-ped"> · Ped. {b.pedidoNro}</span> : null}
         </div>
       </div>
+      {b.procesoEliminado ? (
+        <span className="tab-warn" title="Proceso eliminado desde Proyectos">⛔</span>
+      ) : b.hayDivergencia ? (
+        <span className="tab-warn" title="Hay cambios desde Oficina Técnica (Proyectos)">⚠️</span>
+      ) : null}
+      {marca ? (
+        <span className="tab-ba" title={b.modo === 'automatica' ? 'Automática' : 'Semi-automática'}>
+          {marca}
+        </span>
+      ) : null}
     </div>
   )
 }
