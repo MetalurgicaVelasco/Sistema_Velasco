@@ -21,6 +21,7 @@ import {
   type ContextoOperario, type Momento,
 } from './calendario'
 import { reglaDe } from './modos'
+import { validarInvariantes, type BloqueCalculado } from './invariantes'
 import type { Tiempos } from './duraciones'
 
 // Un ítem del estado de simulación. Su `inicio` se mueve durante la cascada.
@@ -35,7 +36,7 @@ export type ItemSimulacion = {
 
 export type ResultadoSimulacion =
   | { ok: true; items: ItemSimulacion[]; movidos: number[] }
-  | { ok: false; error: 'no_converge'; detalle?: unknown }
+  | { ok: false; error: 'no_converge' | 'conflicto_no_resoluble'; detalle?: unknown }
 
 export type ConfigSimulacion = {
   gapMin: number
@@ -61,6 +62,21 @@ function finOpDe(item: ItemSimulacion, ctxs: Map<number, ContextoOperario>): Mom
 
 function finMaqDe(item: ItemSimulacion, ctxs: Map<number, ContextoOperario>): Momento {
   return finMaquina(item.inicio, item.tiempos, ctxDe(item, ctxs))
+}
+
+// Convierte un ítem de simulación en un bloque calculado (con sus dos intervalos),
+// para validar invariantes sobre el estado final.
+function itemABloque(item: ItemSimulacion, ctxs: Map<number, ContextoOperario>): BloqueCalculado {
+  const ctx = ctxDe(item, ctxs)
+  return {
+    id: item.id,
+    operarioId: item.operarioId,
+    maquinaId: item.maquinaId,
+    modo: item.tiempos.modo,
+    setupSolapable: item.setupSolapable,
+    intervaloOperario: { inicio: item.inicio, fin: finOperario(item.inicio, item.tiempos, ctx) },
+    intervaloMaquina: { inicio: item.inicio, fin: finMaquina(item.inicio, item.tiempos, ctx) },
+  }
 }
 
 // ¿La excepción setup_solapable exime este par en el eje operario? (el setup de
@@ -260,6 +276,15 @@ export function simular(
     if (enforceCorrelatividades(items, anclas, ctxs, config.gapMin, correlatividades)) algo = true
     // (d) pulmones: próximo paso.
     if (!algo) {
+      // Convergió. Chequear que no queden solapes de recurso (típicamente dos
+      // anclas que se pisan y no se pudieron mover): sería un plan imposible.
+      const bloques = items.map((it) => itemABloque(it, ctxs))
+      const solapes = validarInvariantes(bloques, correlatividades).filter(
+        (v) => v.tipo === 'solape_maquina' || v.tipo === 'solape_operario',
+      )
+      if (solapes.length > 0) {
+        return { ok: false, error: 'conflicto_no_resoluble', detalle: { solapes } }
+      }
       const movidos = items.filter((it) => inicial.get(it.id) !== claveInicio(it)).map((it) => it.id)
       return { ok: true, items, movidos }
     }

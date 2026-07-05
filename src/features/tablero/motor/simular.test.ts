@@ -137,3 +137,22 @@ describe('correlatividades', () => {
     if (r.ok) expect(r.movidos).toEqual([])
   })
 })
+
+describe('conflicto residual', () => {
+  it('dos anclas del mismo operario que se pisan → conflicto_no_resoluble', () => {
+    // Ambas ancladas y superpuestas: nadie se puede mover → plan imposible.
+    const r = simular([item(1, 360, 540), item(2, 400, 60)], [1, 2], ctxs, { gapMin: 10 })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toBe('conflicto_no_resoluble')
+  })
+
+  it('dos anclas en operarios y máquinas distintas que no se pisan → ok', () => {
+    const r = simular(
+      [item(1, 360, 120, { operarioId: 3, maquinaId: 5 }), item(2, 600, 60, { operarioId: 4, maquinaId: 6 })],
+      [1, 2],
+      ctxs,
+      { gapMin: 10 },
+    )
+    expect(r.ok).toBe(true)
+  })
+})
