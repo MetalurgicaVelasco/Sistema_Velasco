@@ -16,9 +16,10 @@
 // estado nuevo sin tocar el original ni la base.
 // -----------------------------------------------------------------------------
 
-import { jornada } from '../../../shared/lib/jornada'
-import { sumarDias, diffDias, type FechaISO } from '../../../shared/lib/fechas'
-import { finOperario, finMaquina, type ContextoOperario, type Momento } from './calendario'
+import {
+  finOperario, finMaquina, minutosAbsolutos, ajustarAJornada,
+  type ContextoOperario, type Momento,
+} from './calendario'
 import { reglaDe } from './modos'
 import type { Tiempos } from './duraciones'
 
@@ -45,51 +46,6 @@ export type ConfigSimulacion = {
 export type ParCorrelatividad = { predecesorId: number; sucesorId: number }
 
 const MAX_ITER_DEFAULT = 200
-const MAX_DIAS = 366
-
-// --- Utilidades de tiempo -----------------------------------------------------
-// DEUDA MENOR: `minAbs`, `trabaja`, `proximoDiaLaboral` y `ajustarAJornada` se
-// solapan con lógica de calendario.ts. Están acá para no reentregar archivos ya
-// cerrados; a futuro conviene unificarlas en calendario.ts.
-
-function minAbs(m: Momento): number {
-  return diffDias('2000-01-01', m.fecha) * 1440 + m.min
-}
-
-function trabaja(ctx: ContextoOperario, fecha: FechaISO): boolean {
-  return jornada(ctx.operario, fecha).trabaja && !ctx.esVacaciones(fecha)
-}
-
-function proximoDiaLaboral(ctx: ContextoOperario, fecha: FechaISO): FechaISO {
-  let f = sumarDias(fecha, 1)
-  let g = 0
-  while (!trabaja(ctx, f)) {
-    f = sumarDias(f, 1)
-    if (++g > MAX_DIAS) throw new Error(`No hay día laboral cerca de ${fecha}`)
-  }
-  return f
-}
-
-// Lleva un momento al primer instante laboral válido a partir de él: si cae
-// antes de la jornada, al inicio; si cae en/después del fin, al inicio del
-// próximo día laboral; si el día no es laboral, salta.
-function ajustarAJornada(m: Momento, ctx: ContextoOperario): Momento {
-  let fecha = m.fecha
-  let min = m.min
-  let g = 0
-  while (!trabaja(ctx, fecha)) {
-    fecha = sumarDias(fecha, 1)
-    min = 0
-    if (++g > MAX_DIAS) throw new Error(`No hay día laboral cerca de ${m.fecha}`)
-  }
-  const t = jornada(ctx.operario, fecha)
-  if (min < t.inicioMin) min = t.inicioMin
-  if (min >= t.finMin) {
-    fecha = proximoDiaLaboral(ctx, fecha)
-    min = jornada(ctx.operario, fecha).inicioMin
-  }
-  return { fecha, min }
-}
 
 // --- Cascada por operario -----------------------------------------------------
 
@@ -135,7 +91,7 @@ function cascadaOperario(
 
   for (const [, arr] of porOp) {
     arr.sort((a, b) => {
-      const d = minAbs(a.inicio) - minAbs(b.inicio)
+      const d = minutosAbsolutos(a.inicio) - minutosAbsolutos(b.inicio)
       if (d !== 0) return d
       if (anclas.has(a.id)) return -1
       if (anclas.has(b.id)) return 1
@@ -146,13 +102,13 @@ function cascadaOperario(
     for (let i = 0; i < arr.length - 1 && !movioEste; i++) {
       const A = arr[i]
       const finA = finOpDe(A, ctxs)
-      const finAMin = minAbs(finA)
+      const finAMin = minutosAbsolutos(finA)
       const aAncla = anclas.has(A.id)
 
       for (let j = i + 1; j < arr.length; j++) {
         const B = arr[j]
         // ¿B empieza antes del fin de A + gap? Si no, tampoco los siguientes (ordenados).
-        if (minAbs(B.inicio) >= finAMin + gap) break
+        if (minutosAbsolutos(B.inicio) >= finAMin + gap) break
         if (exentoPorSetup(A, B)) continue
 
         if (!anclas.has(B.id)) {
@@ -205,7 +161,7 @@ function pushMaquina(
 
   for (const [, arr] of porMaq) {
     arr.sort((a, b) => {
-      const d = minAbs(a.inicio) - minAbs(b.inicio)
+      const d = minutosAbsolutos(a.inicio) - minutosAbsolutos(b.inicio)
       if (d !== 0) return d
       if (anclas.has(a.id)) return -1
       if (anclas.has(b.id)) return 1
@@ -218,7 +174,7 @@ function pushMaquina(
       const B = arr[i + 1]
       const finA = finMaqDe(A, ctxs)
       // ¿B empieza antes del fin de máquina de A + gap?
-      if (minAbs(B.inicio) >= minAbs(finA) + gap) continue
+      if (minutosAbsolutos(B.inicio) >= minutosAbsolutos(finA) + gap) continue
 
       if (!anclas.has(B.id)) {
         const nuevo = ajustarAJornada({ fecha: finA.fecha, min: finA.min + gap }, ctxDe(B, ctxs))
@@ -266,7 +222,7 @@ function enforceCorrelatividades(
     if (!pred) continue // predecesor ausente: no restringe (la inconsistencia se marca aparte)
 
     const finPred = finMaqDe(pred, ctxs)
-    if (minAbs(suc.inicio) >= minAbs(finPred) + gap) continue // el sucesor ya arranca después
+    if (minutosAbsolutos(suc.inicio) >= minutosAbsolutos(finPred) + gap) continue // el sucesor ya arranca después
     if (anclas.has(suc.id)) continue // sucesor ancla: conflicto residual
 
     const nuevo = ajustarAJornada({ fecha: finPred.fecha, min: finPred.min + gap }, ctxDe(suc, ctxs))

@@ -14,7 +14,7 @@
 // -----------------------------------------------------------------------------
 
 import { jornada, type HorarioOperario } from '../../../shared/lib/jornada'
-import { sumarDias, type FechaISO } from '../../../shared/lib/fechas'
+import { sumarDias, diffDias, type FechaISO } from '../../../shared/lib/fechas'
 import { reglaDe } from './modos'
 import { duracionMaquina, duracionOperario, type Tiempos } from './duraciones'
 
@@ -37,8 +37,35 @@ function trabajaEse(ctx: ContextoOperario, fecha: FechaISO): boolean {
   return jornada(ctx.operario, fecha).trabaja && !ctx.esVacaciones(fecha)
 }
 
+// Un momento en "minutos absolutos" (para comparar a través de días). El valor
+// exacto no importa: se aplica igual a los momentos que se comparan.
+export function minutosAbsolutos(m: Momento): number {
+  return diffDias('2000-01-01', m.fecha) * 1440 + m.min
+}
+
+// Lleva un momento al primer instante laboral válido a partir de él: si cae antes
+// de la jornada, al inicio; si cae en/después del fin, al inicio del próximo día
+// laboral; si el día no es laboral, salta.
+export function ajustarAJornada(m: Momento, ctx: ContextoOperario): Momento {
+  let fecha = m.fecha
+  let min = m.min
+  let guarda = 0
+  while (!trabajaEse(ctx, fecha)) {
+    fecha = sumarDias(fecha, 1)
+    min = 0
+    if (++guarda > MAX_DIAS) throw new Error(`No hay día laboral cerca de ${m.fecha}`)
+  }
+  const t = jornada(ctx.operario, fecha)
+  if (min < t.inicioMin) min = t.inicioMin
+  if (min >= t.finMin) {
+    fecha = proximoDiaLaboral(ctx, fecha)
+    min = jornada(ctx.operario, fecha).inicioMin
+  }
+  return { fecha, min }
+}
+
 // Primer día ESTRICTAMENTE posterior a `fecha` en que el operario trabaja.
-function proximoDiaLaboral(ctx: ContextoOperario, fecha: FechaISO): FechaISO {
+export function proximoDiaLaboral(ctx: ContextoOperario, fecha: FechaISO): FechaISO {
   let f = sumarDias(fecha, 1)
   let guarda = 0
   while (!trabajaEse(ctx, f)) {

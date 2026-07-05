@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { caminarJornada, caminar247, finMaquina, finOperario, type ContextoOperario } from './calendario'
+import {
+  caminarJornada, caminar247, finMaquina, finOperario,
+  minutosAbsolutos, ajustarAJornada, proximoDiaLaboral,
+  type ContextoOperario,
+} from './calendario'
 import type { HorarioOperario } from '../../../shared/lib/jornada'
 import type { Tiempos } from './duraciones'
 
@@ -78,5 +82,41 @@ describe('finOperario', () => {
   it('automatica: solo el setup (por jornada)', () => {
     // setup 60 → lunes 07:00 (420)
     expect(finOperario({ fecha: '2026-07-06', min: 360 }, t('automatica'), ctx)).toEqual({ fecha: '2026-07-06', min: 420 })
+  })
+})
+
+describe('minutosAbsolutos', () => {
+  it('un día después suma 1440; mismo día es la diferencia de minutos', () => {
+    const lun = minutosAbsolutos({ fecha: '2026-07-06', min: 100 })
+    expect(minutosAbsolutos({ fecha: '2026-07-07', min: 100 }) - lun).toBe(1440)
+    expect(minutosAbsolutos({ fecha: '2026-07-06', min: 500 }) - lun).toBe(400)
+  })
+})
+
+describe('proximoDiaLaboral', () => {
+  it('viernes → sábado (trabaja el sábado)', () => {
+    expect(proximoDiaLaboral(ctx, '2026-07-10')).toBe('2026-07-11')
+  })
+  it('sábado → lunes (saltea el domingo)', () => {
+    expect(proximoDiaLaboral(ctx, '2026-07-11')).toBe('2026-07-13')
+  })
+  it('saltea un día de vacaciones', () => {
+    const ctxVac: ContextoOperario = { operario, esVacaciones: (f) => f === '2026-07-07' }
+    expect(proximoDiaLaboral(ctxVac, '2026-07-06')).toBe('2026-07-08')
+  })
+})
+
+describe('ajustarAJornada', () => {
+  it('antes de la jornada sube al inicio', () => {
+    expect(ajustarAJornada({ fecha: '2026-07-06', min: 300 }, ctx)).toEqual({ fecha: '2026-07-06', min: 360 })
+  })
+  it('en/después del fin va al inicio del próximo día laboral', () => {
+    expect(ajustarAJornada({ fecha: '2026-07-06', min: 900 }, ctx)).toEqual({ fecha: '2026-07-07', min: 360 })
+  })
+  it('un día no laboral salta al próximo laboral', () => {
+    expect(ajustarAJornada({ fecha: '2026-07-05', min: 800 }, ctx)).toEqual({ fecha: '2026-07-06', min: 360 })
+  })
+  it('dentro de la jornada no cambia', () => {
+    expect(ajustarAJornada({ fecha: '2026-07-06', min: 600 }, ctx)).toEqual({ fecha: '2026-07-06', min: 600 })
   })
 })
