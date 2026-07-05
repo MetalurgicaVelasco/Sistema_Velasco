@@ -96,3 +96,44 @@ describe('push por máquina', () => {
     }
   })
 })
+
+describe('correlatividades', () => {
+  const corr = [{ predecesorId: 1, sucesorId: 2 }]
+
+  it('empuja el sucesor que arranca antes del fin del predecesor', () => {
+    const pred = item(1, 360, 540, { operarioId: 3, maquinaId: 5 }) // lunes 06:00–15:00
+    const suc = item(2, 360, 60, { operarioId: 4, maquinaId: 6 }) // lunes 06:00 (otro operario y máquina)
+    const r = simular([pred, suc], [], ctxs, { gapMin: 10 }, corr)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.items.find((i) => i.id === 2)!.inicio).toEqual({ fecha: '2026-07-07', min: 360 })
+      expect(r.movidos).toEqual([2])
+    }
+  })
+
+  it('no toca el sucesor si ya arranca después del predecesor', () => {
+    const pred = item(1, 360, 60, { operarioId: 3, maquinaId: 5 }) // 06:00–07:00
+    const suc = item(2, 480, 60, { operarioId: 4, maquinaId: 6 }) // 08:00
+    const r = simular([pred, suc], [], ctxs, { gapMin: 10 }, corr)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.movidos).toEqual([])
+  })
+
+  it('un sucesor ancla que viola queda como conflicto residual (no se mueve)', () => {
+    const pred = item(1, 360, 540, { operarioId: 3, maquinaId: 5 })
+    const suc = item(2, 360, 60, { operarioId: 4, maquinaId: 6 })
+    const r = simular([pred, suc], [2], ctxs, { gapMin: 10 }, corr)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.items.find((i) => i.id === 2)!.inicio).toEqual({ fecha: '2026-07-06', min: 360 })
+      expect(r.movidos).toEqual([])
+    }
+  })
+
+  it('predecesor ausente no bloquea ni mueve', () => {
+    const suc = item(2, 360, 60, { operarioId: 4, maquinaId: 6 })
+    const r = simular([suc], [], ctxs, { gapMin: 10 }, corr)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.movidos).toEqual([])
+  })
+})

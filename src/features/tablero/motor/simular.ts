@@ -41,6 +41,9 @@ export type ConfigSimulacion = {
   maxIteraciones?: number
 }
 
+// Par de ids de una correlatividad (el tipo Correlatividad completo la satisface).
+export type ParCorrelatividad = { predecesorId: number; sucesorId: number }
+
 const MAX_ITER_DEFAULT = 200
 const MAX_DIAS = 366
 
@@ -239,6 +242,42 @@ function pushMaquina(
   return movio
 }
 
+// --- Correlatividades ---------------------------------------------------------
+
+// Una pasada de correlatividades: cada sucesor debe arrancar después del fin de
+// MÁQUINA de su predecesor + gap. Si queda antes, se empuja el sucesor.
+//   - Si el predecesor no está en la simulación (no planificado, hecho, pasado),
+//     no restringe: el motor no se bloquea; la inconsistencia la marcan las
+//     invariantes aparte.
+//   - Si el sucesor es un ancla y viola, queda como conflicto residual.
+function enforceCorrelatividades(
+  items: ItemSimulacion[],
+  anclas: Set<number>,
+  ctxs: Map<number, ContextoOperario>,
+  gap: number,
+  correlatividades: ParCorrelatividad[],
+): boolean {
+  let movio = false
+  const porId = new Map(items.map((it): [number, ItemSimulacion] => [it.id, it]))
+  for (const c of correlatividades) {
+    const suc = porId.get(c.sucesorId)
+    if (!suc) continue
+    const pred = porId.get(c.predecesorId)
+    if (!pred) continue // predecesor ausente: no restringe (la inconsistencia se marca aparte)
+
+    const finPred = finMaqDe(pred, ctxs)
+    if (minAbs(suc.inicio) >= minAbs(finPred) + gap) continue // el sucesor ya arranca después
+    if (anclas.has(suc.id)) continue // sucesor ancla: conflicto residual
+
+    const nuevo = ajustarAJornada({ fecha: finPred.fecha, min: finPred.min + gap }, ctxDe(suc, ctxs))
+    if (nuevo.fecha !== suc.inicio.fecha || nuevo.min !== suc.inicio.min) {
+      suc.inicio = nuevo
+      movio = true
+    }
+  }
+  return movio
+}
+
 // --- Orquestador (punto fijo) -------------------------------------------------
 
 function claveInicio(it: ItemSimulacion): string {
@@ -250,6 +289,7 @@ export function simular(
   anclasIds: number[],
   ctxs: Map<number, ContextoOperario>,
   config: ConfigSimulacion,
+  correlatividades: ParCorrelatividad[] = [],
 ): ResultadoSimulacion {
   // Copia del estado (no mutar el input).
   const items = estadoInicial.map((it) => ({ ...it, inicio: { ...it.inicio } }))
@@ -261,7 +301,8 @@ export function simular(
     let algo = false
     if (cascadaOperario(items, anclas, ctxs, config.gapMin)) algo = true
     if (pushMaquina(items, anclas, ctxs, config.gapMin)) algo = true
-    // (c) correlatividades, (d) pulmones: próximos pasos.
+    if (enforceCorrelatividades(items, anclas, ctxs, config.gapMin, correlatividades)) algo = true
+    // (d) pulmones: próximo paso.
     if (!algo) {
       const movidos = items.filter((it) => inicial.get(it.id) !== claveInicio(it)).map((it) => it.id)
       return { ok: true, items, movidos }
