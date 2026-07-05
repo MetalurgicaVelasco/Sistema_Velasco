@@ -10,7 +10,7 @@ const ctx: ContextoOperario = {
   },
   esVacaciones: () => false,
 }
-const ctxs = new Map([[3, ctx]])
+const ctxs = new Map([[3, ctx], [4, ctx]])
 
 // Ítem manual del operario 3, en un día (por defecto lunes 2026-07-06).
 function item(id: number, iniMin: number, durOp: number, o: Partial<ItemSimulacion> = {}): ItemSimulacion {
@@ -60,5 +60,39 @@ describe('cascada por operario', () => {
     const r = simular([auto, manual], [], ctxs, { gapMin: 10 })
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.movidos).toEqual([]) // el setup se monta sobre la manual, no se cascadea
+  })
+})
+
+describe('push por máquina', () => {
+  it('empuja un bloque que se pisa en la misma máquina, aunque sea de otro operario', () => {
+    // id1 op3, id2 op4 (distintos → sin conflicto de operario), pero misma máquina 5.
+    const a = item(1, 360, 540, { operarioId: 3, maquinaId: 5 }) // lunes 06:00–15:00
+    const b = item(2, 600, 60, { operarioId: 4, maquinaId: 5 }) // lunes 10:00 → se pisa en la máquina
+    const r = simular([a, b], [], ctxs, { gapMin: 10 })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.items.find((i) => i.id === 2)!.inicio).toEqual({ fecha: '2026-07-07', min: 360 })
+      expect(r.movidos).toEqual([2])
+    }
+  })
+
+  it('no empuja si están en máquinas distintas', () => {
+    const a = item(1, 360, 540, { operarioId: 3, maquinaId: 5 })
+    const b = item(2, 600, 60, { operarioId: 4, maquinaId: 6 })
+    const r = simular([a, b], [], ctxs, { gapMin: 10 })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.movidos).toEqual([])
+  })
+
+  it('si el bloque en conflicto es un ancla, mueve el otro', () => {
+    const noAncla = item(1, 360, 120, { operarioId: 3, maquinaId: 5 }) // 06:00–08:00
+    const ancla = item(2, 360, 540, { operarioId: 4, maquinaId: 5 }) // 06:00–15:00, ancla
+    const r = simular([noAncla, ancla], [2], ctxs, { gapMin: 10 })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.items.find((i) => i.id === 2)!.inicio).toEqual({ fecha: '2026-07-06', min: 360 }) // ancla no se mueve
+      expect(r.items.find((i) => i.id === 1)!.inicio).toEqual({ fecha: '2026-07-07', min: 360 }) // el otro → martes
+      expect(r.movidos).toEqual([1])
+    }
   })
 })

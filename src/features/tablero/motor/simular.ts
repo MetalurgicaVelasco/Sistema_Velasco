@@ -18,7 +18,7 @@
 
 import { jornada } from '../../../shared/lib/jornada'
 import { sumarDias, diffDias, type FechaISO } from '../../../shared/lib/fechas'
-import { finOperario, type ContextoOperario, type Momento } from './calendario'
+import { finOperario, finMaquina, type ContextoOperario, type Momento } from './calendario'
 import { reglaDe } from './modos'
 import type { Tiempos } from './duraciones'
 
@@ -100,6 +100,10 @@ function finOpDe(item: ItemSimulacion, ctxs: Map<number, ContextoOperario>): Mom
   return finOperario(item.inicio, item.tiempos, ctxDe(item, ctxs))
 }
 
+function finMaqDe(item: ItemSimulacion, ctxs: Map<number, ContextoOperario>): Momento {
+  return finMaquina(item.inicio, item.tiempos, ctxDe(item, ctxs))
+}
+
 // ¿La excepción setup_solapable exime este par en el eje operario? (el setup de
 // una auto/semi solapable puede montarse sobre una manual del mismo operario)
 function exentoPorSetup(a: ItemSimulacion, b: ItemSimulacion): boolean {
@@ -175,6 +179,66 @@ function cascadaOperario(
   return movio
 }
 
+// --- Push por máquina ---------------------------------------------------------
+
+// Una pasada de push por máquina. Dos procesos en la misma máquina no pueden
+// pisarse (sin excepción setup_solapable: eso es solo del eje operario). Empuja
+// el de más tarde después del fin de MÁQUINA del anterior + gap. Mueve, por cada
+// máquina, un par en conflicto y deja que el punto fijo re-evalúe.
+function pushMaquina(
+  items: ItemSimulacion[],
+  anclas: Set<number>,
+  ctxs: Map<number, ContextoOperario>,
+  gap: number,
+): boolean {
+  let movio = false
+  const porMaq = new Map<number, ItemSimulacion[]>()
+  for (const it of items) {
+    if (it.maquinaId == null) continue
+    const arr = porMaq.get(it.maquinaId)
+    if (arr) arr.push(it)
+    else porMaq.set(it.maquinaId, [it])
+  }
+
+  for (const [, arr] of porMaq) {
+    arr.sort((a, b) => {
+      const d = minAbs(a.inicio) - minAbs(b.inicio)
+      if (d !== 0) return d
+      if (anclas.has(a.id)) return -1
+      if (anclas.has(b.id)) return 1
+      return a.id - b.id
+    })
+
+    let movioEsta = false
+    for (let i = 0; i < arr.length - 1 && !movioEsta; i++) {
+      const A = arr[i]
+      const B = arr[i + 1]
+      const finA = finMaqDe(A, ctxs)
+      // ¿B empieza antes del fin de máquina de A + gap?
+      if (minAbs(B.inicio) >= minAbs(finA) + gap) continue
+
+      if (!anclas.has(B.id)) {
+        const nuevo = ajustarAJornada({ fecha: finA.fecha, min: finA.min + gap }, ctxDe(B, ctxs))
+        if (nuevo.fecha !== B.inicio.fecha || nuevo.min !== B.inicio.min) {
+          B.inicio = nuevo
+          movio = true
+          movioEsta = true
+        }
+      } else if (!anclas.has(A.id)) {
+        const finB = finMaqDe(B, ctxs)
+        const nuevo = ajustarAJornada({ fecha: finB.fecha, min: finB.min + gap }, ctxDe(A, ctxs))
+        if (nuevo.fecha !== A.inicio.fecha || nuevo.min !== A.inicio.min) {
+          A.inicio = nuevo
+          movio = true
+          movioEsta = true
+        }
+      }
+      // Ambas anclas: conflicto residual (se detectará con las invariantes al integrar).
+    }
+  }
+  return movio
+}
+
 // --- Orquestador (punto fijo) -------------------------------------------------
 
 function claveInicio(it: ItemSimulacion): string {
@@ -196,7 +260,8 @@ export function simular(
   for (let iter = 0; iter < maxIter; iter++) {
     let algo = false
     if (cascadaOperario(items, anclas, ctxs, config.gapMin)) algo = true
-    // (b) push por máquina, (c) correlatividades, (d) pulmones: próximos pasos.
+    if (pushMaquina(items, anclas, ctxs, config.gapMin)) algo = true
+    // (c) correlatividades, (d) pulmones: próximos pasos.
     if (!algo) {
       const movidos = items.filter((it) => inicial.get(it.id) !== claveInicio(it)).map((it) => it.id)
       return { ok: true, items, movidos }
