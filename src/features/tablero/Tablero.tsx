@@ -1,13 +1,18 @@
 // features/tablero/Tablero.tsx
 // -----------------------------------------------------------------------------
-// Primer render del tablero por operario: grilla con operarios en columnas y días
-// en filas, y los bloques posicionados en su hora y carril reales.
+// Tablero por operario: grilla con operarios en columnas y días en filas, con los
+// bloques posicionados en su hora y carril reales.
 //
-// Usa la capa de datos (cargarTablero) y la geometría (porcentajeLeft/Ancho). Es
-// solo lectura por ahora; la interacción (drag & drop, edición) viene después.
+// Interacción: los bloques se arrastran (dnd-kit) y las celdas los reciben. Por
+// ahora el drop solo se DETECTA (muestra dónde cayó); mover y guardar viene en
+// los sub-pasos siguientes.
 // -----------------------------------------------------------------------------
 
 import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react'
+import {
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  useDraggable, useDroppable, type DragEndEvent, type DragStartEvent,
+} from '@dnd-kit/core'
 import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import type { BloqueVisual } from './datos/bloquesVisuales'
@@ -43,11 +48,18 @@ function minAHora(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
+type DropInfo = { desc: string; operario: string; fecha: string }
+
 export default function Tablero() {
   const [datos, setDatos] = useState<TableroCargado | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tip, setTip] = useState<{ b: BloqueVisual; x: number; y: number } | null>(null)
+  const [dragActivo, setDragActivo] = useState<BloqueVisual | null>(null)
+  const [dropInfo, setDropInfo] = useState<DropInfo | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hay que mover ~5px para que empiece el arrastre (un click simple no dispara drag).
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
     cargarTablero()
@@ -77,6 +89,26 @@ export default function Tablero() {
     setTip(null)
   }
 
+  function onDragStart(e: DragStartEvent) {
+    ocultarTip()
+    const procesoId = e.active.data.current?.procesoId as number | undefined
+    setDragActivo(bloques.find((b) => b.procesoId === procesoId) ?? null)
+  }
+
+  function onDragEnd(e: DragEndEvent) {
+    setDragActivo(null)
+    const procesoId = e.active.data.current?.procesoId as number | undefined
+    const info = e.over?.data.current as { operarioId: number; fecha: string } | undefined
+    if (procesoId == null || !info) return
+    const b = bloques.find((x) => x.procesoId === procesoId)
+    const op = personal.find((p) => p.id === info.operarioId)
+    setDropInfo({
+      desc: b?.descripcion ?? `#${procesoId}`,
+      operario: op ? nombreCorto(op) : `operario ${info.operarioId}`,
+      fecha: info.fecha,
+    })
+  }
+
   // Días visibles (sin domingos) entre desde y hasta.
   const dias: FechaISO[] = []
   for (let f = desde; f <= hasta; f = sumarDias(f, 1)) {
@@ -87,61 +119,106 @@ export default function Tablero() {
   const mediodiaPct = porcentajeLeft(720, vIni, vTotal)
 
   return (
-    <div className="tab-scroll">
-      <div className="tab-grid" style={{ gridTemplateColumns: columnas }}>
-        {/* Esquina */}
-        <div className="tab-hc">
-          {ventanaInicio.slice(0, 5)} → {ventanaFin.slice(0, 5)}
-        </div>
-        {/* Cabeceras de operario */}
-        {personal.map((op) => (
-          <div key={op.id} className="tab-ho">
-            {nombreCorto(op)}
+    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <div className="tab-scroll">
+        <div className="tab-grid" style={{ gridTemplateColumns: columnas }}>
+          {/* Esquina */}
+          <div className="tab-hc">
+            {ventanaInicio.slice(0, 5)} → {ventanaFin.slice(0, 5)}
           </div>
-        ))}
+          {/* Cabeceras de operario */}
+          {personal.map((op) => (
+            <div key={op.id} className="tab-ho">
+              {nombreCorto(op)}
+            </div>
+          ))}
 
-        {/* Filas de días */}
-        {dias.map((dia, idx) => {
-          const claseDia = dia === hoy ? 'es-hoy' : dia < hoy ? 'es-pasado' : ''
-          const alterna = idx % 2 === 1
-          return (
-            <Fragment key={dia}>
-              <div className={`tab-hr ${claseDia}`} style={{ minHeight: ALTO_FILA + 2 }}>
-                {nombreDia(dia)}
-              </div>
-              {personal.map((op) => {
-                const delDia = bloques.filter((b) => b.operarioId === op.id && b.fecha === dia)
-                const carriles = Math.max(MIN_CARRILES, ...delDia.map((b) => b.track + 1), MIN_CARRILES)
-                const altoBloque = ALTO_FILA / carriles
-                const claseCelda = dia === hoy ? 'es-hoy' : dia < hoy ? 'es-pasado' : alterna ? 'es-alterna' : ''
-                return (
-                  <div key={op.id} className={`tab-cl ${claseCelda}`} style={{ height: ALTO_FILA + 2 }}>
-                    <div className="tab-mediodia" style={{ left: `${mediodiaPct}%` }} />
-                    {delDia.map((b) => (
-                      <Bloque
-                        key={`${b.procesoId}-${b.parte}`}
-                        b={b}
-                        altoBloque={altoBloque}
-                        vIni={vIni}
-                        vTotal={vTotal}
-                        onEnter={mostrarTip}
-                        onMove={moverTip}
-                        onLeave={ocultarTip}
-                      />
-                    ))}
-                    {delDia
-                      .filter((b) => b.esAuto && b.setupMin > 0 && b.track >= 1)
-                      .map((b) => (
-                        <GhostSetup key={`g-${b.procesoId}-${b.parte}`} b={b} altoBloque={altoBloque} vIni={vIni} vTotal={vTotal} />
-                      ))}
-                  </div>
-                )
-              })}
-            </Fragment>
-          )
-        })}
+          {/* Filas de días */}
+          {dias.map((dia, idx) => {
+            const claseDia = dia === hoy ? 'es-hoy' : dia < hoy ? 'es-pasado' : ''
+            const alterna = idx % 2 === 1
+            return (
+              <Fragment key={dia}>
+                <div className={`tab-hr ${claseDia}`} style={{ minHeight: ALTO_FILA + 2 }}>
+                  {nombreDia(dia)}
+                </div>
+                {personal.map((op) => (
+                  <Celda
+                    key={op.id}
+                    operarioId={op.id}
+                    fecha={dia}
+                    hoy={hoy}
+                    alterna={alterna}
+                    mediodiaPct={mediodiaPct}
+                    bloques={bloques.filter((b) => b.operarioId === op.id && b.fecha === dia)}
+                    vIni={vIni}
+                    vTotal={vTotal}
+                    onEnter={mostrarTip}
+                    onMove={moverTip}
+                    onLeave={ocultarTip}
+                  />
+                ))}
+              </Fragment>
+            )
+          })}
+        </div>
+        {tip ? <Tooltip tip={tip} /> : null}
+        {dropInfo ? (
+          <div className="tab-drop-aviso" onClick={() => setDropInfo(null)}>
+            Soltaste “{dropInfo.desc}” en {dropInfo.operario} · {dropInfo.fecha} — todavía no se guarda (clic para cerrar)
+          </div>
+        ) : null}
       </div>
-      {tip ? <Tooltip tip={tip} /> : null}
+      <DragOverlay>{dragActivo ? <OverlayBloque b={dragActivo} /> : null}</DragOverlay>
+    </DndContext>
+  )
+}
+
+// Celda operario-día: zona donde se sueltan los bloques.
+function Celda({
+  operarioId, fecha, hoy, alterna, mediodiaPct, bloques, vIni, vTotal, onEnter, onMove, onLeave,
+}: {
+  operarioId: number
+  fecha: FechaISO
+  hoy: FechaISO
+  alterna: boolean
+  mediodiaPct: number
+  bloques: BloqueVisual[]
+  vIni: number
+  vTotal: number
+  onEnter: (b: BloqueVisual, e: MouseEvent) => void
+  onMove: (e: MouseEvent) => void
+  onLeave: () => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `celda-${operarioId}-${fecha}`, data: { operarioId, fecha } })
+  const carriles = Math.max(MIN_CARRILES, ...bloques.map((b) => b.track + 1), MIN_CARRILES)
+  const altoBloque = ALTO_FILA / carriles
+  const claseCelda = fecha === hoy ? 'es-hoy' : fecha < hoy ? 'es-pasado' : alterna ? 'es-alterna' : ''
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`tab-cl ${claseCelda} ${isOver ? 'tab-drop-activo' : ''}`}
+      style={{ height: ALTO_FILA + 2 }}
+    >
+      <div className="tab-mediodia" style={{ left: `${mediodiaPct}%` }} />
+      {bloques.map((b) => (
+        <Bloque
+          key={`${b.procesoId}-${b.parte}`}
+          b={b}
+          altoBloque={altoBloque}
+          vIni={vIni}
+          vTotal={vTotal}
+          onEnter={onEnter}
+          onMove={onMove}
+          onLeave={onLeave}
+        />
+      ))}
+      {bloques
+        .filter((b) => b.esAuto && b.setupMin > 0 && b.track >= 1)
+        .map((b) => (
+          <GhostSetup key={`g-${b.procesoId}-${b.parte}`} b={b} altoBloque={altoBloque} vIni={vIni} vTotal={vTotal} />
+        ))}
     </div>
   )
 }
@@ -157,14 +234,19 @@ function Bloque({
   onMove: (e: MouseEvent) => void
   onLeave: () => void
 }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `proc-${b.procesoId}-${b.parte}`,
+    data: { procesoId: b.procesoId },
+  })
+
   const dur = b.finMin - b.inicioMin
   const left = porcentajeLeft(b.inicioMin, vIni, vTotal)
   const width = Math.min(porcentajeAncho(dur, vTotal), 100 - left)
 
   // Frontera setup/máquina (solo en auto/semi; en manual setupMin es 0 y esAuto false).
   const setupPct = dur > 0 ? (b.setupMin / dur) * 100 : 0
-  const rayarMaquina = b.esAuto && b.setupMin < dur // hay porción de máquina sola
-  const haySetup = b.esAuto && b.setupMin > 0 // hay porción de setup
+  const rayarMaquina = b.esAuto && b.setupMin < dur
+  const haySetup = b.esAuto && b.setupMin > 0
   const anchoSetupPx = (width / 100) * 400 * (dur > 0 ? b.setupMin / dur : 0)
   const cabeManual = haySetup && anchoSetupPx >= 12 && altoBloque - 4 >= 56
   const fontManual = Math.max(7, Math.min(11, Math.floor(((altoBloque - 4) * 0.7) / 6)))
@@ -172,7 +254,8 @@ function Bloque({
 
   return (
     <div
-      className={`tab-bk ${b.hecho ? 'es-hecho' : ''}`}
+      ref={setNodeRef}
+      className={`tab-bk ${b.hecho ? 'es-hecho' : ''} ${isDragging ? 'tab-arrastrando' : ''}`}
       style={{
         left: `calc(${left}% + 1px)`,
         width: `${width}%`,
@@ -182,6 +265,8 @@ function Bloque({
         color: TEXTO_URGENCIA[b.urgencia] ?? '#000',
         borderColor: b.maquinaColor ?? '#888780',
       }}
+      {...listeners}
+      {...attributes}
       onMouseEnter={(e) => onEnter(b, e)}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
@@ -218,6 +303,23 @@ function Bloque({
           {marca}
         </span>
       ) : null}
+    </div>
+  )
+}
+
+// Representación simple del bloque que sigue al cursor mientras se arrastra.
+function OverlayBloque({ b }: { b: BloqueVisual }) {
+  return (
+    <div
+      className="tab-overlay"
+      style={{
+        background: FONDO_URGENCIA[b.urgencia] ?? FONDO_URGENCIA.media,
+        color: TEXTO_URGENCIA[b.urgencia] ?? '#000',
+        borderColor: b.maquinaColor ?? '#888780',
+      }}
+    >
+      {b.descripcion}
+      {b.tipoProceso ? ` · ${b.tipoProceso}` : ''}
     </div>
   )
 }

@@ -265,6 +265,46 @@
   margin-bottom: 3px;
 }
 
+/* Drag & drop */
+.tab-arrastrando {
+  opacity: 0.4;
+}
+/* Celda destino resaltada mientras arrastrás por encima (gana a los fondos de estado) */
+.tab-cl.tab-drop-activo {
+  outline: 2px dashed #378add;
+  outline-offset: -2px;
+  background: rgba(55, 138, 221, 0.12);
+}
+/* Copia del bloque que sigue al cursor */
+.tab-overlay {
+  border: 2.5px solid;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  cursor: grabbing;
+}
+/* Aviso temporal de dónde cayó el bloque (provisional, para validar el arrastre) */
+.tab-drop-aviso {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 350;
+  background: #0c447c;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
 /* Badge parte N/M */
 .tab-parte {
   display: inline-block;
