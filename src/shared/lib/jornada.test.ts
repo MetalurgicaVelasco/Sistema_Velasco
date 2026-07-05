@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest'
 import { jornada, type HorarioOperario } from './jornada'
 
 const conSabado: HorarioOperario = {
-  horario_entrada: '06:00:00',
-  horario_salida: '15:00:00',
-  horario_sabado_inicio: '07:00:00',
-  horario_sabado_fin: '12:00:00',
+  horarioEntrada: '06:00:00',
+  horarioSalida: '15:00:00',
+  horarioSabadoInicio: '07:00:00',
+  horarioSabadoFin: '12:00:00',
 }
 
 const sinSabado: HorarioOperario = {
-  horario_entrada: '08:00:00',
-  horario_salida: '17:00:00',
-  horario_sabado_inicio: null,
-  horario_sabado_fin: null,
+  horarioEntrada: '08:00:00',
+  horarioSalida: '17:00:00',
+  horarioSabadoInicio: null,
+  horarioSabadoFin: null,
 }
 
 describe('jornada — días de semana', () => {

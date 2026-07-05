@@ -11,14 +11,14 @@ import { esDomingo, esSabado, horaAMin, type FechaISO } from './fechas'
 
 /**
  * Los campos de horario que la función necesita del operario. Cualquier objeto
- * que los tenga sirve (no hace falta el tipo Personal completo). Las horas son
- * 'HH:MM:SS' como las devuelve Supabase, o null si no están cargadas.
+ * que los tenga sirve (p. ej. un PersonalTablero). Las horas van en camelCase
+ * como el resto del código de la app ('HH:MM:SS' o null si no están cargadas).
  */
 export interface HorarioOperario {
-  horario_entrada: string | null
-  horario_salida: string | null
-  horario_sabado_inicio: string | null
-  horario_sabado_fin: string | null
+  horarioEntrada: string | null
+  horarioSalida: string | null
+  horarioSabadoInicio: string | null
+  horarioSabadoFin: string | null
 }
 
 /** Turno de un operario en un día, en minutos desde medianoche. */
@@ -33,25 +33,25 @@ const NO_TRABAJA: Turno = { trabaja: false, inicioMin: 0, finMin: 0 }
 /**
  * Turno del operario en esa fecha.
  *  - Domingo: no trabaja.
- *  - Sábado: usa horario_sabado_*; si están vacíos, no trabaja ese sábado.
- *  - Lunes a viernes: usa horario_entrada/salida; si faltan, no trabaja.
+ *  - Sábado: usa el horario de sábado; si está vacío, no trabaja ese sábado.
+ *  - Lunes a viernes: usa entrada/salida; si faltan, no trabaja.
  */
 export function jornada(op: HorarioOperario, fecha: FechaISO): Turno {
   if (esDomingo(fecha)) return NO_TRABAJA
 
   if (esSabado(fecha)) {
-    if (!op.horario_sabado_inicio || !op.horario_sabado_fin) return NO_TRABAJA
+    if (!op.horarioSabadoInicio || !op.horarioSabadoFin) return NO_TRABAJA
     return {
       trabaja: true,
-      inicioMin: horaAMin(op.horario_sabado_inicio),
-      finMin: horaAMin(op.horario_sabado_fin),
+      inicioMin: horaAMin(op.horarioSabadoInicio),
+      finMin: horaAMin(op.horarioSabadoFin),
     }
   }
 
-  if (!op.horario_entrada || !op.horario_salida) return NO_TRABAJA
+  if (!op.horarioEntrada || !op.horarioSalida) return NO_TRABAJA
   return {
     trabaja: true,
-    inicioMin: horaAMin(op.horario_entrada),
-    finMin: horaAMin(op.horario_salida),
+    inicioMin: horaAMin(op.horarioEntrada),
+    finMin: horaAMin(op.horarioSalida),
   }
 }
