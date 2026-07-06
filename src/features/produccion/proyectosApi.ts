@@ -212,7 +212,7 @@ export async function buscarProyectos(
   const nro = f.nroProyecto.trim()
   if (/^\d+$/.test(nro)) q = q.eq('id', Number(nro))
 
-  if (f.nroPedido.trim() !== '') q = q.ilike('pedido_nro', like(f.nroPedido))
+  if (f.nroPedido.trim() !== '') q = q.eq('pedido_nro', f.nroPedido.trim())
 
   if (f.descProyecto.trim() !== '') q = q.ilike('descripcion', like(f.descProyecto))
 
