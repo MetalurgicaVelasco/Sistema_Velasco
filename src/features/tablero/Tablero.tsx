@@ -52,7 +52,7 @@ function minAHora(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-type PlanCrudo = { ok: true; cambios: CambioPlan[] } | { ok: false; error: string }
+type PlanCrudo = { ok: true; cambios: CambioPlan[]; movidos: number[] } | { ok: false; error: string }
 
 export default function Tablero() {
   const [datos, setDatos] = useState<TableroCargado | null>(null)
@@ -66,6 +66,7 @@ export default function Tablero() {
   const [edicion, setEdicion] = useState<{ fecha: string; hora: string }>({ fecha: '', hora: '' })
   const [historialUndo, setHistorialUndo] = useState<CambioPlan[][]>([])
   const [errorUndo, setErrorUndo] = useState<string | null>(null)
+  const [modalActividad, setModalActividad] = useState<BloqueVisual | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hay que mover ~5px para que empiece el arrastre (un click simple no dispara drag).
@@ -99,6 +100,11 @@ export default function Tablero() {
     setTip(null)
   }
 
+  function abrirActividad(b: BloqueVisual) {
+    ocultarTip()
+    setModalActividad(b)
+  }
+
   function onDragStart(e: DragStartEvent) {
     ocultarTip()
     const procesoId = e.active.data.current?.procesoId as number | undefined
@@ -125,7 +131,7 @@ export default function Tablero() {
           : 'El motor no logró acomodar el cambio.'
       return { ok: false, error: msg }
     }
-    return { ok: true, cambios: armarPlan(resultado, [procesoId]) }
+    return { ok: true, cambios: armarPlan(resultado, [procesoId]), movidos: resultado.movidos }
   }
 
   function onDragEnd(e: DragEndEvent) {
@@ -152,7 +158,15 @@ export default function Tablero() {
     const inicioJornada = ctx ? jornada(ctx.operario, info.fecha).inicioMin : vIni
     const dropMinSnap = snapearInsercion(dropMin, ocupaciones, inicioJornada, datos.gap)
 
-    setPlanCrudo(calcularPlan(procesoId, info.operarioId, info.fecha, dropMinSnap))
+    const plan = calcularPlan(procesoId, info.operarioId, info.fecha, dropMinSnap)
+    // Si el movimiento no reacomoda a nadie (sin cascada), aplicar directo, sin
+    // modal: el Deshacer queda disponible para revertir. El modal solo aparece
+    // cuando hay otras actividades que se corren.
+    if (plan.ok && plan.movidos.length === 0) {
+      escribirPlan(plan.cambios)
+      return
+    }
+    setPlanCrudo(plan)
     setAnclaBase({ procesoId, operarioId: info.operarioId })
     setEdicion({ fecha: info.fecha, hora: minAHora(dropMinSnap) })
     setErrorGuardar(null)
@@ -166,11 +180,12 @@ export default function Tablero() {
     setErrorGuardar(null)
   }
 
-  async function confirmarPlan() {
-    if (!planCrudo?.ok || !planCrudo.cambios.length || !datos) return
-    // Capturar el "plan inverso": dónde estaban los procesos que vamos a mover,
-    // para poder deshacer restaurando esas posiciones (que ya eran válidas).
-    const inverso: CambioPlan[] = planCrudo.cambios.map((c) => {
+  // Escribe un plan por la RPC, recarga el tablero y apila el inverso para
+  // deshacer. Devuelve true si se escribió sin error.
+  async function escribirPlan(cambios: CambioPlan[]): Promise<boolean> {
+    if (!datos || !cambios.length) return false
+    // Plan inverso: dónde estaban los procesos que se mueven, para poder deshacer.
+    const inverso: CambioPlan[] = cambios.map((c) => {
       const orig = datos.materialSim.items.find((it) => it.id === c.procesoId)
       return {
         procesoId: c.procesoId,
@@ -184,16 +199,25 @@ export default function Tablero() {
     setGuardando(true)
     setErrorGuardar(null)
     try {
-      await aplicarPlan(planCrudo.cambios) // escribe por la RPC (atómico)
+      await aplicarPlan(cambios) // escribe por la RPC (atómico)
       const nuevos = await cargarTablero() // recarga completa desde la base
       setDatos(nuevos)
-      setPlanCrudo(null)
-      setAnclaBase(null)
       setHistorialUndo((h) => [...h, inverso].slice(-5)) // guarda los últimos 5
+      return true
     } catch (e) {
       setErrorGuardar(e instanceof Error ? e.message : String(e))
+      return false
     } finally {
       setGuardando(false)
+    }
+  }
+
+  async function confirmarPlan() {
+    if (!planCrudo?.ok) return
+    const ok = await escribirPlan(planCrudo.cambios)
+    if (ok) {
+      setPlanCrudo(null)
+      setAnclaBase(null)
     }
   }
 
@@ -269,6 +293,7 @@ export default function Tablero() {
                     onEnter={mostrarTip}
                     onMove={moverTip}
                     onLeave={ocultarTip}
+                    onAbrir={abrirActividad}
                   />
                 ))}
               </Fragment>
@@ -359,13 +384,14 @@ export default function Tablero() {
         {errorUndo ? <div className="tab-undo-error">No se pudo deshacer: {errorUndo}</div> : null}
       </div>
       <DragOverlay>{dragActivo ? <OverlayBloque b={dragActivo} /> : null}</DragOverlay>
+      {modalActividad ? <ModalActividad b={modalActividad} onCerrar={() => setModalActividad(null)} /> : null}
     </DndContext>
   )
 }
 
 // Celda operario-día: zona donde se sueltan los bloques.
 function Celda({
-  operarioId, fecha, hoy, alterna, mediodiaPct, bloques, vIni, vTotal, onEnter, onMove, onLeave,
+  operarioId, fecha, hoy, alterna, mediodiaPct, bloques, vIni, vTotal, onEnter, onMove, onLeave, onAbrir,
 }: {
   operarioId: number
   fecha: FechaISO
@@ -378,6 +404,7 @@ function Celda({
   onEnter: (b: BloqueVisual, e: MouseEvent) => void
   onMove: (e: MouseEvent) => void
   onLeave: () => void
+  onAbrir: (b: BloqueVisual) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `celda-${operarioId}-${fecha}`, data: { operarioId, fecha } })
   const carriles = Math.max(MIN_CARRILES, ...bloques.map((b) => b.track + 1), MIN_CARRILES)
@@ -401,6 +428,7 @@ function Celda({
           onEnter={onEnter}
           onMove={onMove}
           onLeave={onLeave}
+          onAbrir={onAbrir}
         />
       ))}
       {bloques
@@ -413,7 +441,7 @@ function Celda({
 }
 
 function Bloque({
-  b, altoBloque, vIni, vTotal, onEnter, onMove, onLeave,
+  b, altoBloque, vIni, vTotal, onEnter, onMove, onLeave, onAbrir,
 }: {
   b: BloqueVisual
   altoBloque: number
@@ -422,6 +450,7 @@ function Bloque({
   onEnter: (b: BloqueVisual, e: MouseEvent) => void
   onMove: (e: MouseEvent) => void
   onLeave: () => void
+  onAbrir: (b: BloqueVisual) => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `proc-${b.procesoId}-${b.parte}`,
@@ -459,6 +488,7 @@ function Bloque({
       onMouseEnter={(e) => onEnter(b, e)}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
+      onClick={() => onAbrir(b)}
     >
       {rayarMaquina ? <div className="tab-rayado" style={{ left: `${setupPct}%` }} /> : null}
       {haySetup ? <div className="tab-sep" style={{ left: `${setupPct}%` }} /> : null}
@@ -497,6 +527,74 @@ function Bloque({
 }
 
 // Representación simple del bloque que sigue al cursor mientras se arrastra.
+// Modal de una actividad planificada: al hacer click en un bloque, muestra sus
+// datos. Por ahora solo lectura; los campos editables y las acciones vienen en los
+// sub-pasos siguientes.
+function ModalActividad({ b, onCerrar }: { b: BloqueVisual; onCerrar: () => void }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar()
+    }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [onCerrar])
+
+  const tipoLabel =
+    b.modo === 'automatica' ? 'Automática (24/7)' : b.modo === 'semi_automatica' ? 'Semi-automática' : 'Manual'
+
+  return (
+    <div className="tab-modal-overlay">
+      <div className="tab-modal tab-modal-act">
+        <button className="tab-modal-x" onClick={onCerrar} aria-label="Cerrar">
+          ×
+        </button>
+        <div className="tab-modal-titulo">{b.descripcion}</div>
+        <div className="tab-act-info">
+          {b.cliente ? (
+            <div>
+              <b>Cliente:</b> {b.cliente}
+            </div>
+          ) : null}
+          {b.pedidoNro ? (
+            <div>
+              <b>Pedido:</b> {b.pedidoNro}
+            </div>
+          ) : null}
+          {b.tipoProceso ? (
+            <div>
+              <b>Proceso:</b> {b.tipoProceso}
+            </div>
+          ) : null}
+          <div>
+            <b>Tipo:</b> {tipoLabel}
+          </div>
+          <div>
+            <b>Operario:</b> {b.operarioNombre}
+          </div>
+          {b.maquinaNombre ? (
+            <div>
+              <b>Máquina:</b> {b.maquinaNombre}
+            </div>
+          ) : null}
+          <div>
+            <b>Horario:</b> {minAHora(b.inicioMin)}–{minAHora(b.finMin)}
+          </div>
+          {b.totalPartes > 1 ? (
+            <div>
+              <b>Parte:</b> {b.parte}/{b.totalPartes}
+            </div>
+          ) : null}
+        </div>
+        <div className="tab-plan-botones">
+          <button className="tab-btn-sec" onClick={onCerrar}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function OverlayBloque({ b }: { b: BloqueVisual }) {
   return (
     <div
