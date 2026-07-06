@@ -346,6 +346,27 @@
   border-radius: 6px;
   padding: 8px 10px;
 }
+.tab-plan-editar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ece9e0;
+}
+.tab-plan-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #5f5e5a;
+}
+.tab-plan-campo input {
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
 .tab-plan-botones {
   display: flex;
   gap: 8px;

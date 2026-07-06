@@ -119,15 +119,13 @@ describe('correlatividades', () => {
     if (r.ok) expect(r.movidos).toEqual([])
   })
 
-  it('un sucesor ancla que viola queda como conflicto residual (no se mueve)', () => {
+  it('un sucesor ancla que viola la correlatividad → conflicto_no_resoluble', () => {
+    // El sucesor (ancla) queda antes de que termine su predecesor: es imposible.
     const pred = item(1, 360, 540, { operarioId: 3, maquinaId: 5 })
     const suc = item(2, 360, 60, { operarioId: 4, maquinaId: 6 })
     const r = simular([pred, suc], [2], ctxs, { gapMin: 10 }, corr)
-    expect(r.ok).toBe(true)
-    if (r.ok) {
-      expect(r.items.find((i) => i.id === 2)!.inicio).toEqual({ fecha: '2026-07-06', min: 360 })
-      expect(r.movidos).toEqual([])
-    }
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toBe('conflicto_no_resoluble')
   })
 
   it('predecesor ausente no bloquea ni mueve', () => {

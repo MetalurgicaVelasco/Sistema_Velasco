@@ -62,6 +62,8 @@ export default function Tablero() {
   const [planCrudo, setPlanCrudo] = useState<PlanCrudo | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null)
+  const [anclaBase, setAnclaBase] = useState<{ procesoId: number; operarioId: number } | null>(null)
+  const [edicion, setEdicion] = useState<{ fecha: string; hora: string }>({ fecha: '', hora: '' })
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hay que mover ~5px para que empiece el arrastre (un click simple no dispara drag).
@@ -101,6 +103,29 @@ export default function Tablero() {
     setDragActivo(bloques.find((b) => b.procesoId === procesoId) ?? null)
   }
 
+  // Simula mover un proceso a (operario, fecha, minuto) y arma el plan resultante.
+  // La usan tanto el arrastre (con el minuto snapeado) como "Recalcular" (con el
+  // minuto que el usuario escribe a mano, sin snapeo).
+  function calcularPlan(procesoId: number, operarioId: number, fecha: FechaISO, min: number): PlanCrudo {
+    if (!datos) return { ok: false, error: 'Tablero no cargado.' }
+    const original = datos.materialSim.items.find((it) => it.id === procesoId)
+    if (!original) {
+      return { ok: false, error: 'No se puede mover este bloque (no está en el material de simulación; puede ser pasado).' }
+    }
+    const items = datos.materialSim.items.map((it) =>
+      it.id === procesoId ? { ...it, operarioId, inicio: { fecha, min } } : it,
+    )
+    const resultado = simular(items, [procesoId], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
+    if (!resultado.ok) {
+      const msg =
+        resultado.error === 'conflicto_no_resoluble'
+          ? 'El cambio genera un conflicto imposible de resolver: dos bloques fijos se pisan, o un proceso quedaría antes de su predecesor.'
+          : 'El motor no logró acomodar el cambio.'
+      return { ok: false, error: msg }
+    }
+    return { ok: true, cambios: armarPlan(resultado, [procesoId]) }
+  }
+
   function onDragEnd(e: DragEndEvent) {
     setDragActivo(null)
     if (!datos) return
@@ -115,8 +140,7 @@ export default function Tablero() {
     const dropMinCrudo = vIni + (xRel / overRect.width) * vTotal
     const dropMin = Math.max(vIni, Math.round(dropMinCrudo / 5) * 5)
 
-    // Ocupaciones del operario destino ese día (para automáticas, solo el setup),
-    // sin contar el bloque que se está moviendo.
+    // Ocupaciones del operario destino ese día (para automáticas, solo el setup).
     const ocupaciones: Ocupacion[] = bloques
       .filter((b) => b.operarioId === info.operarioId && b.fecha === info.fecha && b.procesoId !== procesoId)
       .map((b) => (b.esAuto ? { inicio: b.inicioMin, fin: b.inicioMin + b.setupMin } : { inicio: b.inicioMin, fin: b.finMin }))
@@ -126,25 +150,18 @@ export default function Tablero() {
     const inicioJornada = ctx ? jornada(ctx.operario, info.fecha).inicioMin : vIni
     const dropMinSnap = snapearInsercion(dropMin, ocupaciones, inicioJornada, datos.gap)
 
-    // Reemplazar el proceso movido con su nueva posición (ancla) y simular.
-    const original = datos.materialSim.items.find((it) => it.id === procesoId)
-    if (!original) {
-      setPlanCrudo({ ok: false, error: 'No se puede mover este bloque (no está en el material de simulación; puede ser pasado).' })
-      return
-    }
-    const items = datos.materialSim.items.map((it) =>
-      it.id === procesoId ? { ...it, operarioId: info.operarioId, inicio: { fecha: info.fecha, min: dropMinSnap } } : it,
-    )
-    const resultado = simular(items, [procesoId], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
-    if (!resultado.ok) {
-      const msg =
-        resultado.error === 'conflicto_no_resoluble'
-          ? 'Conflicto: dos bloques fijos se pisan y no se pueden resolver.'
-          : 'El motor no logró acomodar el cambio.'
-      setPlanCrudo({ ok: false, error: msg })
-      return
-    }
-    setPlanCrudo({ ok: true, cambios: armarPlan(resultado, [procesoId]) })
+    setPlanCrudo(calcularPlan(procesoId, info.operarioId, info.fecha, dropMinSnap))
+    setAnclaBase({ procesoId, operarioId: info.operarioId })
+    setEdicion({ fecha: info.fecha, hora: minAHora(dropMinSnap) })
+    setErrorGuardar(null)
+  }
+
+  // Re-simula con la fecha/hora que el usuario escribió, sin snapeo.
+  function recalcular() {
+    if (!anclaBase || !edicion.fecha || !edicion.hora) return
+    const min = horaAMin(edicion.hora)
+    setPlanCrudo(calcularPlan(anclaBase.procesoId, anclaBase.operarioId, edicion.fecha as FechaISO, min))
+    setErrorGuardar(null)
   }
 
   async function confirmarPlan() {
@@ -156,6 +173,7 @@ export default function Tablero() {
       const nuevos = await cargarTablero() // recarga completa desde la base
       setDatos(nuevos)
       setPlanCrudo(null)
+      setAnclaBase(null)
     } catch (e) {
       setErrorGuardar(e instanceof Error ? e.message : String(e))
     } finally {
@@ -165,6 +183,7 @@ export default function Tablero() {
 
   function cerrarPlan() {
     setPlanCrudo(null)
+    setAnclaBase(null)
     setErrorGuardar(null)
   }
 
@@ -259,6 +278,29 @@ export default function Tablero() {
             )}
             {errorGuardar ? (
               <div className="tab-plan-error">Error al guardar: {errorGuardar}</div>
+            ) : null}
+            {anclaBase ? (
+              <div className="tab-plan-editar">
+                <label className="tab-plan-campo">
+                  Fecha
+                  <input
+                    type="date"
+                    value={edicion.fecha}
+                    onChange={(e) => setEdicion({ ...edicion, fecha: e.target.value })}
+                  />
+                </label>
+                <label className="tab-plan-campo">
+                  Hora
+                  <input
+                    type="time"
+                    value={edicion.hora}
+                    onChange={(e) => setEdicion({ ...edicion, hora: e.target.value })}
+                  />
+                </label>
+                <button className="tab-btn-sec" onClick={recalcular} disabled={guardando}>
+                  Recalcular
+                </button>
+              </div>
             ) : null}
             <div className="tab-plan-botones">
               <button className="tab-btn-sec" onClick={cerrarPlan} disabled={guardando}>

@@ -276,14 +276,15 @@ export function simular(
     if (enforceCorrelatividades(items, anclas, ctxs, config.gapMin, correlatividades)) algo = true
     // (d) pulmones: próximo paso.
     if (!algo) {
-      // Convergió. Chequear que no queden solapes de recurso (típicamente dos
-      // anclas que se pisan y no se pudieron mover): sería un plan imposible.
+      // Convergió. Chequear que no queden violaciones de recurso NI de
+      // correlatividad (p. ej. un sucesor anclado antes de su predecesor): sería
+      // un plan imposible.
       const bloques = items.map((it) => itemABloque(it, ctxs))
-      const solapes = validarInvariantes(bloques, correlatividades).filter(
-        (v) => v.tipo === 'solape_maquina' || v.tipo === 'solape_operario',
+      const violaciones = validarInvariantes(bloques, correlatividades).filter(
+        (v) => v.tipo === 'solape_maquina' || v.tipo === 'solape_operario' || v.tipo === 'correlatividad',
       )
-      if (solapes.length > 0) {
-        return { ok: false, error: 'conflicto_no_resoluble', detalle: { solapes } }
+      if (violaciones.length > 0) {
+        return { ok: false, error: 'conflicto_no_resoluble', detalle: { violaciones } }
       }
       const movidos = items.filter((it) => inicial.get(it.id) !== claveInicio(it)).map((it) => it.id)
       return { ok: true, items, movidos }
