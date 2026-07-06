@@ -26,7 +26,7 @@ import {
 } from './bloquesVisuales'
 import { materialSimulacion, type MaterialSimulacion } from './materialSim'
 import { diaLaboralAnterior } from '../motor/pasado'
-import type { PersonalTablero } from '../tipos'
+import type { PersonalTablero, MaquinaTablero } from '../tipos'
 import type { Correlatividad } from '../../produccion/procesoTipos'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -92,6 +92,7 @@ export type TableroCargado = {
   materialSim: MaterialSimulacion
   correlatividades: Correlatividad[]
   gap: number
+  maquinas: MaquinaTablero[] // catálogo para reasignar máquina en el modal
 }
 
 export async function cargarTablero(): Promise<TableroCargado> {
@@ -142,5 +143,6 @@ export async function cargarTablero(): Promise<TableroCargado> {
     materialSim,
     correlatividades,
     gap: config.gapMin,
+    maquinas: maquinasArr,
   }
 }

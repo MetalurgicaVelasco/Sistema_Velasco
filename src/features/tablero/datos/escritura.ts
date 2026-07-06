@@ -21,6 +21,16 @@ export type CambioPlan = {
   planOperarioId: number | null
   planMaquinaId: number | null
   estado: 'planificado'
+  // Opcional: cuando el modal edita los tiempos del proceso (cambio directo). Se
+  // escriben en el proceso Y en plan_aceptado (iguales → sin divergencia).
+  tiempos?: {
+    setupMin: number
+    operacionMin: number
+    margenMin: number
+    cantidad: number
+    modo: string
+  }
+  setupSolapable?: boolean
 }
 
 function minAHora(min: number): string {
@@ -49,15 +59,34 @@ export function armarPlan(resultado: ResultadoSimulacion, anclasIds: number[]): 
 // Escribe el plan por la RPC atómica. Traduce al jsonb que la función espera.
 export async function aplicarPlan(cambios: CambioPlan[]): Promise<void> {
   if (!cambios.length) return
-  const plan = cambios.map((c) => ({
-    tabla: 'procesos',
-    id: c.procesoId,
-    plan_fecha: c.planFecha,
-    plan_hora: c.planHora,
-    plan_operario_id: c.planOperarioId,
-    plan_maquina_id: c.planMaquinaId,
-    estado: c.estado,
-  }))
+  const plan = cambios.map((c) => {
+    const item: Record<string, unknown> = {
+      tabla: 'procesos',
+      id: c.procesoId,
+      plan_fecha: c.planFecha,
+      plan_hora: c.planHora,
+      plan_operario_id: c.planOperarioId,
+      plan_maquina_id: c.planMaquinaId,
+      estado: c.estado,
+    }
+    if (c.setupSolapable !== undefined) item.setup_solapable = c.setupSolapable
+    if (c.tiempos) {
+      const t = c.tiempos
+      item.setup_min = t.setupMin
+      item.operacion_min = t.operacionMin
+      item.margen_min = t.margenMin
+      item.modo = t.modo
+      // Cambio directo: el snapshot queda igual al proceso → sin divergencia.
+      item.plan_aceptado = {
+        setup_min: t.setupMin,
+        operacion_min: t.operacionMin,
+        margen_min: t.margenMin,
+        cantidad: t.cantidad,
+        modo: t.modo,
+      }
+    }
+    return item
+  })
   const { error } = await supabase.rpc('aplicar_plan_tablero', { plan })
   if (error) throw new Error(error.message)
 }

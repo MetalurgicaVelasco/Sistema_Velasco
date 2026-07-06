@@ -341,6 +341,37 @@
   line-height: 1.7;
   margin-bottom: 14px;
 }
+.tab-act-campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.tab-act-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: #5f5e5a;
+}
+.tab-act-campo select,
+.tab-act-campo input {
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-size: 12px;
+  color: #2c2c2a;
+  background: #fff;
+}
+.tab-act-check {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #2c2c2a;
+  cursor: pointer;
+}
 .tab-plan-t {
   font-size: 13px;
   font-weight: 700;

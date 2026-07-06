@@ -67,6 +67,7 @@ export type BloqueVisual = {
   cliente: string
   pedidoNro: string | null
   operarioNombre: string
+  maquinaId: number | null
   maquinaNombre: string | null
   // Estilo
   urgencia: string
@@ -121,6 +122,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
       cliente: proyecto?.clienteNombre ?? '',
       pedidoNro: proyecto?.pedidoNro ?? null,
       operarioNombre: nombreCompleto(operario),
+      maquinaId: p.planMaquinaId ?? null,
       maquinaNombre: maquina?.nombre ?? p.maquinaOtra ?? null,
       urgencia: proyecto?.urgencia ?? 'media',
       maquinaColor: maquina?.color ?? null,

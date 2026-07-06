@@ -16,10 +16,11 @@ import {
 import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import { snapearInsercion, type Ocupacion } from './calculos/insercion'
-import { simular } from './motor/simular'
+import { simular, type ItemSimulacion } from './motor/simular'
+import type { Tiempos } from './motor/duraciones'
 import { armarPlan, aplicarPlan, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
-import type { PersonalTablero } from './tipos'
+import type { PersonalTablero, MaquinaTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, type FechaISO } from '../../shared/lib/fechas'
 import { jornada } from '../../shared/lib/jornada'
 import './tablero.css'
@@ -62,7 +63,12 @@ export default function Tablero() {
   const [planCrudo, setPlanCrudo] = useState<PlanCrudo | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null)
-  const [anclaBase, setAnclaBase] = useState<{ procesoId: number; operarioId: number } | null>(null)
+  const [anclaBase, setAnclaBase] = useState<{
+    procesoId: number
+    operarioId: number
+    maquinaId: number | null
+    tiempos?: Tiempos
+  } | null>(null)
   const [edicion, setEdicion] = useState<{ fecha: string; hora: string }>({ fecha: '', hora: '' })
   const [historialUndo, setHistorialUndo] = useState<CambioPlan[][]>([])
   const [errorUndo, setErrorUndo] = useState<string | null>(null)
@@ -105,6 +111,54 @@ export default function Tablero() {
     setModalActividad(b)
   }
 
+  // Guarda los cambios del modal de actividad: arma el proceso con su nueva
+  // posición/operario/máquina y lo pasa por el motor. Si no reacomoda a nadie se
+  // escribe directo; si cascadea o hay conflicto, aparece el modal del motor.
+  function guardarActividad(cambios: {
+    operarioId: number
+    maquinaId: number | null
+    fecha: FechaISO
+    hora: string
+    tiempos: Tiempos
+    setupSolapable: boolean
+  }) {
+    if (!modalActividad) return
+    const procesoId = modalActividad.procesoId
+    const min = horaAMin(cambios.hora)
+    const plan = calcularPlan(procesoId, cambios.operarioId, cambios.fecha, min, cambios.maquinaId, cambios.tiempos)
+    setModalActividad(null)
+    // Enriquecer el cambio del ancla con los tiempos + setup_solapable editados
+    // (cambio directo: se escriben en el proceso y en plan_aceptado, sin divergencia).
+    const planFull: PlanCrudo = plan.ok
+      ? {
+          ...plan,
+          cambios: plan.cambios.map((c) =>
+            c.procesoId === procesoId
+              ? {
+                  ...c,
+                  tiempos: {
+                    setupMin: cambios.tiempos.setupMin,
+                    operacionMin: cambios.tiempos.operacionMin,
+                    margenMin: cambios.tiempos.margenMin,
+                    cantidad: cambios.tiempos.cantidad,
+                    modo: cambios.tiempos.modo,
+                  },
+                  setupSolapable: cambios.setupSolapable,
+                }
+              : c,
+          ),
+        }
+      : plan
+    if (planFull.ok && planFull.movidos.length === 0) {
+      escribirPlan(planFull.cambios)
+      return
+    }
+    setPlanCrudo(planFull)
+    setAnclaBase({ procesoId, operarioId: cambios.operarioId, maquinaId: cambios.maquinaId, tiempos: cambios.tiempos })
+    setEdicion({ fecha: cambios.fecha, hora: cambios.hora })
+    setErrorGuardar(null)
+  }
+
   function onDragStart(e: DragStartEvent) {
     ocultarTip()
     const procesoId = e.active.data.current?.procesoId as number | undefined
@@ -114,14 +168,29 @@ export default function Tablero() {
   // Simula mover un proceso a (operario, fecha, minuto) y arma el plan resultante.
   // La usan tanto el arrastre (con el minuto snapeado) como "Recalcular" (con el
   // minuto que el usuario escribe a mano, sin snapeo).
-  function calcularPlan(procesoId: number, operarioId: number, fecha: FechaISO, min: number): PlanCrudo {
+  function calcularPlan(
+    procesoId: number,
+    operarioId: number,
+    fecha: FechaISO,
+    min: number,
+    maquinaId?: number | null,
+    tiempos?: Tiempos,
+  ): PlanCrudo {
     if (!datos) return { ok: false, error: 'Tablero no cargado.' }
     const original = datos.materialSim.items.find((it) => it.id === procesoId)
     if (!original) {
       return { ok: false, error: 'No se puede mover este bloque (no está en el material de simulación; puede ser pasado).' }
     }
     const items = datos.materialSim.items.map((it) =>
-      it.id === procesoId ? { ...it, operarioId, inicio: { fecha, min } } : it,
+      it.id === procesoId
+        ? {
+            ...it,
+            operarioId,
+            maquinaId: maquinaId !== undefined ? maquinaId : it.maquinaId,
+            inicio: { fecha, min },
+            tiempos: tiempos ?? it.tiempos,
+          }
+        : it,
     )
     const resultado = simular(items, [procesoId], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
     if (!resultado.ok) {
@@ -139,12 +208,15 @@ export default function Tablero() {
     if (!datos) return
     const procesoId = e.active.data.current?.procesoId as number | undefined
     const info = e.over?.data.current as { operarioId: number; fecha: FechaISO } | undefined
-    const dragRect = e.active.rect.current.translated
     const overRect = e.over?.rect
-    if (procesoId == null || !info || !dragRect || !overRect) return
+    const activador = e.activatorEvent as PointerEvent | undefined
+    if (procesoId == null || !info || !overRect || activador?.clientX == null) return
 
-    // Posición horizontal del bloque soltado → minuto (redondeado a 5).
-    const xRel = dragRect.left - overRect.left
+    // Posición horizontal del CURSOR al soltar → minuto (como el viejo: usa el
+    // mouse, no el borde del bloque, así un bloque ancho no se pega al lugar
+    // equivocado). clientX del inicio + cuánto se movió (delta).
+    const cursorX = activador.clientX + e.delta.x
+    const xRel = cursorX - overRect.left
     const dropMinCrudo = vIni + (xRel / overRect.width) * vTotal
     const dropMin = Math.max(vIni, Math.round(dropMinCrudo / 5) * 5)
 
@@ -167,7 +239,11 @@ export default function Tablero() {
       return
     }
     setPlanCrudo(plan)
-    setAnclaBase({ procesoId, operarioId: info.operarioId })
+    setAnclaBase({
+      procesoId,
+      operarioId: info.operarioId,
+      maquinaId: datos.materialSim.items.find((it) => it.id === procesoId)?.maquinaId ?? null,
+    })
     setEdicion({ fecha: info.fecha, hora: minAHora(dropMinSnap) })
     setErrorGuardar(null)
   }
@@ -176,7 +252,9 @@ export default function Tablero() {
   function recalcular() {
     if (!anclaBase || !edicion.fecha || !edicion.hora) return
     const min = horaAMin(edicion.hora)
-    setPlanCrudo(calcularPlan(anclaBase.procesoId, anclaBase.operarioId, edicion.fecha as FechaISO, min))
+    setPlanCrudo(
+      calcularPlan(anclaBase.procesoId, anclaBase.operarioId, edicion.fecha as FechaISO, min, anclaBase.maquinaId, anclaBase.tiempos),
+    )
     setErrorGuardar(null)
   }
 
@@ -187,7 +265,7 @@ export default function Tablero() {
     // Plan inverso: dónde estaban los procesos que se mueven, para poder deshacer.
     const inverso: CambioPlan[] = cambios.map((c) => {
       const orig = datos.materialSim.items.find((it) => it.id === c.procesoId)
-      return {
+      const base: CambioPlan = {
         procesoId: c.procesoId,
         planFecha: orig ? orig.inicio.fecha : c.planFecha,
         planHora: orig ? minAHora(orig.inicio.min) : c.planHora,
@@ -195,6 +273,18 @@ export default function Tablero() {
         planMaquinaId: orig ? orig.maquinaId : c.planMaquinaId,
         estado: 'planificado',
       }
+      // Si el cambio editó tiempos/setup, el inverso restaura los valores previos.
+      if (c.tiempos && orig) {
+        base.tiempos = {
+          setupMin: orig.tiempos.setupMin,
+          operacionMin: orig.tiempos.operacionMin,
+          margenMin: orig.tiempos.margenMin,
+          cantidad: orig.tiempos.cantidad,
+          modo: orig.tiempos.modo,
+        }
+      }
+      if (c.setupSolapable !== undefined && orig) base.setupSolapable = orig.setupSolapable
+      return base
     })
     setGuardando(true)
     setErrorGuardar(null)
@@ -384,7 +474,16 @@ export default function Tablero() {
         {errorUndo ? <div className="tab-undo-error">No se pudo deshacer: {errorUndo}</div> : null}
       </div>
       <DragOverlay>{dragActivo ? <OverlayBloque b={dragActivo} /> : null}</DragOverlay>
-      {modalActividad ? <ModalActividad b={modalActividad} onCerrar={() => setModalActividad(null)} /> : null}
+      {modalActividad ? (
+        <ModalActividad
+          b={modalActividad}
+          item={datos.materialSim.items.find((it) => it.id === modalActividad.procesoId)}
+          personal={personal}
+          maquinas={datos.maquinas}
+          onCerrar={() => setModalActividad(null)}
+          onGuardar={guardarActividad}
+        />
+      ) : null}
     </DndContext>
   )
 }
@@ -527,10 +626,37 @@ function Bloque({
 }
 
 // Representación simple del bloque que sigue al cursor mientras se arrastra.
-// Modal de una actividad planificada: al hacer click en un bloque, muestra sus
-// datos. Por ahora solo lectura; los campos editables y las acciones vienen en los
-// sub-pasos siguientes.
-function ModalActividad({ b, onCerrar }: { b: BloqueVisual; onCerrar: () => void }) {
+// Modal de una actividad planificada: muestra sus datos y permite reasignar
+// operario/máquina y cambiar fecha/hora. Al guardar, el cambio pasa por el motor
+// (directo si no cascadea; modal del motor si reacomoda a otros). Los tiempos y la
+// urgencia se agregan en el tramo siguiente.
+function ModalActividad({
+  b, item, personal, maquinas, onCerrar, onGuardar,
+}: {
+  b: BloqueVisual
+  item: ItemSimulacion | undefined
+  personal: PersonalTablero[]
+  maquinas: MaquinaTablero[]
+  onCerrar: () => void
+  onGuardar: (cambios: {
+    operarioId: number
+    maquinaId: number | null
+    fecha: FechaISO
+    hora: string
+    tiempos: Tiempos
+    setupSolapable: boolean
+  }) => void
+}) {
+  const t = item?.tiempos
+  const [operarioId, setOperarioId] = useState(b.operarioId)
+  const [maquinaId, setMaquinaId] = useState<number | null>(b.maquinaId)
+  const [fecha, setFecha] = useState<string>(b.fecha)
+  const [hora, setHora] = useState<string>(minAHora(b.inicioMin))
+  const [setupMin, setSetupMin] = useState<number>(t?.setupMin ?? 0)
+  const [operacionMin, setOperacionMin] = useState<number>(t?.operacionMin ?? 0)
+  const [margenMin, setMargenMin] = useState<number>(t?.margenMin ?? 0)
+  const [setupSolapable, setSetupSolapable] = useState<boolean>(item?.setupSolapable ?? false)
+
   useEffect(() => {
     const esc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCerrar()
@@ -541,6 +667,19 @@ function ModalActividad({ b, onCerrar }: { b: BloqueVisual; onCerrar: () => void
 
   const tipoLabel =
     b.modo === 'automatica' ? 'Automática (24/7)' : b.modo === 'semi_automatica' ? 'Semi-automática' : 'Manual'
+  const esAutoSemi = b.modo === 'automatica' || b.modo === 'semi_automatica'
+  const puedeEditarTiempos = !!item // solo si el proceso está en la simulación (no pasado)
+
+  function guardar() {
+    onGuardar({
+      operarioId,
+      maquinaId,
+      fecha: fecha as FechaISO,
+      hora,
+      tiempos: { setupMin, operacionMin, margenMin, cantidad: t?.cantidad ?? 1, modo: b.modo },
+      setupSolapable,
+    })
+  }
 
   return (
     <div className="tab-modal-overlay">
@@ -568,26 +707,92 @@ function ModalActividad({ b, onCerrar }: { b: BloqueVisual; onCerrar: () => void
           <div>
             <b>Tipo:</b> {tipoLabel}
           </div>
-          <div>
-            <b>Operario:</b> {b.operarioNombre}
-          </div>
-          {b.maquinaNombre ? (
-            <div>
-              <b>Máquina:</b> {b.maquinaNombre}
-            </div>
-          ) : null}
-          <div>
-            <b>Horario:</b> {minAHora(b.inicioMin)}–{minAHora(b.finMin)}
-          </div>
           {b.totalPartes > 1 ? (
             <div>
               <b>Parte:</b> {b.parte}/{b.totalPartes}
             </div>
           ) : null}
         </div>
+        <div className="tab-act-campos">
+          <label className="tab-act-campo">
+            Operario
+            <select value={operarioId} onChange={(e) => setOperarioId(Number(e.target.value))}>
+              {personal.map((op) => (
+                <option key={op.id} value={op.id}>
+                  {nombreCorto(op)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="tab-act-campo">
+            Máquina
+            <select
+              value={maquinaId ?? ''}
+              onChange={(e) => setMaquinaId(e.target.value === '' ? null : Number(e.target.value))}
+            >
+              <option value="">(sin máquina)</option>
+              {maquinas.map((mq) => (
+                <option key={mq.id} value={mq.id}>
+                  {mq.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="tab-act-campo">
+            Fecha
+            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          </label>
+          <label className="tab-act-campo">
+            Hora
+            <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
+          </label>
+          <label className="tab-act-campo">
+            Setup (min)
+            <input
+              type="number"
+              min={0}
+              value={setupMin}
+              disabled={!puedeEditarTiempos}
+              onChange={(e) => setSetupMin(Number(e.target.value))}
+            />
+          </label>
+          <label className="tab-act-campo">
+            Operación (min)
+            <input
+              type="number"
+              min={0}
+              value={operacionMin}
+              disabled={!puedeEditarTiempos}
+              onChange={(e) => setOperacionMin(Number(e.target.value))}
+            />
+          </label>
+          <label className="tab-act-campo">
+            Margen (min)
+            <input
+              type="number"
+              min={0}
+              value={margenMin}
+              disabled={!puedeEditarTiempos}
+              onChange={(e) => setMargenMin(Number(e.target.value))}
+            />
+          </label>
+          {esAutoSemi ? (
+            <label className="tab-act-check">
+              <input
+                type="checkbox"
+                checked={setupSolapable}
+                onChange={(e) => setSetupSolapable(e.target.checked)}
+              />
+              Permitir solapamiento del setup
+            </label>
+          ) : null}
+        </div>
         <div className="tab-plan-botones">
           <button className="tab-btn-sec" onClick={onCerrar}>
             Cerrar
+          </button>
+          <button className="tab-btn-primario" onClick={guardar}>
+            Guardar
           </button>
         </div>
       </div>
