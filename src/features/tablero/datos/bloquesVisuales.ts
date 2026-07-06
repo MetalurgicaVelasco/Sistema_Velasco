@@ -49,6 +49,7 @@ export type DatosTablero = {
 export type BloqueVisual = {
   procesoId: number
   elementoId: number
+  proyectoId: number
   // Ubicación (minutos crudos; el % lo calcula el render con la ventana de config)
   operarioId: number
   fecha: FechaISO
@@ -115,6 +116,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
     const comun = {
       procesoId: p.id,
       elementoId: p.elementoId,
+      proyectoId: elemento.proyectoId,
       operarioId: p.planOperarioId as number,
       descripcion: elemento.descripcion,
       cantidad,

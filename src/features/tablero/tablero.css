@@ -372,6 +372,14 @@
   color: #2c2c2a;
   cursor: pointer;
 }
+.tab-act-urgencia {
+  grid-column: 1 / -1;
+}
+.tab-act-aviso {
+  font-size: 10px;
+  color: #a35a00;
+  margin-top: 3px;
+}
 .tab-plan-t {
   font-size: 13px;
   font-weight: 700;

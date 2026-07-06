@@ -90,3 +90,11 @@ export async function aplicarPlan(cambios: CambioPlan[]): Promise<void> {
   const { error } = await supabase.rpc('aplicar_plan_tablero', { plan })
   if (error) throw new Error(error.message)
 }
+
+// Actualiza la urgencia del proyecto (vive en `proyectos`, no en `procesos`, así
+// que va por UPDATE aparte, no por la RPC del plan). Afecta a TODOS los bloques de
+// ese proyecto.
+export async function actualizarUrgencia(proyectoId: number, urgencia: string): Promise<void> {
+  const { error } = await supabase.from('proyectos').update({ urgencia }).eq('id', proyectoId)
+  if (error) throw new Error(error.message)
+}

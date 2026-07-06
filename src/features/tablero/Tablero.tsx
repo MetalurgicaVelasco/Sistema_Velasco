@@ -18,7 +18,7 @@ import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import { snapearInsercion, type Ocupacion } from './calculos/insercion'
 import { simular, type ItemSimulacion } from './motor/simular'
 import type { Tiempos } from './motor/duraciones'
-import { armarPlan, aplicarPlan, type CambioPlan } from './datos/escritura'
+import { armarPlan, aplicarPlan, actualizarUrgencia, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { PersonalTablero, MaquinaTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, type FechaISO } from '../../shared/lib/fechas'
@@ -114,19 +114,31 @@ export default function Tablero() {
   // Guarda los cambios del modal de actividad: arma el proceso con su nueva
   // posición/operario/máquina y lo pasa por el motor. Si no reacomoda a nadie se
   // escribe directo; si cascadea o hay conflicto, aparece el modal del motor.
-  function guardarActividad(cambios: {
+  async function guardarActividad(cambios: {
     operarioId: number
     maquinaId: number | null
     fecha: FechaISO
     hora: string
     tiempos: Tiempos
     setupSolapable: boolean
+    urgencia: string
+    proyectoId: number
   }) {
     if (!modalActividad) return
     const procesoId = modalActividad.procesoId
+    const urgenciaOriginal = modalActividad.urgencia
+    setModalActividad(null)
+    // Urgencia: vive en el proyecto → UPDATE aparte, primero. Afecta a TODOS los
+    // bloques de ese proyecto (por eso el aviso en el modal).
+    if (cambios.urgencia !== urgenciaOriginal) {
+      try {
+        await actualizarUrgencia(cambios.proyectoId, cambios.urgencia)
+      } catch (e) {
+        window.alert('No se pudo cambiar la urgencia: ' + (e instanceof Error ? e.message : String(e)))
+      }
+    }
     const min = horaAMin(cambios.hora)
     const plan = calcularPlan(procesoId, cambios.operarioId, cambios.fecha, min, cambios.maquinaId, cambios.tiempos)
-    setModalActividad(null)
     // Enriquecer el cambio del ancla con los tiempos + setup_solapable editados
     // (cambio directo: se escriben en el proceso y en plan_aceptado, sin divergencia).
     const planFull: PlanCrudo = plan.ok
@@ -645,6 +657,8 @@ function ModalActividad({
     hora: string
     tiempos: Tiempos
     setupSolapable: boolean
+    urgencia: string
+    proyectoId: number
   }) => void
 }) {
   const t = item?.tiempos
@@ -656,6 +670,7 @@ function ModalActividad({
   const [operacionMin, setOperacionMin] = useState<number>(t?.operacionMin ?? 0)
   const [margenMin, setMargenMin] = useState<number>(t?.margenMin ?? 0)
   const [setupSolapable, setSetupSolapable] = useState<boolean>(item?.setupSolapable ?? false)
+  const [urgencia, setUrgencia] = useState<string>(b.urgencia)
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => {
@@ -678,6 +693,8 @@ function ModalActividad({
       hora,
       tiempos: { setupMin, operacionMin, margenMin, cantidad: t?.cantidad ?? 1, modo: b.modo },
       setupSolapable,
+      urgencia,
+      proyectoId: b.proyectoId,
     })
   }
 
@@ -775,6 +792,18 @@ function ModalActividad({
               disabled={!puedeEditarTiempos}
               onChange={(e) => setMargenMin(Number(e.target.value))}
             />
+          </label>
+          <label className="tab-act-campo tab-act-urgencia">
+            Urgencia
+            <select value={urgencia} onChange={(e) => setUrgencia(e.target.value)}>
+              <option value="urgente">Urgente</option>
+              <option value="alta">Alta</option>
+              <option value="media">Media</option>
+              <option value="baja">Baja</option>
+            </select>
+            <span className="tab-act-aviso">
+              ⚠ La urgencia es del proyecto: afecta a todas sus actividades, no solo a esta.
+            </span>
           </label>
           {esAutoSemi ? (
             <label className="tab-act-check">
