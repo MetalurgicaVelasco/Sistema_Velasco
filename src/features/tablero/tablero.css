@@ -400,6 +400,42 @@
   cursor: default;
 }
 
+/* Botón flotante de deshacer (pila de hasta 5) */
+.tab-undo {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 340;
+  background: #fff;
+  color: #2c2c2a;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+.tab-undo:hover:not(:disabled) {
+  background: #f5f3ec;
+}
+.tab-undo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.tab-undo-error {
+  position: fixed;
+  bottom: 58px;
+  left: 20px;
+  z-index: 340;
+  background: #fef0f0;
+  border: 1px solid #e24b4a;
+  color: #a32d2d;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
 /* Badge parte N/M */
 .tab-parte {
   display: inline-block;

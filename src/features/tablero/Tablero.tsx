@@ -64,6 +64,8 @@ export default function Tablero() {
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null)
   const [anclaBase, setAnclaBase] = useState<{ procesoId: number; operarioId: number } | null>(null)
   const [edicion, setEdicion] = useState<{ fecha: string; hora: string }>({ fecha: '', hora: '' })
+  const [historialUndo, setHistorialUndo] = useState<CambioPlan[][]>([])
+  const [errorUndo, setErrorUndo] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hay que mover ~5px para que empiece el arrastre (un click simple no dispara drag).
@@ -165,7 +167,20 @@ export default function Tablero() {
   }
 
   async function confirmarPlan() {
-    if (!planCrudo?.ok || !planCrudo.cambios.length) return
+    if (!planCrudo?.ok || !planCrudo.cambios.length || !datos) return
+    // Capturar el "plan inverso": dónde estaban los procesos que vamos a mover,
+    // para poder deshacer restaurando esas posiciones (que ya eran válidas).
+    const inverso: CambioPlan[] = planCrudo.cambios.map((c) => {
+      const orig = datos.materialSim.items.find((it) => it.id === c.procesoId)
+      return {
+        procesoId: c.procesoId,
+        planFecha: orig ? orig.inicio.fecha : c.planFecha,
+        planHora: orig ? minAHora(orig.inicio.min) : c.planHora,
+        planOperarioId: orig ? orig.operarioId : c.planOperarioId,
+        planMaquinaId: orig ? orig.maquinaId : c.planMaquinaId,
+        estado: 'planificado',
+      }
+    })
     setGuardando(true)
     setErrorGuardar(null)
     try {
@@ -174,8 +189,28 @@ export default function Tablero() {
       setDatos(nuevos)
       setPlanCrudo(null)
       setAnclaBase(null)
+      setHistorialUndo((h) => [...h, inverso].slice(-5)) // guarda los últimos 5
     } catch (e) {
       setErrorGuardar(e instanceof Error ? e.message : String(e))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  // Deshacer: aplica el último plan inverso de la pila (restaura posiciones que ya
+  // eran válidas, sin re-simular) y lo saca de la pila.
+  async function deshacer() {
+    if (!historialUndo.length) return
+    const inverso = historialUndo[historialUndo.length - 1]
+    setGuardando(true)
+    setErrorUndo(null)
+    try {
+      await aplicarPlan(inverso)
+      const nuevos = await cargarTablero()
+      setDatos(nuevos)
+      setHistorialUndo((h) => h.slice(0, -1))
+    } catch (e) {
+      setErrorUndo(e instanceof Error ? e.message : String(e))
     } finally {
       setGuardando(false)
     }
@@ -314,6 +349,12 @@ export default function Tablero() {
             </div>
           </div>
         ) : null}
+        {historialUndo.length > 0 ? (
+          <button className="tab-undo" onClick={deshacer} disabled={guardando}>
+            ↶ Deshacer{historialUndo.length > 1 ? ` (${historialUndo.length})` : ''}
+          </button>
+        ) : null}
+        {errorUndo ? <div className="tab-undo-error">No se pudo deshacer: {errorUndo}</div> : null}
       </div>
       <DragOverlay>{dragActivo ? <OverlayBloque b={dragActivo} /> : null}</DragOverlay>
     </DndContext>
