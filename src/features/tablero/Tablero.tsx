@@ -277,8 +277,9 @@ export default function Tablero() {
         </div>
         {tip ? <Tooltip tip={tip} /> : null}
         {planCrudo ? (
-          <div className="tab-plan-crudo">
-            <div className="tab-plan-t">Plan calculado — todavía no se guarda</div>
+          <div className="tab-modal-overlay">
+            <div className="tab-modal">
+              <div className="tab-plan-t">Plan calculado — todavía no se guarda</div>
             {planCrudo.ok ? (
               planCrudo.cambios.length ? (
                 <ul className="tab-plan-lista">
@@ -346,6 +347,7 @@ export default function Tablero() {
                   {guardando ? 'Guardando…' : 'Confirmar'}
                 </button>
               ) : null}
+            </div>
             </div>
           </div>
         ) : null}
