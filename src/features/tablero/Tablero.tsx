@@ -17,7 +17,7 @@ import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import { snapearInsercion, type Ocupacion } from './calculos/insercion'
 import { simular } from './motor/simular'
-import { armarPlan, type CambioPlan } from './datos/escritura'
+import { armarPlan, aplicarPlan, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { PersonalTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, type FechaISO } from '../../shared/lib/fechas'
@@ -60,6 +60,8 @@ export default function Tablero() {
   const [tip, setTip] = useState<{ b: BloqueVisual; x: number; y: number } | null>(null)
   const [dragActivo, setDragActivo] = useState<BloqueVisual | null>(null)
   const [planCrudo, setPlanCrudo] = useState<PlanCrudo | null>(null)
+  const [guardando, setGuardando] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hay que mover ~5px para que empiece el arrastre (un click simple no dispara drag).
@@ -143,6 +145,27 @@ export default function Tablero() {
       return
     }
     setPlanCrudo({ ok: true, cambios: armarPlan(resultado, [procesoId]) })
+  }
+
+  async function confirmarPlan() {
+    if (!planCrudo?.ok || !planCrudo.cambios.length) return
+    setGuardando(true)
+    setErrorGuardar(null)
+    try {
+      await aplicarPlan(planCrudo.cambios) // escribe por la RPC (atómico)
+      const nuevos = await cargarTablero() // recarga completa desde la base
+      setDatos(nuevos)
+      setPlanCrudo(null)
+    } catch (e) {
+      setErrorGuardar(e instanceof Error ? e.message : String(e))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  function cerrarPlan() {
+    setPlanCrudo(null)
+    setErrorGuardar(null)
   }
 
   // Días visibles (sin domingos) entre desde y hasta.
@@ -234,9 +257,19 @@ export default function Tablero() {
             ) : (
               <div className="tab-plan-error">{planCrudo.error}</div>
             )}
-            <button className="tab-plan-cerrar" onClick={() => setPlanCrudo(null)}>
-              Cerrar
-            </button>
+            {errorGuardar ? (
+              <div className="tab-plan-error">Error al guardar: {errorGuardar}</div>
+            ) : null}
+            <div className="tab-plan-botones">
+              <button className="tab-btn-sec" onClick={cerrarPlan} disabled={guardando}>
+                Cancelar
+              </button>
+              {planCrudo.ok && planCrudo.cambios.length ? (
+                <button className="tab-btn-primario" onClick={confirmarPlan} disabled={guardando}>
+                  {guardando ? 'Guardando…' : 'Confirmar'}
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

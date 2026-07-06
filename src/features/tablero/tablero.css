@@ -346,17 +346,37 @@
   border-radius: 6px;
   padding: 8px 10px;
 }
-.tab-plan-cerrar {
+.tab-plan-botones {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.tab-btn-primario {
   background: #0c447c;
   color: #fff;
   border: none;
   border-radius: 6px;
-  padding: 6px 16px;
+  padding: 7px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab-btn-primario:hover:not(:disabled) {
+  background: #0a3866;
+}
+.tab-btn-sec {
+  background: #fff;
+  color: #2c2c2a;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  padding: 7px 18px;
   font-size: 12px;
   cursor: pointer;
 }
-.tab-plan-cerrar:hover {
-  background: #0a3866;
+.tab-btn-primario:disabled,
+.tab-btn-sec:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Badge parte N/M */
