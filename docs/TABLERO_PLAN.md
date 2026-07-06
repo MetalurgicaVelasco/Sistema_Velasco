@@ -391,57 +391,86 @@ otros nombres.
 
 ## 8. Estado de avance (actualizado 05/07/2026)
 
-### Decisiones nuevas (posteriores al Bloque 0, tras leer la fuente de primera mano)
-- **Urgencia:** se DERIVA del proyecto (elemento → proyecto → urgencia). No hay
-  columna de urgencia en `procesos` ni snapshot por bloque: una sola fuente de
-  verdad, el color del bloque siempre refleja la urgencia real. (Reemplaza la
-  urgencia editable por bloque del sistema viejo, que quedaba desactualizada.)
-- **Pulmones: NO se usan.** En vez de reservar tiempo con pulmones, el planificador
-  deja espacios/huecos a mano en el tablero. La infraestructura de pulmones (tabla
-  `pulmones`, tipo `Pulmon`, `cargarPulmones`, rama de pulmones en la RPC) queda
-  **inerte**: no se removió, pero el motor de cascada NO tiene pasada de pulmones.
-  No reintroducir salvo pedido explícito.
-- **Semántica de modos (confirmada contra el código viejo):**
-  - `automatica`: la máquina corre 24/7 (sigue de noche y fines de semana); el
-    operario ocupa solo el setup.
-  - `semi_automatica`: la máquina respeta la jornada (se pausa fuera de horario); el
-    operario ocupa solo el setup.
-  - `manual`: todo respeta la jornada; el operario ocupa todo el bloque.
-  - El margen es tiempo de máquina siempre; en manual también ocupa al operario.
-  - Reglas centralizadas en `motor/modos.ts` (editables en un solo lugar).
-- **Contrato Tablero → Proyectos (ampliado):** al marcar hecho el ÚLTIMO proceso
-  pendiente de un elemento, se ofrece actualizar el estado del elemento
-  (Terminado/Stockeado/Enviado). El tablero hace avanzar el estado físico del elemento.
-- **`plan_aceptado`:** la divergencia compara por ahora 5 campos (setup, operación,
-  margen, cantidad, modo). Operario y máquina sugeridos quedan pendientes de sumar al
-  snapshot (no afectan el tamaño del bloque).
+El tablero de operarios está **funcional de punta a punta**: se ve completo y se
+planifica arrastrando (con motor de cascada, snapeo, modal de confirmación, editar/
+recalcular, deshacer y conflictos bloqueados). Lo que sigue detalla lo construido y
+lo que resta.
 
-### Motor puro construido (todo en `features/tablero/motor/`, testeado con Vitest)
-- `modos.ts` — reglas por modo (24/7, operario solo setup), centralizadas.
-- `duraciones.ts` — ocupación de máquina y operario, derivadas de `plan_aceptado`.
-- `calendario.ts` — el "caminar" único (jornada / 24/7); fin de máquina y de operario.
-- `solapes.ts` — única definición de "dos intervalos se pisan" (gap parametrizable).
-- `invariantes.ts` — reglas duras: solape de máquina, de operario (con excepción
-  setup_solapable) y correlatividades. **Corrige el bug del viejo, que no validaba el
-  solape de operario.**
-- `preparar.ts` — ensamblado proceso planificado → bloque con sus dos intervalos.
-- `simular.ts` — la cascada: punto fijo con (a) cascada de operario, (b) push de
-  máquina, (c) correlatividades. **Sin pulmones.** Simulación y aplicación usan el
-  mismo código (mata el bug de los dos motores del viejo).
-- `divergencias.ts` — compara el proceso actual contra `plan_aceptado` (el ⚠).
+### Decisiones (confirmadas contra la fuente de primera mano)
+- **Urgencia:** se DERIVA del proyecto (elemento → proyecto → urgencia). Sin columna
+  ni snapshot por bloque: una sola fuente de verdad.
+- **Pulmones: NO se usan.** El planificador deja huecos a mano. La infraestructura
+  queda inerte (no se removió; el motor no tiene pasada de pulmones). No reintroducir
+  salvo pedido explícito.
+- **Semántica de modos:** `automatica` = máquina 24/7, operario solo setup;
+  `semi_automatica` = máquina en jornada, operario solo setup; `manual` = todo en
+  jornada del operario. El margen es tiempo de máquina; en manual también ocupa al
+  operario. Centralizada en `motor/modos.ts`.
+- **`plan_aceptado`:** la divergencia compara 5 campos (setup, operación, margen,
+  cantidad, modo). Operario/máquina sugeridos: pendientes de sumar al snapshot.
+- **dnd-kit** como librería de drag & drop (`@dnd-kit/core`, `@dnd-kit/utilities`):
+  overlay propio, soporte touch a futuro, sensor con distancia de activación 5px.
+- **Snapeo a hitos = esencial** (no un adorno). Al soltar cerca de un hito (inicio de
+  jornada, inicio/fin de un bloque + gap) el bloque se pega según la regla de mitades.
+  Se calcula sobre la **ocupación del operario** (para automáticas, solo su setup).
+- **Recalcular respeta la hora escrita a mano** (sin snapeo): el snapeo es ayuda del
+  arrastre; si el usuario escribe una hora exacta, se usa tal cual.
+- **Recarga completa tras escribir** (la base es la fuente de verdad), no update en
+  memoria.
+- **Deshacer: pila de hasta 5 niveles, en memoria** (no persiste tras recargar).
 
-### Deuda anotada (a saldar en la integración o en refactors)
-- Utilidades de tiempo (`minAbs`, `proximoDiaLaboral`, `ajustarAJornada`) duplicadas
-  en `simular.ts`; conviene unificarlas en `calendario.ts`.
-- **Filtro de pasado** (el motor solo opera sobre presente/futuro; corte = último día
-  laboral anterior a hoy): se aplica al ARMAR el estado que entra al motor (integración).
-- **Conflicto residual** (dos anclas que se pisan): la cascada lo deja sin mover; falta
-  detectarlo con las invariantes al final de `simular` y reportarlo como error.
-- Ampliar `plan_aceptado` con operario/máquina sugeridos (para la divergencia completa).
+### Motor puro — COMPLETO (`features/tablero/motor/`, Vitest)
+- `modos.ts`, `duraciones.ts`, `calendario.ts` (el "caminar" único),
+  `solapes.ts`, `invariantes.ts` (corrige el bug del viejo: valida solape de
+  operario), `preparar.ts`, `simular.ts` (la cascada), `divergencias.ts`.
+- **`pasado.ts` (SALDADO):** `diaLaboralAnterior` (corte = día laboral previo) y
+  `esPasado` (un proceso es historia si arrancó y terminó antes del corte, por fecha
+  de fin). El filtro se aplica al armar el material de simulación.
+- **Conflicto residual (SALDADO):** al converger, `simular` valida con las
+  invariantes que no queden solapes de máquina/operario **ni violaciones de
+  correlatividad** (un sucesor no puede quedar antes de su predecesor); si las hay,
+  devuelve `conflicto_no_resoluble` en vez de un plan imposible.
+
+### Capa de datos y cálculos — COMPLETA (`features/tablero/datos/`, `calculos/`)
+- `consultas.ts`, `bloquesVisuales.ts` (cruza datos → BloqueVisual), `cargarTablero.ts`
+  (orquesta la lectura; devuelve bloques + material de simulación + correlatividades +
+  gap).
+- `materialSim.ts`: convierte procesos planificados en items del motor + contextos de
+  operarios, aplicando el filtro de pasado.
+- `escritura.ts`: `armarPlan` (puro, testeado) + `aplicarPlan` (RPC atómica). **El
+  mismo plan sirve para el preview y para escribir.**
+- `fragmentos.ts` (partición multi-día, con `setupMin` por fragmento), `geometria.ts`
+  (posición/ancho/carriles), `insercion.ts` (snapeo a hitos, 5 casos, regla de mitades).
+
+### Render — COMPLETO (`Tablero.tsx`, `tablero.css`)
+Grilla operarios × días con scroll y cabeceras fijas; bloques por hora y carril reales;
+fondo por urgencia, borde por máquina; partición multi-día con badges `N/M`; distinción
+setup/máquina (rayado + separador + etiqueta "MANUAL" + fantasma 🔒); badges de estado
+(`A`/`S`, ⚠ divergencia, ⛔ eliminado); tooltip con el detalle del bloque. En el menú de
+Producción, Tablero quedó 2º (tras Proyectos).
+
+### Interacción — COMPLETA (drag & drop con dnd-kit)
+Arrastrar bloques y soltarlos en celdas (overlay que sigue el cursor). Al soltar:
+posición → minuto → snapeo → simulación con el bloque como ancla → plan. **Modal
+centrado** que muestra, por cada actividad afectada, su horario actual → el nuevo;
+permite editar fecha/hora y "Recalcular" (sin snapeo); Confirmar escribe por la RPC y
+recarga; los conflictos bloquean la confirmación. **Deshacer** con pila de hasta 5
+niveles (plan inverso por la misma RPC).
+
+### Deuda restante (menor)
+- Unificar `tramosJornada` (en `fragmentos.ts`) con `caminarJornada` (en
+  `calendario.ts`): comparten la mecánica del walk.
+- Ampliar `plan_aceptado` con operario/máquina sugeridos (divergencia completa).
+- Borde sólido del fantasma del setup cuando `setup_solapable`.
+- Desglose fino en el tooltip (rangos exactos manual/máquina en auto/semi).
 
 ### Roadmap restante
-1. **Integración**: armar el estado real desde Supabase (procesos planificados +
-   contextos de operarios + correlatividades), aplicar el filtro de pasado, cerrar la
-   detección de conflicto residual y la capa de escritura (RPC `aplicar_plan_tablero`).
-2. **Render estático** del tablero (solo lectura) contra `TABLERO_SPEC_VISUAL.md`.
-3. **Interacción**: dnd-kit, modal de afectadas, edición del bloque, marcar hecho, undo.
+1. **Arrastrar procesos sin planificar** al tablero (panel de pendientes → celda): el
+   bloque grande que resta de la interacción.
+2. **Edición del bloque** (modal): aplicar/ignorar cambios de OT (divergencia), marcar
+   hecho, desanclar, quitar (DELETE por la RPC).
+3. **Selector "+"** con filtros para planificar desde cero.
+4. **Tablero por máquinas** (visor de solo lectura sobre el mismo motor; borde = color
+   del operario).
+5. Futuro: realtime/multiusuario, reporte imprimible por operario, UI de Configuraciones,
+   Auth + RLS antes de compartir la URL.
