@@ -112,8 +112,16 @@ export async function cargarTablero(): Promise<TableroCargado> {
     cargarTiposProceso(),
   ])
 
-  // Elementos y proyectos dependen de los procesos traídos.
-  const elementos = await cargarElementos([...new Set(procesos.map((p) => p.elementoId))])
+  // Segundo nivel en paralelo: elementos, correlatividades y elegibles dependen de
+  // las lecturas anteriores pero no entre sí, así que van juntos (antes iban en serie).
+  const maquinasMap = new Map(maquinasArr.map((mq) => [mq.id, mq]))
+  const [elementos, correlatividades, elegibles] = await Promise.all([
+    cargarElementos([...new Set(procesos.map((p) => p.elementoId))]),
+    cargarCorrelatividadesDe(procesos.map((p) => p.id)),
+    cargarProcesosElegibles(tiposProceso, maquinasMap),
+  ])
+
+  // Proyectos sí depende de los elementos, por eso queda en su propio nivel.
   const proyectos = await cargarProyectos([...new Set([...elementos.values()].map((e) => e.proyectoId))])
 
   const personalMap = new Map(personalArr.map((p) => [p.id, p]))
@@ -123,7 +131,7 @@ export async function cargarTablero(): Promise<TableroCargado> {
     elementos,
     proyectos,
     tiposProceso,
-    maquinas: new Map(maquinasArr.map((mq) => [mq.id, mq])),
+    maquinas: maquinasMap,
     personal: personalMap,
     vacaciones,
   })
@@ -133,8 +141,6 @@ export async function cargarTablero(): Promise<TableroCargado> {
   for (const [id, e] of elementos) cantidadPorElemento.set(id, e.cantidad)
   const corte = diaLaboralAnterior(hoy)
   const materialSim = materialSimulacion(procesos, cantidadPorElemento, personalMap, vacaciones, corte)
-  const correlatividades = await cargarCorrelatividadesDe(procesos.map((p) => p.id))
-  const elegibles = await cargarProcesosElegibles(tiposProceso, new Map(maquinasArr.map((mq) => [mq.id, mq])))
 
   return {
     bloques,
