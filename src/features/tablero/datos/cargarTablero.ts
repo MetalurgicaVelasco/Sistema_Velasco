@@ -25,6 +25,7 @@ import {
   type ProyectoMin,
 } from './bloquesVisuales'
 import { materialSimulacion, type MaterialSimulacion } from './materialSim'
+import { cargarProcesosElegibles, type ProcesoElegible } from './elegibles'
 import { diaLaboralAnterior } from '../motor/pasado'
 import type { PersonalTablero, MaquinaTablero } from '../tipos'
 import type { Correlatividad } from '../../produccion/procesoTipos'
@@ -93,6 +94,7 @@ export type TableroCargado = {
   correlatividades: Correlatividad[]
   gap: number
   maquinas: MaquinaTablero[] // catálogo para reasignar máquina en el modal
+  elegibles: ProcesoElegible[] // procesos sin planificar disponibles para el "+"
 }
 
 export async function cargarTablero(): Promise<TableroCargado> {
@@ -132,6 +134,7 @@ export async function cargarTablero(): Promise<TableroCargado> {
   const corte = diaLaboralAnterior(hoy)
   const materialSim = materialSimulacion(procesos, cantidadPorElemento, personalMap, vacaciones, corte)
   const correlatividades = await cargarCorrelatividadesDe(procesos.map((p) => p.id))
+  const elegibles = await cargarProcesosElegibles(tiposProceso, new Map(maquinasArr.map((mq) => [mq.id, mq])))
 
   return {
     bloques,
@@ -144,5 +147,6 @@ export async function cargarTablero(): Promise<TableroCargado> {
     correlatividades,
     gap: config.gapMin,
     maquinas: maquinasArr,
+    elegibles,
   }
 }

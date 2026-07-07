@@ -14,11 +14,12 @@ import {
   useDraggable, useDroppable, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
+import type { ProcesoElegible } from './datos/elegibles'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import { snapearInsercion, type Ocupacion } from './calculos/insercion'
-import { simular, type ItemSimulacion } from './motor/simular'
+import { simular, type ItemSimulacion, type ResultadoSimulacion } from './motor/simular'
 import type { Tiempos } from './motor/duraciones'
-import { armarPlan, aplicarPlan, actualizarUrgencia, type CambioPlan } from './datos/escritura'
+import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { PersonalTablero, MaquinaTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, type FechaISO } from '../../shared/lib/fechas'
@@ -73,6 +74,11 @@ export default function Tablero() {
   const [historialUndo, setHistorialUndo] = useState<CambioPlan[][]>([])
   const [errorUndo, setErrorUndo] = useState<string | null>(null)
   const [modalActividad, setModalActividad] = useState<BloqueVisual | null>(null)
+  const [selector, setSelector] = useState<{ operarioId: number; fecha: FechaISO } | null>(null)
+  const [insertar, setInsertar] = useState<{
+    el: ProcesoElegible
+    opciones: { label: string; startMin: number }[]
+  } | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hay que mover ~5px para que empiece el arrastre (un click simple no dispara drag).
@@ -109,6 +115,114 @@ export default function Tablero() {
   function abrirActividad(b: BloqueVisual) {
     ocultarTip()
     setModalActividad(b)
+  }
+
+  // Quitar del tablero: devuelve el proceso a "sin planificar" y recarga.
+  async function quitarActividad(procesoId: number) {
+    setModalActividad(null)
+    try {
+      await quitarDelTablero(procesoId)
+      const nuevos = await cargarTablero()
+      setDatos(nuevos)
+    } catch (e) {
+      window.alert('No se pudo quitar: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  function abrirSelector(operarioId: number, fecha: FechaISO) {
+    setSelector({ operarioId, fecha })
+  }
+
+  function tiemposDe(el: ProcesoElegible): Tiempos {
+    return {
+      setupMin: el.setupMin,
+      operacionMin: el.operacionMin,
+      margenMin: el.margenMin,
+      cantidad: el.cantidad,
+      modo: el.modo,
+    }
+  }
+
+  // Crea el item del proceso elegido en una posición y lo simula (sin escribir).
+  function simularElegido(el: ProcesoElegible, startMin: number): ResultadoSimulacion | null {
+    if (!selector || !datos) return null
+    const nuevoItem: ItemSimulacion = {
+      id: el.procesoId,
+      operarioId: selector.operarioId,
+      maquinaId: el.maquinaId,
+      tiempos: tiemposDe(el),
+      setupSolapable: false,
+      inicio: { fecha: selector.fecha, min: startMin },
+    }
+    const items = [...datos.materialSim.items, nuevoItem]
+    return simular(items, [el.procesoId], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
+  }
+
+  // Escribe (o abre el modal del motor) para un proceso elegido ya simulado.
+  function aplicarElegido(el: ProcesoElegible, startMin: number, resultado: ResultadoSimulacion) {
+    if (!selector) return
+    const opId = selector.operarioId
+    const fecha = selector.fecha
+    setSelector(null)
+    setInsertar(null)
+    if (!resultado.ok) {
+      setPlanCrudo({
+        ok: false,
+        error:
+          resultado.error === 'conflicto_no_resoluble'
+            ? 'No se puede planificar acá sin romper una correlatividad o un solape.'
+            : 'No se pudo calcular la ubicación.',
+      })
+      return
+    }
+    const cambios = armarPlan(resultado, [el.procesoId]).map((c) =>
+      c.procesoId === el.procesoId ? { ...c, tiempos: tiemposDe(el) } : c,
+    )
+    if (resultado.movidos.length === 0) {
+      escribirPlan(cambios)
+      return
+    }
+    setPlanCrudo({ ok: true, cambios, movidos: resultado.movidos })
+    setAnclaBase({ procesoId: el.procesoId, operarioId: opId, maquinaId: el.maquinaId, tiempos: tiemposDe(el) })
+    setEdicion({ fecha, hora: minAHora(startMin) })
+    setErrorGuardar(null)
+  }
+
+  // Posiciones candidatas: inicio de la jornada + después de cada actividad del
+  // operario ese día.
+  function opcionesInsercion(operarioId: number, fecha: FechaISO): { label: string; startMin: number }[] {
+    if (!datos) return []
+    const vIni = horaAMin(datos.ventanaInicio)
+    const bloquesOp = datos.bloques
+      .filter((b) => b.operarioId === operarioId && b.fecha === fecha)
+      .sort((a, b) => a.inicioMin - b.inicioMin)
+    const ops = [{ label: 'Al inicio de la jornada', startMin: vIni }]
+    for (const b of bloquesOp) {
+      ops.push({ label: `Después de ${b.descripcion}`, startMin: b.finMin + datos.gap })
+    }
+    return ops
+  }
+
+  function elegirProceso(el: ProcesoElegible) {
+    if (!selector || !datos) return
+    const ops = opcionesInsercion(selector.operarioId, selector.fecha)
+    // Buscar la primera posición donde el proceso entre sin desplazar a nadie → directo.
+    for (const op of ops) {
+      const r = simularElegido(el, op.startMin)
+      if (r && r.ok && r.movidos.length === 0) {
+        aplicarElegido(el, op.startMin, r)
+        return
+      }
+    }
+    // Ninguna entra sin cascada → preguntar dónde ubicarlo.
+    setInsertar({ el, opciones: ops })
+  }
+
+  // Al elegir una posición en el modal "¿dónde lo pongo?": simular ahí y aplicar.
+  function insertarEn(startMin: number) {
+    if (!insertar) return
+    const r = simularElegido(insertar.el, startMin)
+    if (r) aplicarElegido(insertar.el, startMin, r)
   }
 
   // Guarda los cambios del modal de actividad: arma el proceso con su nueva
@@ -396,6 +510,7 @@ export default function Tablero() {
                     onMove={moverTip}
                     onLeave={ocultarTip}
                     onAbrir={abrirActividad}
+                    onAbrirSelector={abrirSelector}
                   />
                 ))}
               </Fragment>
@@ -493,7 +608,27 @@ export default function Tablero() {
           personal={personal}
           maquinas={datos.maquinas}
           onCerrar={() => setModalActividad(null)}
+          onQuitar={quitarActividad}
           onGuardar={guardarActividad}
+        />
+      ) : null}
+      {selector ? (
+        <ModalSelector
+          elegibles={datos.elegibles}
+          operarioId={selector.operarioId}
+          fecha={selector.fecha}
+          personal={personal}
+          maquinas={datos.maquinas}
+          onCerrar={() => setSelector(null)}
+          onElegir={elegirProceso}
+        />
+      ) : null}
+      {insertar ? (
+        <InsertarModal
+          el={insertar.el}
+          opciones={insertar.opciones}
+          onCerrar={() => setInsertar(null)}
+          onElegir={insertarEn}
         />
       ) : null}
     </DndContext>
@@ -502,7 +637,7 @@ export default function Tablero() {
 
 // Celda operario-día: zona donde se sueltan los bloques.
 function Celda({
-  operarioId, fecha, hoy, alterna, mediodiaPct, bloques, vIni, vTotal, onEnter, onMove, onLeave, onAbrir,
+  operarioId, fecha, hoy, alterna, mediodiaPct, bloques, vIni, vTotal, onEnter, onMove, onLeave, onAbrir, onAbrirSelector,
 }: {
   operarioId: number
   fecha: FechaISO
@@ -516,6 +651,7 @@ function Celda({
   onMove: (e: MouseEvent) => void
   onLeave: () => void
   onAbrir: (b: BloqueVisual) => void
+  onAbrirSelector: (operarioId: number, fecha: FechaISO) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `celda-${operarioId}-${fecha}`, data: { operarioId, fecha } })
   const carriles = Math.max(MIN_CARRILES, ...bloques.map((b) => b.track + 1), MIN_CARRILES)
@@ -529,6 +665,9 @@ function Celda({
       style={{ height: ALTO_FILA + 2 }}
     >
       <div className="tab-mediodia" style={{ left: `${mediodiaPct}%` }} />
+      <button className="tab-mas" onClick={() => onAbrirSelector(operarioId, fecha)} title="Asignar actividad">
+        +
+      </button>
       {bloques.map((b) => (
         <Bloque
           key={`${b.procesoId}-${b.parte}`}
@@ -587,7 +726,7 @@ function Bloque({
       className={`tab-bk ${b.hecho ? 'es-hecho' : ''} ${isDragging ? 'tab-arrastrando' : ''}`}
       style={{
         left: `calc(${left}% + 1px)`,
-        width: `${width}%`,
+        width: `calc(${width}% - 2px)`,
         top: b.track * altoBloque + 2,
         height: altoBloque - 4,
         background: FONDO_URGENCIA[b.urgencia] ?? FONDO_URGENCIA.media,
@@ -643,13 +782,14 @@ function Bloque({
 // (directo si no cascadea; modal del motor si reacomoda a otros). Los tiempos y la
 // urgencia se agregan en el tramo siguiente.
 function ModalActividad({
-  b, item, personal, maquinas, onCerrar, onGuardar,
+  b, item, personal, maquinas, onCerrar, onQuitar, onGuardar,
 }: {
   b: BloqueVisual
   item: ItemSimulacion | undefined
   personal: PersonalTablero[]
   maquinas: MaquinaTablero[]
   onCerrar: () => void
+  onQuitar: (procesoId: number) => void
   onGuardar: (cambios: {
     operarioId: number
     maquinaId: number | null
@@ -817,11 +957,194 @@ function ModalActividad({
           ) : null}
         </div>
         <div className="tab-plan-botones">
+          <button className="tab-btn-danger" onClick={() => onQuitar(b.procesoId)}>
+            Quitar del tablero
+          </button>
           <button className="tab-btn-sec" onClick={onCerrar}>
             Cerrar
           </button>
           <button className="tab-btn-primario" onClick={guardar}>
             Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Modal del "+": procesos sin planificar disponibles para asignar a una celda
+// (operario+día), con filtros y grisado de los que tienen predecesores pendientes.
+function ModalSelector({
+  elegibles, operarioId, fecha, personal, maquinas, onCerrar, onElegir,
+}: {
+  elegibles: ProcesoElegible[]
+  operarioId: number
+  fecha: FechaISO
+  personal: PersonalTablero[]
+  maquinas: MaquinaTablero[]
+  onCerrar: () => void
+  onElegir: (el: ProcesoElegible) => void
+}) {
+  const [texto, setTexto] = useState('')
+  const [filtroMaquina, setFiltroMaquina] = useState<string>('')
+  const [filtroUrgencia, setFiltroUrgencia] = useState<string>('')
+  const [orden, setOrden] = useState<'urgencia' | 'maquina'>('urgencia')
+
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar()
+    }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [onCerrar])
+
+  const op = personal.find((p) => p.id === operarioId)
+  const ordenUrg: Record<string, number> = { urgente: 0, alta: 1, media: 2, baja: 3 }
+
+  const lista = elegibles
+    .filter((el) => {
+      if (filtroMaquina !== '' && String(el.maquinaId ?? '') !== filtroMaquina) return false
+      if (filtroUrgencia !== '' && el.urgencia !== filtroUrgencia) return false
+      if (texto.trim() !== '') {
+        const t = texto.trim().toLowerCase()
+        const hay = `${el.descripcion} ${el.cliente} ${el.tipoProceso ?? ''} ${el.pedidoNro ?? ''}`.toLowerCase()
+        if (!hay.includes(t)) return false
+      }
+      return true
+    })
+    .sort((a, b) =>
+      orden === 'urgencia'
+        ? (ordenUrg[a.urgencia] ?? 9) - (ordenUrg[b.urgencia] ?? 9)
+        : (a.maquinaNombre ?? '').localeCompare(b.maquinaNombre ?? ''),
+    )
+
+  function badgeTipo(modo: string) {
+    if (modo === 'automatica') return <span className="tab-sel-badge auto">AUTO</span>
+    if (modo === 'semi_automatica') return <span className="tab-sel-badge semi">SEMI</span>
+    return <span className="tab-sel-badge man">MAN</span>
+  }
+
+  return (
+    <div className="tab-modal-overlay">
+      <div className="tab-modal tab-modal-selector">
+        <button className="tab-modal-x" onClick={onCerrar} aria-label="Cerrar">
+          ×
+        </button>
+        <div className="tab-modal-titulo">
+          Asignar a {op ? nombreCorto(op) : `operario ${operarioId}`} · {fecha}
+        </div>
+        <div className="tab-sel-filtros">
+          <input
+            className="tab-sel-buscar"
+            placeholder="Buscar (descripción, cliente, proceso, pedido)…"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+          />
+          <select value={filtroMaquina} onChange={(e) => setFiltroMaquina(e.target.value)}>
+            <option value="">Toda máquina</option>
+            {maquinas.map((mq) => (
+              <option key={mq.id} value={mq.id}>
+                {mq.nombre}
+              </option>
+            ))}
+          </select>
+          <select value={filtroUrgencia} onChange={(e) => setFiltroUrgencia(e.target.value)}>
+            <option value="">Toda urgencia</option>
+            <option value="urgente">Urgente</option>
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
+          <select value={orden} onChange={(e) => setOrden(e.target.value as 'urgencia' | 'maquina')}>
+            <option value="urgencia">Ordenar por urgencia</option>
+            <option value="maquina">Ordenar por máquina</option>
+          </select>
+        </div>
+        <div className="tab-sel-lista">
+          {lista.length === 0 ? (
+            <div className="tab-sel-vacio">No hay procesos para planificar con estos filtros.</div>
+          ) : (
+            lista.map((el) => (
+              <div
+                key={el.procesoId}
+                className={`tab-sel-card ${el.predecesorPendiente ? 'bloqueada' : ''}`}
+                onClick={el.predecesorPendiente ? undefined : () => onElegir(el)}
+                title={el.predecesorPendiente ? 'Bloqueada: tiene predecesores sin planificar' : ''}
+              >
+                {el.fotoUrl ? (
+                  <img src={el.fotoUrl} alt="" className="tab-sel-foto" />
+                ) : (
+                  <div className="tab-sel-nofoto">sin foto</div>
+                )}
+                <div className="tab-sel-info">
+                  <div className="tab-sel-t">
+                    {el.descripcion} {badgeTipo(el.modo)}
+                    {el.predecesorPendiente ? <span className="tab-sel-badge blq">⚠ BLOQUEADA</span> : null}
+                    {el.tipoProceso ? <span className="tab-sel-proc"> — {el.tipoProceso}</span> : null}
+                  </div>
+                  <div className="tab-sel-s">
+                    {el.cliente} · Ped. {el.pedidoNro ?? '-'} ·{' '}
+                    <span className={`tab-sel-urg u-${el.urgencia}`}>{el.urgencia}</span>
+                    {el.maquinaNombre ? ` · ${el.maquinaNombre}` : ''}
+                  </div>
+                  {el.predecesorPendiente ? (
+                    <div className="tab-sel-warn">⚠ Tiene un predecesor sin planificar.</div>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="tab-plan-botones">
+          <button className="tab-btn-sec" onClick={onCerrar}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Modal "¿dónde lo pongo?": aparece cuando el proceso elegido no entra en ningún
+// hueco libre del día. Lista las posiciones (inicio de la jornada + después de cada
+// actividad); al elegir, se planifica ahí (reacomodando lo que siga).
+function InsertarModal({
+  el, opciones, onCerrar, onElegir,
+}: {
+  el: ProcesoElegible
+  opciones: { label: string; startMin: number }[]
+  onCerrar: () => void
+  onElegir: (startMin: number) => void
+}) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar()
+    }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [onCerrar])
+
+  return (
+    <div className="tab-modal-overlay">
+      <div className="tab-modal tab-modal-insertar">
+        <button className="tab-modal-x" onClick={onCerrar} aria-label="Cerrar">
+          ×
+        </button>
+        <div className="tab-modal-titulo">¿Dónde ubico "{el.descripcion}"?</div>
+        <p className="tab-ins-info">
+          No entra en ningún hueco libre del día. Elegí dónde ponerlo (va a reacomodar las actividades
+          siguientes):
+        </p>
+        <div className="tab-ins-opciones">
+          {opciones.map((op, i) => (
+            <button key={i} className="tab-ins-opcion" onClick={() => onElegir(op.startMin)}>
+              {op.label} <span className="tab-ins-hora">({minAHora(op.startMin)})</span>
+            </button>
+          ))}
+        </div>
+        <div className="tab-plan-botones">
+          <button className="tab-btn-sec" onClick={onCerrar}>
+            Cancelar
           </button>
         </div>
       </div>
@@ -857,11 +1180,11 @@ function GhostSetup({
   vTotal: number
 }) {
   const left = porcentajeLeft(b.inicioMin, vIni, vTotal)
-  const width = porcentajeAncho(b.setupMin, vTotal)
+  const width = Math.min(porcentajeAncho(b.setupMin, vTotal), 100 - left)
   return (
     <div
       className="tab-ghost"
-      style={{ left: `calc(${left}% + 1px)`, width: `${width}%`, top: 2, height: altoBloque - 4 }}
+      style={{ left: `calc(${left}% + 1px)`, width: `calc(${width}% - 2px)`, top: 2, height: altoBloque - 4 }}
       title={`Setup — el operario está ocupado\n${b.descripcion}${b.pedidoNro ? ' · Ped. ' + b.pedidoNro : ''}`}
     >
       <span className="tab-ghost-lock">🔒</span>

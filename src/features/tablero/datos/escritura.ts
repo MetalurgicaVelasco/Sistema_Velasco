@@ -98,3 +98,19 @@ export async function actualizarUrgencia(proyectoId: number, urgencia: string): 
   const { error } = await supabase.from('proyectos').update({ urgencia }).eq('id', proyectoId)
   if (error) throw new Error(error.message)
 }
+
+// Quita un proceso del tablero: lo devuelve a "sin planificar" y limpia el plan.
+// UPDATE directo (no por la RPC, que está pensada para escribir planes, no borrarlos).
+export async function quitarDelTablero(procesoId: number): Promise<void> {
+  const { error } = await supabase
+    .from('procesos')
+    .update({
+      estado: 'sin_planificar',
+      plan_fecha: null,
+      plan_hora: null,
+      plan_operario_id: null,
+      plan_maquina_id: null,
+    })
+    .eq('id', procesoId)
+  if (error) throw new Error(error.message)
+}
