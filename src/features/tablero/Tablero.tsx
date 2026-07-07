@@ -20,7 +20,7 @@ import { snapearInsercion, type Ocupacion } from './calculos/insercion'
 import { simular, type ItemSimulacion, type ResultadoSimulacion } from './motor/simular'
 import { finMaquina, type ContextoOperario } from './motor/calendario'
 import type { Tiempos } from './motor/duraciones'
-import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, type CambioPlan } from './datos/escritura'
+import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, cambiarEstadoProceso, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { Divergencia } from './motor/divergencias'
 import type { ModoProceso } from '../produccion/procesoTipos'
@@ -132,6 +132,24 @@ export default function Tablero() {
     }
   }
 
+  // Marcar hecho / desanclar: cambia el estado del proceso y recarga.
+  async function cambiarEstadoActividad(procesoId: number, estado: 'planificado' | 'hecho') {
+    setModalActividad(null)
+    try {
+      await cambiarEstadoProceso(procesoId, estado)
+      const nuevos = await cargarTablero()
+      setDatos(nuevos)
+    } catch (e) {
+      window.alert('No se pudo cambiar el estado: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  // IDs de procesos marcados "hecho": son anclas duras (el motor no los reacomoda).
+  function idsHechos(): number[] {
+    if (!datos) return []
+    return [...new Set(datos.bloques.filter((bl) => bl.hecho).map((bl) => bl.procesoId))]
+  }
+
   function abrirSelector(operarioId: number, fecha: FechaISO) {
     setSelector({ operarioId, fecha })
   }
@@ -158,7 +176,7 @@ export default function Tablero() {
       inicio: { fecha: selector.fecha, min: startMin },
     }
     const items = [...datos.materialSim.items, nuevoItem]
-    return simular(items, [el.procesoId], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
+    return simular(items, [el.procesoId, ...idsHechos()], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
   }
 
   // Escribe (o abre el modal del motor) para un proceso elegido ya simulado.
@@ -321,7 +339,7 @@ export default function Tablero() {
           }
         : it,
     )
-    const resultado = simular(items, [procesoId], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
+    const resultado = simular(items, [procesoId, ...idsHechos()], datos.materialSim.ctxs, { gapMin: datos.gap }, datos.correlatividades)
     if (!resultado.ok) {
       const msg =
         resultado.error === 'conflicto_no_resoluble'
@@ -613,6 +631,7 @@ export default function Tablero() {
           ctxs={datos.materialSim.ctxs}
           onCerrar={() => setModalActividad(null)}
           onQuitar={quitarActividad}
+          onEstado={cambiarEstadoActividad}
           onGuardar={guardarActividad}
         />
       ) : null}
@@ -801,7 +820,7 @@ function etiquetaCampoDiv(campo: Divergencia['campo']): string {
 }
 
 function ModalActividad({
-  b, item, personal, maquinas, ctxs, onCerrar, onQuitar, onGuardar,
+  b, item, personal, maquinas, ctxs, onCerrar, onQuitar, onEstado, onGuardar,
 }: {
   b: BloqueVisual
   item: ItemSimulacion | undefined
@@ -810,6 +829,7 @@ function ModalActividad({
   ctxs: Map<number, ContextoOperario>
   onCerrar: () => void
   onQuitar: (procesoId: number) => void
+  onEstado: (procesoId: number, estado: 'planificado' | 'hecho') => void
   onGuardar: (cambios: {
     operarioId: number
     maquinaId: number | null
@@ -1087,6 +1107,15 @@ function ModalActividad({
           </label>
         ) : null}
         <div className="tab-plan-botones">
+          {b.hecho ? (
+            <button className="tab-btn-sec" onClick={() => onEstado(b.procesoId, 'planificado')}>
+              Desanclar
+            </button>
+          ) : (
+            <button className="tab-btn-sec" onClick={() => onEstado(b.procesoId, 'hecho')}>
+              Marcar como hecho
+            </button>
+          )}
           <button className="tab-btn-danger" onClick={() => onQuitar(b.procesoId)}>
             Quitar del tablero
           </button>

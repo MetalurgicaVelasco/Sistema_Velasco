@@ -114,3 +114,14 @@ export async function quitarDelTablero(procesoId: number): Promise<void> {
     .eq('id', procesoId)
   if (error) throw new Error(error.message)
 }
+
+// Cambia el estado de un proceso: marcar como hecho / desanclar (volver a
+// planificado). UPDATE directo. Un proceso "hecho" es ancla dura en el motor
+// (no se reacomoda en la cascada; eso se maneja del lado del tablero).
+export async function cambiarEstadoProceso(
+  procesoId: number,
+  estado: 'planificado' | 'hecho',
+): Promise<void> {
+  const { error } = await supabase.from('procesos').update({ estado }).eq('id', procesoId)
+  if (error) throw new Error(error.message)
+}
