@@ -809,3 +809,53 @@
   z-index: 6;
   pointer-events: none;
 }
+
+/* Tabla de divergencia (⚠ cuando OT cambió el proceso desde Proyectos) */
+.tab-div {
+  border: 1px solid #e2b04a;
+  background: #fff8e8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+.tab-div-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a5a00;
+  margin-bottom: 8px;
+}
+.tab-div-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+.tab-div-tabla th {
+  text-align: left;
+  font-weight: 600;
+  color: #5f5e5a;
+  padding: 3px 8px;
+  border-bottom: 1px solid #e2d3a8;
+}
+.tab-div-tabla td {
+  padding: 4px 8px;
+  color: #2c2c2a;
+  border-bottom: 1px solid #f0e6c8;
+}
+.tab-div-nuevo {
+  font-weight: 700;
+  color: #8a5a00;
+}
+.tab-div-aplicar {
+  background: #0c447c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab-div-aplicar:hover {
+  background: #0a3866;
+}

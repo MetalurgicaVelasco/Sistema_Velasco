@@ -15,7 +15,7 @@ import { horaAMin, type FechaISO } from '../../../shared/lib/fechas'
 import { tiemposDe } from '../motor/duraciones'
 import { reglaDe } from '../motor/modos'
 import { contextoOperario } from '../motor/preparar'
-import { hayDivergencia } from '../motor/divergencias'
+import { divergencias, type Divergencia } from '../motor/divergencias'
 import { fragmentos } from '../calculos/fragmentos'
 import { asignarTracks } from '../calculos/geometria'
 import type { ModoProceso } from '../../produccion/procesoTipos'
@@ -77,6 +77,7 @@ export type BloqueVisual = {
   // Flags / badges
   esRetrabajo: boolean
   hayDivergencia: boolean
+  divergencias: Divergencia[]
   procesoEliminado: boolean
   fotoUrl: string | null
 }
@@ -112,6 +113,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
       (p.tipoProcesoId != null ? datos.tiposProceso.get(p.tipoProcesoId) : undefined) ??
       p.procesoOtro ??
       ''
+    const divs = divergencias(p, cantidad)
 
     const comun = {
       procesoId: p.id,
@@ -130,7 +132,8 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
       maquinaColor: maquina?.color ?? null,
       hecho: p.estado === 'hecho',
       esRetrabajo: p.esRetrabajo,
-      hayDivergencia: hayDivergencia(p, cantidad),
+      hayDivergencia: divs.length > 0,
+      divergencias: divs,
       procesoEliminado: p.procesoEliminado,
       fotoUrl: elemento.fotoUrl,
       esAuto,

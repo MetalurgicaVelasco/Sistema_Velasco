@@ -22,6 +22,8 @@ import { finMaquina, type ContextoOperario } from './motor/calendario'
 import type { Tiempos } from './motor/duraciones'
 import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
+import type { Divergencia } from './motor/divergencias'
+import type { ModoProceso } from '../produccion/procesoTipos'
 import type { PersonalTablero, MaquinaTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, type FechaISO } from '../../shared/lib/fechas'
 import { jornada } from '../../shared/lib/jornada'
@@ -783,6 +785,21 @@ function Bloque({
 // operario/máquina y cambiar fecha/hora. Al guardar, el cambio pasa por el motor
 // (directo si no cascadea; modal del motor si reacomoda a otros). Los tiempos y la
 // urgencia se agregan en el tramo siguiente.
+function etiquetaCampoDiv(campo: Divergencia['campo']): string {
+  switch (campo) {
+    case 'setup':
+      return 'Setup (min)'
+    case 'operacion':
+      return 'Operación (min/pieza)'
+    case 'margen':
+      return 'Margen (min)'
+    case 'cantidad':
+      return 'Cantidad'
+    case 'modo':
+      return 'Modo'
+  }
+}
+
 function ModalActividad({
   b, item, personal, maquinas, ctxs, onCerrar, onQuitar, onGuardar,
 }: {
@@ -861,6 +878,33 @@ function ModalActividad({
     })
   }
 
+  // Aplicar cambios de OT: adopta los valores que puso Oficina Técnica (el "actual"
+  // de cada divergencia) y guarda como si los hubieras editado. Sincroniza el
+  // snapshot → el ⚠ desaparece y el bloque se recalcula.
+  function aplicarOT() {
+    const val = (campo: Divergencia['campo'], fallback: number): number => {
+      const d = b.divergencias.find((x) => x.campo === campo)
+      return d ? (d.actual as number) : fallback
+    }
+    const dModo = b.divergencias.find((x) => x.campo === 'modo')
+    onGuardar({
+      operarioId,
+      maquinaId,
+      fecha: fecha as FechaISO,
+      hora,
+      tiempos: {
+        setupMin: val('setup', setupMin),
+        operacionMin: val('operacion', operacionMin),
+        margenMin: val('margen', margenMin),
+        cantidad: val('cantidad', cantidad),
+        modo: dModo ? (dModo.actual as ModoProceso) : b.modo,
+      },
+      setupSolapable,
+      urgencia,
+      proyectoId: b.proyectoId,
+    })
+  }
+
   return (
     <div className="tab-modal-overlay">
       <div className="tab-modal tab-modal-act">
@@ -893,6 +937,33 @@ function ModalActividad({
             </div>
           ) : null}
         </div>
+
+        {b.divergencias.length > 0 ? (
+          <div className="tab-div">
+            <div className="tab-div-titulo">⚠ Oficina Técnica modificó este proceso desde Proyectos</div>
+            <table className="tab-div-tabla">
+              <thead>
+                <tr>
+                  <th>Concepto</th>
+                  <th>Antes (tu plan)</th>
+                  <th>Ahora (OT)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {b.divergencias.map((d) => (
+                  <tr key={d.campo}>
+                    <td>{etiquetaCampoDiv(d.campo)}</td>
+                    <td>{String(d.aceptado)}</td>
+                    <td className="tab-div-nuevo">{String(d.actual)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button className="tab-div-aplicar" onClick={aplicarOT}>
+              Aplicar cambios de OT
+            </button>
+          </div>
+        ) : null}
         {/* Operario / máquina */}
         <div className="tab-ed-fila">
           <div className="tab-ed-campo">
