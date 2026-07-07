@@ -12,7 +12,7 @@ import {
   redefinirPredecesores,
   quitarCorrelatividad,
 } from './procesosApi'
-import { esContenedor, tipoLabel } from './elementosApi'
+import { esContenedor, tipoLabel, cargarAncestros } from './elementosApi'
 import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
 import { fechaCorta } from './proyectoTipos'
@@ -51,6 +51,13 @@ function VistaElemento({
   useEffect(() => {
     cargarRecursos().then(setRecursos)
   }, [])
+
+  // Al entrar, cargar la cadena de ancestros del elemento inicial y arrancar la
+  // pila con ella, así el breadcrumb muestra todos los niveles (entres por donde entres).
+  useEffect(() => {
+    cargarAncestros(elemento).then(setPila)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elemento.id])
 
   // Procesos + hijos del elemento ACTUAL (se recargan al navegar).
   async function recargar(el: Elemento) {
@@ -193,8 +200,17 @@ function VistaElemento({
       {/* Breadcrumb: Proyecto › … › elemento actual */}
       <div className="vi-breadcrumb">
         <span className="vi-crumb vi-crumb-link" onClick={onCerrar}>
-          Proyecto{proyecto?.pedido_nro ? ` (Ped. ${proyecto.pedido_nro})` : ''}
+          Proyectos
         </span>
+        {proyecto ? (
+          <span className="vi-crumb-grupo">
+            <span className="vi-crumb-sep">›</span>
+            <span className="vi-crumb vi-crumb-link" onClick={onCerrar}>
+              {proyecto.descripcion}
+              {proyecto.pedido_nro ? ` (Ped. ${proyecto.pedido_nro})` : ''}
+            </span>
+          </span>
+        ) : null}
         {pila.map((el, idx) => (
           <span key={el.id} className="vi-crumb-grupo">
             <span className="vi-crumb-sep">›</span>

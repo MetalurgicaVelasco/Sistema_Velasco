@@ -11,13 +11,17 @@ function MenuContextual({
   items,
   children,
 }: {
-  items: ItemMenu[]
+  items: ItemMenu[] | ((e: React.MouseEvent) => ItemMenu[])
   children: React.ReactNode
 }) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+  const [itemsResueltos, setItemsResueltos] = useState<ItemMenu[]>([])
 
   function abrir(e: React.MouseEvent) {
     e.preventDefault()
+    // Si items es una función, se evalúa con el evento del clic derecho (permite
+    // armar opciones según sobre qué se clickeó). Si es un array, se usa tal cual.
+    setItemsResueltos(typeof items === 'function' ? items(e) : items)
     setPos({ x: e.clientX, y: e.clientY })
   }
 
@@ -45,7 +49,7 @@ function MenuContextual({
       {children}
       {pos && (
         <ul className="menu-ctx" style={{ top: pos.y, left: pos.x }}>
-          {items.map((it, i) => (
+          {itemsResueltos.map((it, i) => (
             <li key={i}>
               <button
                 type="button"

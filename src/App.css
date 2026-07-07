@@ -707,14 +707,9 @@
   background: #f4f4f5;
 }
 
-.tabla-acciones {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-/* Acciones dentro de una fila: mismo recuadro de siempre, pero finitos
-   verticalmente para no estirar la altura de la fila. */
+/* La celda de acciones es un <td>: NO usar display:flex acá (rompería la celda de
+   tabla, la encoge y no hereda el fondo de la fila). La alineación a la derecha la
+   hace la regla .tabla-acciones más abajo (text-align:right + margin en botones). */
 .tabla-acciones .empresas-editar,
 .tabla-acciones .empresas-borrar {
   padding: 0 8px;

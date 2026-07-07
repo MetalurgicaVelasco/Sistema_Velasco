@@ -121,3 +121,23 @@ export async function crearComponenteInicial(
     .single()
   return (data as unknown as Elemento) ?? null
 }
+
+// Sube por parent_elemento_id desde un elemento hasta la raíz. Devuelve la cadena
+// completa [raíz, …, elemento] para armar el breadcrumb con todos los niveles,
+// entres por donde entres.
+export async function cargarAncestros(elemento: Elemento): Promise<Elemento[]> {
+  const cadena: Elemento[] = [elemento]
+  let parentId = elemento.parent_elemento_id
+  while (parentId != null) {
+    const { data, error } = await supabase
+      .from('elementos')
+      .select(SELECT_ELEMENTO)
+      .eq('id', parentId)
+      .single()
+    if (error || !data) break
+    const padre = data as Elemento
+    cadena.unshift(padre)
+    parentId = padre.parent_elemento_id
+  }
+  return cadena
+}

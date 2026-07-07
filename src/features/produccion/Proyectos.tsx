@@ -434,9 +434,15 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       {/* Franja 2 — Lista de proyectos */}
       <div className="franja franja-lista">
         <MenuContextual
-          items={[
-            { label: 'Nuevo proyecto', onSelect: () => setFormActivo('nuevo') },
-          ]}
+          items={(e) => {
+            const fila = (e.target as HTMLElement).closest('[data-proyecto-id]')
+            const id = fila ? Number(fila.getAttribute('data-proyecto-id')) : null
+            const p = id != null ? proyectos.find((x) => x.id === id) : null
+            return [
+              ...(p ? [{ label: `Editar "${p.descripcion}"`, onSelect: () => setFormActivo(p) }] : []),
+              { label: 'Nuevo proyecto', onSelect: () => setFormActivo('nuevo') },
+            ]
+          }}
         >
           {error ? (
             <div className="empresas-estado">{error}</div>
@@ -468,6 +474,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                   {proyectos.map((p) => (
                     <tr
                       key={p.id}
+                      data-proyecto-id={p.id}
                       ref={p.id === seleccionadoId ? filaProySelRef : undefined}
                       className={
                         'tabla-fila' +
