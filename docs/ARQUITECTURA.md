@@ -4,7 +4,7 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 04/07/2026 (agregada §14 Tablero de planificación y actualizada §13 con la decisión de dnd-kit)
+> Última actualización: 06/07/2026 (§14: modelo de cambio directo vs. divergencia y edición de urgencia desde el tablero)
 
 ---
 
@@ -426,9 +426,24 @@ sola vez** en `shared/` en lugar de duplicarse entre páginas como pasaba en el 
   sentinels (`NULL` = sin planificar). Tiempos reales `real_*` para `hecho`.
 - `plan_aceptado` (jsonb) es el snapshot de lo que el planificador aceptó
   (setup, operación por pieza, margen, cantidad, modo). El ancho y comportamiento
-  del bloque se **derivan** de este snapshot; los cambios de Oficina Técnica
-  generan "divergencia" (⚠) hasta que el planificador los aplica o ignora.
-  Reemplaza a las columnas espejo `ot_ack_*` del sistema viejo.
+  del bloque se **derivan** de este snapshot. Reemplaza a las columnas espejo
+  `ot_ack_*` del sistema viejo.
+- **Cambio directo vs. divergencia (decidido 06/07/2026):** hay dos orígenes de
+  cambio de un proceso, con tratamiento distinto.
+  - **Desde el tablero** (modal de la actividad: tiempos de setup/operación/margen,
+    operario, máquina, fecha/hora, `setup_solapable`): es un **cambio directo**. Se
+    escribe el dato real del proceso **y** el snapshot `plan_aceptado` a la vez,
+    quedando iguales, así que **no genera divergencia** (el planificador ya sabe lo
+    que cambió; no tiene sentido avisárselo a sí mismo).
+  - **Desde Oficina Técnica / Proyectos:** toca el proceso real sin actualizar el
+    snapshot → el tablero muestra la **divergencia (⚠)** hasta que el planificador
+    la **aplica** (adopta el valor de OT en el snapshot) o la **ignora**.
+  - Así el ⚠ queda reservado para lo único que importa avisar: "OT cambió algo sin
+    que el planificador se entere".
+- La **urgencia** se puede editar desde el modal del tablero, pero vive en el
+  **proyecto** (no en el proceso, para no duplicar la fuente): se guarda con un
+  UPDATE aparte a `proyectos` y **afecta a todos los bloques de ese proyecto**, no
+  solo al editado. El modal avisa de esto al editarla.
 - `proceso_eliminado` (soft-delete visible en tablero), `setup_solapable`,
   `grupo_division_id` (uuid) se conservan del contrato viejo.
 - Tablas de soporte: `personal_vacaciones`, `configuraciones` (clave/valor; la
