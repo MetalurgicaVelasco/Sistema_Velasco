@@ -18,6 +18,7 @@ import type { ProcesoElegible } from './datos/elegibles'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import { snapearInsercion, type Ocupacion } from './calculos/insercion'
 import { simular, type ItemSimulacion, type ResultadoSimulacion } from './motor/simular'
+import { finMaquina, type ContextoOperario } from './motor/calendario'
 import type { Tiempos } from './motor/duraciones'
 import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
@@ -607,6 +608,7 @@ export default function Tablero() {
           item={datos.materialSim.items.find((it) => it.id === modalActividad.procesoId)}
           personal={personal}
           maquinas={datos.maquinas}
+          ctxs={datos.materialSim.ctxs}
           onCerrar={() => setModalActividad(null)}
           onQuitar={quitarActividad}
           onGuardar={guardarActividad}
@@ -782,12 +784,13 @@ function Bloque({
 // (directo si no cascadea; modal del motor si reacomoda a otros). Los tiempos y la
 // urgencia se agregan en el tramo siguiente.
 function ModalActividad({
-  b, item, personal, maquinas, onCerrar, onQuitar, onGuardar,
+  b, item, personal, maquinas, ctxs, onCerrar, onQuitar, onGuardar,
 }: {
   b: BloqueVisual
   item: ItemSimulacion | undefined
   personal: PersonalTablero[]
   maquinas: MaquinaTablero[]
+  ctxs: Map<number, ContextoOperario>
   onCerrar: () => void
   onQuitar: (procesoId: number) => void
   onGuardar: (cambios: {
@@ -824,6 +827,26 @@ function ModalActividad({
     b.modo === 'automatica' ? 'Automática (24/7)' : b.modo === 'semi_automatica' ? 'Semi-automática' : 'Manual'
   const esAutoSemi = b.modo === 'automatica' || b.modo === 'semi_automatica'
   const puedeEditarTiempos = !!item // solo si el proceso está en la simulación (no pasado)
+  const cantidad = t?.cantidad ?? 1
+
+  // Fin calculado (read-only): inicio + tiempos, respetando la jornada del operario.
+  // Se recalcula en cada render → se actualiza al tocar fecha/hora/tiempos/operario.
+  let fechaFin = ''
+  let horaFin = ''
+  const ctxOp = ctxs.get(operarioId)
+  if (ctxOp && /^\d{4}-\d{2}-\d{2}$/.test(fecha) && /^\d{2}:\d{2}/.test(hora)) {
+    try {
+      const fin = finMaquina(
+        { fecha: fecha as FechaISO, min: horaAMin(hora) },
+        { setupMin, operacionMin, margenMin, cantidad, modo: b.modo },
+        ctxOp,
+      )
+      fechaFin = fin.fecha
+      horaFin = minAHora(fin.min)
+    } catch {
+      /* hora incompleta mientras se tipea: dejar el fin vacío */
+    }
+  }
 
   function guardar() {
     onGuardar({
@@ -870,20 +893,22 @@ function ModalActividad({
             </div>
           ) : null}
         </div>
-        <div className="tab-act-campos">
-          <label className="tab-act-campo">
-            Operario
-            <select value={operarioId} onChange={(e) => setOperarioId(Number(e.target.value))}>
+        {/* Operario / máquina */}
+        <div className="tab-ed-fila">
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">Operario</div>
+            <select className="tab-ed-i" value={operarioId} onChange={(e) => setOperarioId(Number(e.target.value))}>
               {personal.map((op) => (
                 <option key={op.id} value={op.id}>
                   {nombreCorto(op)}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="tab-act-campo">
-            Máquina
+          </div>
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">Máquina</div>
             <select
+              className="tab-ed-i"
               value={maquinaId ?? ''}
               onChange={(e) => setMaquinaId(e.target.value === '' ? null : Number(e.target.value))}
             >
@@ -894,68 +919,102 @@ function ModalActividad({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="tab-act-campo">
-            Fecha
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </label>
-          <label className="tab-act-campo">
-            Hora
-            <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
-          </label>
-          <label className="tab-act-campo">
-            Setup (min)
-            <input
-              type="number"
-              min={0}
-              value={setupMin}
-              disabled={!puedeEditarTiempos}
-              onChange={(e) => setSetupMin(Number(e.target.value))}
-            />
-          </label>
-          <label className="tab-act-campo">
-            Operación (min)
-            <input
-              type="number"
-              min={0}
-              value={operacionMin}
-              disabled={!puedeEditarTiempos}
-              onChange={(e) => setOperacionMin(Number(e.target.value))}
-            />
-          </label>
-          <label className="tab-act-campo">
-            Margen (min)
-            <input
-              type="number"
-              min={0}
-              value={margenMin}
-              disabled={!puedeEditarTiempos}
-              onChange={(e) => setMargenMin(Number(e.target.value))}
-            />
-          </label>
-          <label className="tab-act-campo tab-act-urgencia">
-            Urgencia
-            <select value={urgencia} onChange={(e) => setUrgencia(e.target.value)}>
+          </div>
+        </div>
+
+        {/* Fecha y hora de inicio / fin calculado / urgencia */}
+        <div className="tab-ed-fila">
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">Fecha y hora de inicio</div>
+            <div className="tab-ed-dob">
+              <input
+                type="date"
+                className="tab-ed-i tab-ed-fecha"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+              />
+              <input
+                type="time"
+                className="tab-ed-i tab-ed-hora"
+                step={600}
+                value={hora}
+                onChange={(e) => setHora(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">
+              Fecha y hora de fin <span className="tab-ed-calc">(calculado)</span>
+            </div>
+            <div className="tab-ed-dob">
+              <input type="date" className="tab-ed-i tab-ed-fecha tab-ed-fin" value={fechaFin} readOnly disabled />
+              <input type="time" className="tab-ed-i tab-ed-hora tab-ed-fin" value={horaFin} readOnly disabled />
+            </div>
+          </div>
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">Urgencia</div>
+            <select className="tab-ed-i" value={urgencia} onChange={(e) => setUrgencia(e.target.value)}>
               <option value="urgente">Urgente</option>
               <option value="alta">Alta</option>
               <option value="media">Media</option>
               <option value="baja">Baja</option>
             </select>
-            <span className="tab-act-aviso">
-              ⚠ La urgencia es del proyecto: afecta a todas sus actividades, no solo a esta.
-            </span>
-          </label>
-          {esAutoSemi ? (
-            <label className="tab-act-check">
-              <input
-                type="checkbox"
-                checked={setupSolapable}
-                onChange={(e) => setSetupSolapable(e.target.checked)}
-              />
-              Permitir solapamiento del setup
-            </label>
-          ) : null}
+          </div>
         </div>
+        <div className="tab-ed-aviso">⚠ La urgencia es del proyecto: afecta a todas sus actividades, no solo a esta.</div>
+
+        {/* Tiempos */}
+        <div className="tab-ed-fila">
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">Tiempo de setup (min)</div>
+            <input
+              type="number"
+              className="tab-ed-i"
+              min={0}
+              step={5}
+              value={setupMin}
+              disabled={!puedeEditarTiempos}
+              onChange={(e) => setSetupMin(Number(e.target.value))}
+            />
+          </div>
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">
+              Tiempo de operación (min) <span className="tab-ed-req">*</span>
+            </div>
+            <input
+              type="number"
+              className="tab-ed-i"
+              min={0}
+              step={0.1}
+              value={operacionMin}
+              disabled={!puedeEditarTiempos}
+              onChange={(e) => setOperacionMin(Number(e.target.value))}
+            />
+          </div>
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">Margen (min)</div>
+            <input
+              type="number"
+              className="tab-ed-i"
+              min={0}
+              step={10}
+              value={margenMin}
+              disabled={!puedeEditarTiempos}
+              onChange={(e) => setMargenMin(Number(e.target.value))}
+            />
+          </div>
+        </div>
+        <div className="tab-ed-help">
+          El <b>tiempo de setup</b> es el seteo de la máquina, una sola vez. El <b>tiempo de operación</b> es por pieza
+          {cantidad > 1 ? ` (× ${cantidad} piezas)` : ''}. El <b>margen</b> se suma al total.
+        </div>
+
+        {esAutoSemi ? (
+          <label className="tab-ed-check">
+            <input type="checkbox" checked={setupSolapable} onChange={(e) => setSetupSolapable(e.target.checked)} />
+            <span>Permitir solapamiento del setup sobre actividades manuales</span>
+          </label>
+        ) : null}
         <div className="tab-plan-botones">
           <button className="tab-btn-danger" onClick={() => onQuitar(b.procesoId)}>
             Quitar del tablero

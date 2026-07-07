@@ -304,8 +304,8 @@
   border: 1px solid #c8c6be;
   border-radius: 10px;
   padding: 18px 22px;
-  width: 90%;
-  max-width: 520px;
+  width: 520px;
+  max-width: 94vw;
   max-height: 80vh;
   overflow: auto;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
@@ -314,6 +314,7 @@
 }
 .tab-modal-act {
   position: relative;
+  width: 660px;
 }
 .tab-modal-x {
   position: absolute;
@@ -341,44 +342,82 @@
   line-height: 1.7;
   margin-bottom: 14px;
 }
-.tab-act-campos {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* Layout editable del modal de actividad (réplica del sistema viejo) */
+.tab-ed-fila {
+  display: flex;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
-.tab-act-campo {
+.tab-ed-campo {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
+}
+.tab-ed-l {
   font-size: 11px;
   color: #5f5e5a;
 }
-.tab-act-campo select,
-.tab-act-campo input {
+.tab-ed-calc {
+  color: #888780;
+  font-weight: 400;
+}
+.tab-ed-req {
+  color: #a32d2d;
+}
+.tab-ed-i {
   border: 1px solid #c8c6be;
   border-radius: 5px;
-  padding: 5px 7px;
+  padding: 6px 8px;
   font-size: 12px;
   color: #2c2c2a;
   background: #fff;
+  width: 100%;
+  box-sizing: border-box;
 }
-.tab-act-check {
-  grid-column: 1 / -1;
+.tab-ed-dob {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 4px;
+}
+.tab-ed-fecha {
+  flex: 1.4;
+}
+.tab-ed-hora {
+  flex: 1;
+}
+.tab-ed-fin {
+  background: #f5f4ee;
+  color: #5f5e5a;
+}
+.tab-ed-aviso {
+  font-size: 10px;
+  color: #a35a00;
+  margin-top: -6px;
+  margin-bottom: 10px;
+}
+.tab-ed-help {
+  font-size: 10px;
+  color: #5f5e5a;
+  margin-top: -4px;
+  margin-bottom: 10px;
+}
+.tab-ed-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 12px;
   color: #2c2c2a;
   cursor: pointer;
+  background: #fafaf7;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #c8c6be;
+  margin-bottom: 10px;
 }
-.tab-act-urgencia {
-  grid-column: 1 / -1;
-}
-.tab-act-aviso {
-  font-size: 10px;
-  color: #a35a00;
-  margin-top: 3px;
+.tab-ed-check input {
+  margin-top: 2px;
+  flex-shrink: 0;
 }
 
 /* Botón "+" en cada celda (aparece al pasar el mouse) */
@@ -412,7 +451,8 @@
 
 /* Modal selector del "+" */
 .tab-modal-selector {
-  max-width: 620px;
+  width: 620px;
+  max-width: 94vw;
   display: flex;
   flex-direction: column;
 }
@@ -553,7 +593,8 @@
 
 /* Modal "¿dónde lo pongo?" */
 .tab-modal-insertar {
-  max-width: 460px;
+  width: 460px;
+  max-width: 94vw;
 }
 .tab-ins-info {
   font-size: 12px;
