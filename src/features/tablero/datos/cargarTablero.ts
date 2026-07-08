@@ -32,22 +32,38 @@ import type { Correlatividad } from '../../produccion/procesoTipos'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// Elementos de un conjunto de ids.
+// Elementos de un conjunto de ids, MÁS toda su cadena de ancestros (subiendo por
+// parent_elemento_id). Los ancestros se necesitan para heredar la foto: si un
+// elemento no tiene, se usa la del padre, y así hacia arriba.
 async function cargarElementos(ids: number[]): Promise<Map<number, ElementoMin>> {
   const m = new Map<number, ElementoMin>()
   if (!ids.length) return m
-  const { data, error } = await supabase
-    .from('elementos')
-    .select('id, descripcion, cantidad, foto_url, proyecto_id')
-    .in('id', ids)
-  if (error) throw new Error(error.message)
-  for (const r of (data ?? []) as any[]) {
-    m.set(r.id, {
-      descripcion: r.descripcion,
-      cantidad: Number(r.cantidad),
-      fotoUrl: r.foto_url,
-      proyectoId: r.proyecto_id,
-    })
+
+  let pendientes = ids
+  // Sube de a un nivel por vuelta; en la práctica son 2-3 niveles.
+  while (pendientes.length) {
+    const { data, error } = await supabase
+      .from('elementos')
+      .select('id, descripcion, cantidad, foto_url, proyecto_id, parent_elemento_id')
+      .in('id', pendientes)
+    if (error) throw new Error(error.message)
+    for (const r of (data ?? []) as any[]) {
+      m.set(r.id, {
+        descripcion: r.descripcion,
+        cantidad: Number(r.cantidad),
+        fotoUrl: r.foto_url,
+        proyectoId: r.proyecto_id,
+        parentId: r.parent_elemento_id ?? null,
+      })
+    }
+    // Padres que todavía no tenemos cargados.
+    pendientes = [
+      ...new Set(
+        (data ?? [])
+          .map((r: any) => r.parent_elemento_id as number | null)
+          .filter((p): p is number => p != null && !m.has(p)),
+      ),
+    ]
   }
   return m
 }
@@ -58,7 +74,7 @@ async function cargarProyectos(ids: number[]): Promise<Map<number, ProyectoMin>>
   if (!ids.length) return m
   const { data, error } = await supabase
     .from('proyectos')
-    .select('id, urgencia, pedido_nro, empresa:empresas!empresa_id ( nombre )')
+    .select('id, urgencia, pedido_nro, foto_url, empresa:empresas!empresa_id ( nombre )')
     .in('id', ids)
   if (error) throw new Error(error.message)
   for (const r of (data ?? []) as any[]) {
@@ -66,6 +82,7 @@ async function cargarProyectos(ids: number[]): Promise<Map<number, ProyectoMin>>
       urgencia: r.urgencia,
       pedidoNro: r.pedido_nro,
       clienteNombre: r.empresa?.nombre ?? '',
+      fotoUrl: r.foto_url ?? null,
     })
   }
   return m

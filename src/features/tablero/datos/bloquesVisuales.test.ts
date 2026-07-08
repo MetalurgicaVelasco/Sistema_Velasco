@@ -27,8 +27,12 @@ function proc(o: Partial<ProcesoTablero>): ProcesoTablero {
 function datosCon(procesos: ProcesoTablero[]): DatosTablero {
   return {
     procesos,
-    elementos: new Map([[10, { descripcion: 'Eje principal', cantidad: 1, fotoUrl: null, proyectoId: 50 }]]),
-    proyectos: new Map([[50, { urgencia: 'alta', pedidoNro: '4130', clienteNombre: 'ACME' }]]),
+    elementos: new Map([
+      [10, { descripcion: 'Eje principal', cantidad: 1, fotoUrl: null, proyectoId: 50, parentId: null }],
+    ]),
+    proyectos: new Map([
+      [50, { urgencia: 'alta', pedidoNro: '4130', clienteNombre: 'ACME', fotoUrl: null }],
+    ]),
     tiposProceso: new Map([[100, 'Torneado']]),
     maquinas: new Map([[5, maquina]]),
     personal: new Map([[3, operario]]),
@@ -73,5 +77,53 @@ describe('armarBloquesVisuales', () => {
   it('usa el texto libre cuando el tipo de proceso es "Otro"', () => {
     const bv = armarBloquesVisuales(datosCon([proc({ tipoProcesoId: null, procesoOtro: 'Rebarbado' })]))
     expect(bv[0].tipoProceso).toBe('Rebarbado')
+  })
+})
+
+describe('armarBloquesVisuales — herencia de la foto', () => {
+  // Jerarquía: proyecto 50 → conjunto 30 → subconjunto 20 → elemento 10 (el del proceso).
+  function datosConFotos(fotos: {
+    elem?: string | null
+    sub?: string | null
+    conj?: string | null
+    proy?: string | null
+  }): DatosTablero {
+    const d = datosCon([proc({})])
+    return {
+      ...d,
+      elementos: new Map([
+        [10, { descripcion: 'Eje principal', cantidad: 1, fotoUrl: fotos.elem ?? null, proyectoId: 50, parentId: 20 }],
+        [20, { descripcion: 'Subconjunto', cantidad: 1, fotoUrl: fotos.sub ?? null, proyectoId: 50, parentId: 30 }],
+        [30, { descripcion: 'Conjunto', cantidad: 1, fotoUrl: fotos.conj ?? null, proyectoId: 50, parentId: null }],
+      ]),
+      proyectos: new Map([
+        [50, { urgencia: 'alta', pedidoNro: '4130', clienteNombre: 'ACME', fotoUrl: fotos.proy ?? null }],
+      ]),
+    }
+  }
+
+  it('usa la foto propia del elemento si la tiene', () => {
+    const bv = armarBloquesVisuales(datosConFotos({ elem: 'propia.png', sub: 'sub.png', proy: 'proy.png' }))
+    expect(bv[0].fotoUrl).toBe('propia.png')
+  })
+
+  it('sin foto propia, hereda la del padre', () => {
+    const bv = armarBloquesVisuales(datosConFotos({ sub: 'sub.png', conj: 'conj.png', proy: 'proy.png' }))
+    expect(bv[0].fotoUrl).toBe('sub.png')
+  })
+
+  it('sin foto del padre, sigue subiendo hasta el abuelo', () => {
+    const bv = armarBloquesVisuales(datosConFotos({ conj: 'conj.png', proy: 'proy.png' }))
+    expect(bv[0].fotoUrl).toBe('conj.png')
+  })
+
+  it('si ningún ancestro tiene foto, cae en la del proyecto', () => {
+    const bv = armarBloquesVisuales(datosConFotos({ proy: 'proy.png' }))
+    expect(bv[0].fotoUrl).toBe('proy.png')
+  })
+
+  it('sin ninguna foto en la cadena, queda null', () => {
+    const bv = armarBloquesVisuales(datosConFotos({}))
+    expect(bv[0].fotoUrl).toBeNull()
   })
 })

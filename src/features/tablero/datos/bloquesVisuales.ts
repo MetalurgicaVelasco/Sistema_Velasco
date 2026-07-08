@@ -27,11 +27,13 @@ export type ElementoMin = {
   cantidad: number
   fotoUrl: string | null
   proyectoId: number
+  parentId: number | null
 }
 export type ProyectoMin = {
   urgencia: string
   pedidoNro: string | null
   clienteNombre: string
+  fotoUrl: string | null
 }
 
 export type DatosTablero = {
@@ -90,6 +92,27 @@ function estaPlanificado(p: ProcesoTablero): boolean {
   return !!p.planFecha && !!p.planHora && p.planOperarioId != null
 }
 
+// Foto del bloque: la del elemento; si no tiene, la del padre, y así hacia arriba.
+// Último recurso, la del proyecto. (El viejo caía directo del elemento al proyecto;
+// heredar por la jerarquía muestra algo más representativo.)
+function fotoHeredada(
+  elementoId: number,
+  elementos: Map<number, ElementoMin>,
+  proyectos: Map<number, ProyectoMin>,
+): string | null {
+  let actual: number | null = elementoId
+  const vistos = new Set<number>() // por si hubiera un ciclo en los datos
+  while (actual != null && !vistos.has(actual)) {
+    vistos.add(actual)
+    const el: ElementoMin | undefined = elementos.get(actual)
+    if (!el) break
+    if (el.fotoUrl) return el.fotoUrl
+    actual = el.parentId
+  }
+  const el = elementos.get(elementoId)
+  return el ? (proyectos.get(el.proyectoId)?.fotoUrl ?? null) : null
+}
+
 export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
   // Parte intermedia: cada fragmento con sus datos de display (sin carril todavía).
   const conDatos: Array<Omit<BloqueVisual, 'track'>> = []
@@ -135,7 +158,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
       hayDivergencia: divs.length > 0,
       divergencias: divs,
       procesoEliminado: p.procesoEliminado,
-      fotoUrl: elemento.fotoUrl,
+      fotoUrl: fotoHeredada(p.elementoId, datos.elementos, datos.proyectos),
       esAuto,
       modo: tiempos.modo,
     }

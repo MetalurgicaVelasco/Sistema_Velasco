@@ -16,6 +16,7 @@ import {
 import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
 import type { ProcesoElegible } from './datos/elegibles'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
+import { fotoPublica } from './calculos/foto'
 import { snapearInsercion, type Ocupacion } from './calculos/insercion'
 import { simular, type ItemSimulacion, type ResultadoSimulacion } from './motor/simular'
 import { finMaquina, type ContextoOperario } from './motor/calendario'
@@ -742,11 +743,15 @@ function Bloque({
   const cabeManual = haySetup && anchoSetupPx >= 12 && altoBloque - 4 >= 56
   const fontManual = Math.max(7, Math.min(11, Math.floor(((altoBloque - 4) * 0.7) / 6)))
   const marca = b.modo === 'automatica' ? 'A' : b.modo === 'semi_automatica' ? 'S' : null
+  // Foto en el bloque solo si hay lugar (mismo criterio que el sistema viejo:
+  // duración >= 150 min y alto del bloque >= 56px).
+  const foto = fotoPublica(b.fotoUrl)
+  const mostrarFoto = !!foto && dur >= 150 && altoBloque >= 56
 
   return (
     <div
       ref={setNodeRef}
-      className={`tab-bk ${b.hecho ? 'es-hecho' : ''} ${isDragging ? 'tab-arrastrando' : ''}`}
+      className={`tab-bk ${mostrarFoto ? 'con-foto' : ''} ${b.hecho ? 'es-hecho' : ''} ${isDragging ? 'tab-arrastrando' : ''}`}
       style={{
         left: `calc(${left}% + 1px)`,
         width: `calc(${width}% - 2px)`,
@@ -785,6 +790,16 @@ function Bloque({
           {b.pedidoNro ? <span className="tab-ped"> · Ped. {b.pedidoNro}</span> : null}
         </div>
       </div>
+      {mostrarFoto ? (
+        <img
+          src={foto as string}
+          alt=""
+          className="tab-bk-foto"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+          }}
+        />
+      ) : null}
       {b.procesoEliminado ? (
         <span className="tab-warn" title="Proceso eliminado desde Proyectos">⛔</span>
       ) : b.hayDivergencia ? (
@@ -932,7 +947,18 @@ function ModalActividad({
           ×
         </button>
         <div className="tab-modal-titulo">{b.descripcion}</div>
-        <div className="tab-act-info">
+        <div className="tab-act-cab">
+          {fotoPublica(b.fotoUrl) ? (
+            <img
+              src={fotoPublica(b.fotoUrl) as string}
+              alt=""
+              className="tab-act-foto"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          ) : null}
+          <div className="tab-act-info">
           {b.cliente ? (
             <div>
               <b>Cliente:</b> {b.cliente}
@@ -956,6 +982,7 @@ function ModalActividad({
               <b>Parte:</b> {b.parte}/{b.totalPartes}
             </div>
           ) : null}
+          </div>
         </div>
 
         {b.divergencias.length > 0 ? (
@@ -1230,8 +1257,8 @@ function ModalSelector({
                 onClick={el.predecesorPendiente ? undefined : () => onElegir(el)}
                 title={el.predecesorPendiente ? 'Bloqueada: tiene predecesores sin planificar' : ''}
               >
-                {el.fotoUrl ? (
-                  <img src={el.fotoUrl} alt="" className="tab-sel-foto" />
+                {fotoPublica(el.fotoUrl) ? (
+                  <img src={fotoPublica(el.fotoUrl) as string} alt="" className="tab-sel-foto" />
                 ) : (
                   <div className="tab-sel-nofoto">sin foto</div>
                 )}
@@ -1362,8 +1389,19 @@ function Tooltip({ tip }: { tip: { b: BloqueVisual; x: number; y: number } }) {
   const top = y + 16
   const tipoLabel =
     b.modo === 'automatica' ? 'Automática' : b.modo === 'semi_automatica' ? 'Semi-automática' : 'Manual'
+  const foto = fotoPublica(b.fotoUrl)
   return (
     <div className="tab-tip" style={{ left, top }}>
+      {foto ? (
+        <img
+          src={foto}
+          alt=""
+          className="tab-tip-foto"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+          }}
+        />
+      ) : null}
       <div className="tab-tip-t">
         {b.descripcion}
         {b.tipoProceso ? ` · ${b.tipoProceso}` : ''}

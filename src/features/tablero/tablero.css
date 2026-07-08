@@ -859,3 +859,56 @@
 .tab-div-aplicar:hover {
   background: #0a3866;
 }
+
+/* Fotos del tablero (medidas copiadas del sistema viejo) */
+
+/* Miniatura en el bloque: 35px, al final (derecha), solo si hay lugar.
+   Con foto el bloque pasa a fila (imagen a la derecha del texto), como el viejo. */
+.tab-bk.con-foto {
+  flex-direction: row;
+  align-items: stretch;
+}
+.tab-bk.con-foto .tab-tx {
+  flex: 1;
+  justify-content: center;
+}
+.tab-bk-foto {
+  width: 35px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin-left: 4px;
+}
+
+/* Foto en el tooltip: arriba del texto, tamaño acotado. */
+.tab-tip-foto {
+  display: block;
+  max-width: 200px;
+  max-height: 140px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: #fff;
+}
+
+/* Foto en el modal de actividad: al costado de la info. */
+.tab-act-cab {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.tab-act-cab .tab-act-info {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.tab-act-foto {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #c8c6be;
+  flex-shrink: 0;
+  background: #fff;
+}
