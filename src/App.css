@@ -677,7 +677,7 @@
   position: fixed;
   z-index: 100;
   margin: 0;
-  padding: 4px;
+  padding: 3px;
   list-style: none;
   background: #fff;
   border: 1px solid #d4d4d8;
@@ -693,8 +693,8 @@
   display: block;
   width: 100%;
   text-align: left;
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: 5px 12px;
+  font-size: 11px;
   color: #27272a;
   background: none;
   border: none;
@@ -2931,4 +2931,24 @@ textarea.ef-i {
   .filtro-check {
     font-size: 11px;
   }
+}
+
+/* Submenú del menú contextual (un nivel): se abre al costado al pasar el cursor. */
+.menu-ctx-con-sub {
+  position: relative;
+}
+.menu-ctx-flecha {
+  float: right;
+  margin-left: 12px;
+  color: #888780;
+}
+.menu-ctx-sub {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  margin: 0;
+}
+.menu-ctx-sub.izq {
+  left: auto;
+  right: 100%;
 }

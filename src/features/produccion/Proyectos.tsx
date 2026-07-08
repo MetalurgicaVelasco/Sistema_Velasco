@@ -7,17 +7,29 @@ import VistaElemento from './VistaElemento'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
+import { tipoLabel } from './elementosApi'
 import { useEditorElemento } from './useEditorElemento'
+import { guardarVista, leerVista } from '../../shared/lib/vistaModulos'
 import { contarProcesosPorElementos } from './procesosApi'
 import {
   buscarProyectos,
   hayFiltrosActivos,
   FILTROS_VACIOS,
+  FILTROS_INICIALES,
   ESTADOS_PROYECTO,
   FECHA_PRESETS,
 } from './proyectosApi'
 import type { FiltrosProyectos } from './proyectosApi'
 import type { Navegar } from '../../shared/types/navegacion'
+
+// Estado de vista que se conserva al saltar a otro módulo y volver (en memoria,
+// se pierde al recargar la página).
+const MODULO = 'proyectos'
+type VistaProyectos = {
+  filtros: FiltrosProyectos
+  seleccionadoId: number | null
+  elementoSeleccionadoId: number | null
+}
 
 const BUCKET = 'proyectos-fotos'
 
@@ -62,17 +74,23 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [seleccionadoId, setSeleccionadoId] = useState<number | null>(null)
+  const [seleccionadoId, setSeleccionadoId] = useState<number | null>(
+    () => leerVista<VistaProyectos>(MODULO)?.seleccionadoId ?? null,
+  )
 
   // Filtros (franja 1) + un "tick" para forzar recarga tras editar/borrar.
-  const [filtros, setFiltros] = useState<FiltrosProyectos>(FILTROS_VACIOS)
+  const [filtros, setFiltros] = useState<FiltrosProyectos>(
+    () => leerVista<VistaProyectos>(MODULO)?.filtros ?? FILTROS_INICIALES,
+  )
   const [recargarTick, setRecargarTick] = useState(0)
 
   // Elementos del proyecto seleccionado (franja 3) + conteo de procesos por elemento.
   const [elementos, setElementos] = useState<Elemento[]>([])
   const [elementosCargando, setElementosCargando] = useState(false)
   const [contarProc, setContarProc] = useState<Record<number, number>>({})
-  const [elementoSeleccionadoId, setElementoSeleccionadoId] = useState<number | null>(null)
+  const [elementoSeleccionadoId, setElementoSeleccionadoId] = useState<number | null>(
+    () => leerVista<VistaProyectos>(MODULO)?.elementoSeleccionadoId ?? null,
+  )
   // Nodos colapsados del árbol. Vacío = todo expandido (el default acordado).
   const [colapsados, setColapsados] = useState<Set<number>>(new Set())
 
@@ -169,6 +187,12 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
   const elementoSeleccionado = elementos.find((it) => it.id === elementoSeleccionadoId) ?? null
   const filasArbol = construirFilasArbol(elementos, colapsados)
+
+  // Persistir la vista (filtros + selecciones) para volver al mismo lugar al
+  // saltar de módulo y regresar.
+  useEffect(() => {
+    guardarVista<VistaProyectos>(MODULO, { filtros, seleccionadoId, elementoSeleccionadoId })
+  }, [filtros, seleccionadoId, elementoSeleccionadoId])
 
   // Editor de elementos para el "Nuevo elemento" de la franja 3 (mismo hook que
   // los hijos y el elemento actual). Al guardar, recarga los elementos del proyecto.
@@ -595,6 +619,16 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                   el && el.tipo === 'componente'
                     ? elementos.find((x) => x.id === el.parent_elemento_id) ?? null
                     : el
+                // Ancestros contenedores del destino (de la raíz hacia abajo), para
+                // ofrecer crear en cualquier nivel de arriba vía submenú.
+                const ancestros: Elemento[] = []
+                let p = destino ? destino.parent_elemento_id : null
+                while (p != null) {
+                  const padre = elementos.find((x) => x.id === p)
+                  if (!padre) break
+                  ancestros.unshift(padre)
+                  p = padre.parent_elemento_id
+                }
                 return [
                   { label: 'Nuevo elemento', onSelect: () => abrirNuevo('componente', null, null) },
                   ...(destino
@@ -602,6 +636,17 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                         {
                           label: `Nuevo elemento en "${destino.descripcion}"`,
                           onSelect: () => abrirNuevo('componente', destino.id, destino.tipo),
+                        },
+                      ]
+                    : []),
+                  ...(ancestros.length
+                    ? [
+                        {
+                          label: 'Nuevo elemento en…',
+                          subItems: ancestros.map((a) => ({
+                            label: `${tipoLabel(a.tipo)} "${a.descripcion}"`,
+                            onSelect: () => abrirNuevo('componente', a.id, a.tipo),
+                          })),
                         },
                       ]
                     : []),

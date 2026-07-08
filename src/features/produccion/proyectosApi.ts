@@ -251,3 +251,10 @@ export async function buscarProyectos(
   if (error) return { data: [], error: 'No se pudieron cargar los proyectos.' }
   return { data: (data as unknown as Proyecto[]) ?? [], error: null }
 }
+
+// Filtros con los que arranca el módulo al entrar por primera vez (o tras F5):
+// solo los proyectos en curso (Pedido). El botón "Limpiar" usa FILTROS_VACIOS.
+export const FILTROS_INICIALES: FiltrosProyectos = {
+  ...FILTROS_VACIOS,
+  estado: 'Pedido',
+}
