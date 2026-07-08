@@ -3,22 +3,19 @@ import { supabase } from '../../shared/lib/supabaseClient'
 import {
   cargarHijos,
   tipoLabel,
-  crearElemento,
-  actualizarElemento,
   eliminarElemento,
   tieneHijos,
 } from './elementosApi'
 import { contarProcesosPorElementos } from './procesosApi'
-import { elementoDraftVacio, elementoRowADraft, crearMaterial } from './elementoTipos'
-import type { Elemento, ElementoDraft, Material } from './elementoTipos'
-import ModalItem from './ModalItem'
+import type { Elemento } from './elementoTipos'
+import { useEditorElemento } from './useEditorElemento'
 
 const BUCKET = 'proyectos-fotos'
 
 // Sección "Contenido": lista los hijos directos de un contenedor (un elemento o,
 // si parentId es null, el proyecto raíz) y permite agregar/editar/borrar con
-// persistencia inmediata. Reutilizable por la vista de elemento y el form del
-// proyecto. `onEntrar` decide qué pasa al doble-click en un hijo (entrar a él).
+// persistencia inmediata. El alta/edición de elementos la maneja el hook
+// useEditorElemento (compartido con VistaElemento y Proyectos).
 function SeccionContenido({
   proyectoId,
   parentId,
@@ -34,18 +31,7 @@ function SeccionContenido({
 }) {
   const [hijos, setHijos] = useState<Elemento[]>([])
   const [contarProc, setContarProc] = useState<Record<number, number>>({})
-  const [materiales, setMateriales] = useState<Material[]>([])
-  const [modalElem, setModalElem] = useState<{ draft: ElementoDraft } | null>(null)
   const [menuAgregar, setMenuAgregar] = useState(false)
-
-  // Materiales para el modal (una sola vez).
-  useEffect(() => {
-    supabase
-      .from('materiales')
-      .select('id, nombre')
-      .order('nombre')
-      .then(({ data }) => setMateriales((data as Material[] | null) ?? []))
-  }, [])
 
   async function recargar() {
     if (deshabilitado) {
@@ -63,6 +49,8 @@ function SeccionContenido({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proyectoId, parentId, deshabilitado])
 
+  const { abrirNuevo, abrirEditar, modal } = useEditorElemento(proyectoId, recargar)
+
   function fotoPublicUrl(path: string | null): string | null {
     return path
       ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
@@ -71,10 +59,10 @@ function SeccionContenido({
 
   function nuevoHijo(tipo: string) {
     setMenuAgregar(false)
-    setModalElem({ draft: { ...elementoDraftVacio(), tipo } })
+    abrirNuevo(tipo, parentId)
   }
   function editarHijo(h: Elemento) {
-    setModalElem({ draft: elementoRowADraft(h) })
+    abrirEditar(h, parentId)
   }
   async function borrarHijo(h: Elemento) {
     if (!window.confirm(`¿Borrar "${h.descripcion}"?`)) return
@@ -86,36 +74,6 @@ function SeccionContenido({
     }
     await eliminarElemento(h.id)
     recargar()
-  }
-  async function guardarElemento(draft: ElementoDraft) {
-    // Un elemento con hijos no puede volverse Componente (un componente es hoja).
-    if (
-      draft.dbId != null &&
-      draft.tipo === 'componente' &&
-      (await tieneHijos(draft.dbId))
-    ) {
-      window.alert(
-        'Este elemento tiene elementos adentro; no puede pasar a Componente. ' +
-          'Primero vaciá o mové su contenido.',
-      )
-      return
-    }
-    if (draft.dbId == null) {
-      await crearElemento(draft, proyectoId, parentId)
-    } else {
-      await actualizarElemento(draft, proyectoId, parentId)
-    }
-    setModalElem(null)
-    recargar()
-  }
-  async function onAgregarMaterial(nombre: string): Promise<Material | null> {
-    const m = await crearMaterial(nombre)
-    if (m) {
-      setMateriales((prev) =>
-        [...prev, m].sort((a, b) => a.nombre.localeCompare(b.nombre)),
-      )
-    }
-    return m
   }
 
   return (
@@ -217,15 +175,7 @@ function SeccionContenido({
         </table>
       )}
 
-      {modalElem && (
-        <ModalItem
-          draft={modalElem.draft}
-          materiales={materiales}
-          onAgregarMaterial={onAgregarMaterial}
-          onGuardar={guardarElemento}
-          onCancelar={() => setModalElem(null)}
-        />
-      )}
+      {modal}
     </div>
   )
 }

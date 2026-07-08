@@ -7,6 +7,7 @@ import VistaElemento from './VistaElemento'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
+import { useEditorElemento } from './useEditorElemento'
 import { contarProcesosPorElementos } from './procesosApi'
 import {
   buscarProyectos,
@@ -168,6 +169,15 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
   const elementoSeleccionado = elementos.find((it) => it.id === elementoSeleccionadoId) ?? null
   const filasArbol = construirFilasArbol(elementos, colapsados)
+
+  // Editor de elementos para el "Nuevo elemento" de la franja 3 (mismo hook que
+  // los hijos y el elemento actual). Al guardar, recarga los elementos del proyecto.
+  const { abrirNuevo, modal: modalNuevoElem } = useEditorElemento(
+    seleccionadoId ?? 0,
+    () => {
+      if (seleccionadoId != null) cargarElementos(seleccionadoId)
+    },
+  )
 
   function toggleColapso(id: number) {
     setColapsados((prev) => {
@@ -573,7 +583,31 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
             </div>
 
             {/* Contenido: título + tabla de elementos */}
-            <div className="detalle-main">
+            <MenuContextual
+              items={(e) => {
+                const fila = (e.target as HTMLElement).closest('[data-elemento-id]')
+                const id = fila ? Number(fila.getAttribute('data-elemento-id')) : null
+                const el = id != null ? elementos.find((x) => x.id === id) : null
+                // Un componente es hoja (no admite hijos): "Nuevo elemento en X" se
+                // refiere a su contenedor (el padre), no al componente.
+                const destino =
+                  el && el.tipo === 'componente'
+                    ? elementos.find((x) => x.id === el.parent_elemento_id) ?? null
+                    : el
+                return [
+                  { label: 'Nuevo elemento', onSelect: () => abrirNuevo('componente', null) },
+                  ...(destino
+                    ? [
+                        {
+                          label: `Nuevo elemento en "${destino.descripcion}"`,
+                          onSelect: () => abrirNuevo('componente', destino.id),
+                        },
+                      ]
+                    : []),
+                ]
+              }}
+            >
+              <div className="detalle-main">
               <div className="detalle-header">
                 <h3 className="detalle-titulo">
                   #{seleccionado.id} — {seleccionado.descripcion}
@@ -608,6 +642,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                       {filasArbol.map((fila) => (
                         <tr
                           key={fila.el.id}
+                          data-elemento-id={fila.el.id}
                           ref={
                             fila.el.id === elementoSeleccionadoId
                               ? filaElementoSelRef
@@ -673,6 +708,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                 </div>
               )}
             </div>
+            </MenuContextual>
           </div>
         ) : (
           <span className="franja-placeholder">
@@ -719,6 +755,8 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       )}
         </div>
       )}
+
+      {modalNuevoElem}
     </>
   )
 }

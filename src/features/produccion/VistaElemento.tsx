@@ -12,7 +12,8 @@ import {
   redefinirPredecesores,
   quitarCorrelatividad,
 } from './procesosApi'
-import { esContenedor, tipoLabel, cargarAncestros } from './elementosApi'
+import { esContenedor, tipoLabel, cargarAncestros, SELECT_ELEMENTO } from './elementosApi'
+import { useEditorElemento } from './useEditorElemento'
 import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
 import { fechaCorta } from './proyectoTipos'
@@ -43,6 +44,22 @@ function VistaElemento({
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<{ proceso: Proceso | null } | null>(null)
+
+  // Recarga el elemento actual desde la base y reconstruye la pila, para reflejar
+  // los cambios cuando se editan sus datos desde el encabezado.
+  async function recargarActual() {
+    const { data } = await supabase
+      .from('elementos')
+      .select(SELECT_ELEMENTO)
+      .eq('id', actual.id)
+      .single()
+    if (data) setPila(await cargarAncestros(data as unknown as Elemento))
+  }
+
+  const { abrirEditar, modal: modalEditor } = useEditorElemento(
+    actual.proyecto_id,
+    recargarActual,
+  )
   // Editor de posición: id del proceso cuyo "N/Total" está en modo edición.
   const [editandoPosId, setEditandoPosId] = useState<number | null>(null)
   const [posInput, setPosInput] = useState('')
@@ -235,6 +252,13 @@ function VistaElemento({
             {actual.descripcion} <span className="vi-cant">×{cantidad}</span>
           </h2>
           <span className="vi-estado">{actual.estado}</span>
+          <button
+            type="button"
+            className="empresa-boton-secundario"
+            onClick={() => abrirEditar(actual, actual.parent_elemento_id)}
+          >
+            Editar datos
+          </button>
         </div>
         <div className="vi-datos">
           {fotoUrl ? (
@@ -495,6 +519,8 @@ function VistaElemento({
           onCancelar={() => setModal(null)}
         />
       )}
+
+      {modalEditor}
     </div>
   )
 }

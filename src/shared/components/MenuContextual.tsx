@@ -36,10 +36,12 @@ function MenuContextual({
     }
     window.addEventListener('click', cerrar)
     window.addEventListener('scroll', cerrar, true)
+    window.addEventListener('contextmenu', cerrar)
     window.addEventListener('keydown', onTecla)
     return () => {
       window.removeEventListener('click', cerrar)
       window.removeEventListener('scroll', cerrar, true)
+      window.removeEventListener('contextmenu', cerrar)
       window.removeEventListener('keydown', onTecla)
     }
   }, [pos])
