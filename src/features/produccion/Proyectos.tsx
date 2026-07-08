@@ -485,6 +485,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                     <tr
                       key={p.id}
                       data-proyecto-id={p.id}
+                      onContextMenu={() => setSeleccionadoId(p.id)}
                       ref={p.id === seleccionadoId ? filaProySelRef : undefined}
                       className={
                         'tabla-fila' +
@@ -595,12 +596,12 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                     ? elementos.find((x) => x.id === el.parent_elemento_id) ?? null
                     : el
                 return [
-                  { label: 'Nuevo elemento', onSelect: () => abrirNuevo('componente', null) },
+                  { label: 'Nuevo elemento', onSelect: () => abrirNuevo('componente', null, null) },
                   ...(destino
                     ? [
                         {
                           label: `Nuevo elemento en "${destino.descripcion}"`,
-                          onSelect: () => abrirNuevo('componente', destino.id),
+                          onSelect: () => abrirNuevo('componente', destino.id, destino.tipo),
                         },
                       ]
                     : []),
@@ -643,6 +644,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                         <tr
                           key={fila.el.id}
                           data-elemento-id={fila.el.id}
+                          onContextMenu={() => setElementoSeleccionadoId(fila.el.id)}
                           ref={
                             fila.el.id === elementoSeleccionadoId
                               ? filaElementoSelRef

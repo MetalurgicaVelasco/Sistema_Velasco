@@ -8,6 +8,7 @@ import {
 } from './elementosApi'
 import { contarProcesosPorElementos } from './procesosApi'
 import type { Elemento } from './elementoTipos'
+import { tiposHijoPermitidos } from './elementoTipos'
 import { useEditorElemento } from './useEditorElemento'
 
 const BUCKET = 'proyectos-fotos'
@@ -19,12 +20,14 @@ const BUCKET = 'proyectos-fotos'
 function SeccionContenido({
   proyectoId,
   parentId,
+  parentTipo,
   onEntrar,
   deshabilitado = false,
   leyenda,
 }: {
   proyectoId: number
   parentId: number | null
+  parentTipo: string | null
   onEntrar: (h: Elemento) => void
   deshabilitado?: boolean
   leyenda?: string
@@ -59,10 +62,10 @@ function SeccionContenido({
 
   function nuevoHijo(tipo: string) {
     setMenuAgregar(false)
-    abrirNuevo(tipo, parentId)
+    abrirNuevo(tipo, parentId, parentTipo)
   }
   function editarHijo(h: Elemento) {
-    abrirEditar(h, parentId)
+    abrirEditar(h, parentId, parentTipo)
   }
   async function borrarHijo(h: Elemento) {
     if (!window.confirm(`¿Borrar "${h.descripcion}"?`)) return
@@ -91,15 +94,11 @@ function SeccionContenido({
           </button>
           {menuAgregar && !deshabilitado && (
             <div className="vi-agregar-menu">
-              <button type="button" onClick={() => nuevoHijo('conjunto')}>
-                Conjunto
-              </button>
-              <button type="button" onClick={() => nuevoHijo('subconjunto')}>
-                Subconjunto
-              </button>
-              <button type="button" onClick={() => nuevoHijo('componente')}>
-                Componente
-              </button>
+              {tiposHijoPermitidos(parentTipo).map((t) => (
+                <button key={t} type="button" onClick={() => nuevoHijo(t)}>
+                  {tipoLabel(t)}
+                </button>
+              ))}
             </div>
           )}
         </div>

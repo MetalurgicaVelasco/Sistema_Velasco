@@ -14,12 +14,14 @@ const BUCKET = 'proyectos-fotos'
 function ModalItem({
   draft,
   materiales,
+  tiposPermitidos,
   onAgregarMaterial,
   onGuardar,
   onCancelar,
 }: {
   draft: ElementoDraft
   materiales: Material[]
+  tiposPermitidos: string[]
   onAgregarMaterial: (nombre: string) => Promise<Material | null>
   onGuardar: (d: ElementoDraft) => void | Promise<void>
   onCancelar: () => void
@@ -75,9 +77,14 @@ function ModalItem({
             value={d.tipo}
             onChange={(e) => setD({ ...d, tipo: e.target.value })}
           >
-            <option value="conjunto">Conjunto</option>
-            <option value="subconjunto">Subconjunto</option>
-            <option value="componente">Componente</option>
+            {(tiposPermitidos.includes(d.tipo)
+              ? tiposPermitidos
+              : [d.tipo, ...tiposPermitidos]
+            ).map((t) => (
+              <option key={t} value={t}>
+                {tipoLabel(t)}
+              </option>
+            ))}
           </select>
         </label>
 

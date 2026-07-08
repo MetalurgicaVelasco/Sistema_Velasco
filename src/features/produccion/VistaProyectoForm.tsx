@@ -625,6 +625,7 @@ function VistaProyectoForm({
           <SeccionContenido
             proyectoId={idExistente ?? 0}
             parentId={null}
+            parentTipo={null}
             onEntrar={(el) => onAbrirElemento(el, proyVista())}
             deshabilitado={idExistente == null}
             leyenda="Creá el proyecto para poder cargar elementos."

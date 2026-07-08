@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import { crearElemento, actualizarElemento, tieneHijos } from './elementosApi'
-import { elementoDraftVacio, elementoRowADraft, crearMaterial } from './elementoTipos'
+import { elementoDraftVacio, elementoRowADraft, crearMaterial, tiposHijoPermitidos } from './elementoTipos'
 import type { Elemento, ElementoDraft, Material } from './elementoTipos'
 import ModalItem from './ModalItem'
 
@@ -19,6 +19,7 @@ export function useEditorElemento(proyectoId: number, onGuardado: () => void) {
   const [modalElem, setModalElem] = useState<{
     draft: ElementoDraft
     parentId: number | null
+    tipoPadre: string | null
   } | null>(null)
 
   // Materiales para el selector del modal (una sola vez).
@@ -30,11 +31,11 @@ export function useEditorElemento(proyectoId: number, onGuardado: () => void) {
       .then(({ data }) => setMateriales((data as Material[] | null) ?? []))
   }, [])
 
-  function abrirNuevo(tipo: string, parentId: number | null) {
-    setModalElem({ draft: { ...elementoDraftVacio(), tipo }, parentId })
+  function abrirNuevo(tipo: string, parentId: number | null, tipoPadre: string | null) {
+    setModalElem({ draft: { ...elementoDraftVacio(), tipo }, parentId, tipoPadre })
   }
-  function abrirEditar(elemento: Elemento, parentId: number | null) {
-    setModalElem({ draft: elementoRowADraft(elemento), parentId })
+  function abrirEditar(elemento: Elemento, parentId: number | null, tipoPadre: string | null) {
+    setModalElem({ draft: elementoRowADraft(elemento), parentId, tipoPadre })
   }
 
   async function guardar(draft: ElementoDraft) {
@@ -74,6 +75,7 @@ export function useEditorElemento(proyectoId: number, onGuardado: () => void) {
     <ModalItem
       draft={modalElem.draft}
       materiales={materiales}
+      tiposPermitidos={tiposHijoPermitidos(modalElem.tipoPadre)}
       onAgregarMaterial={onAgregarMaterial}
       onGuardar={guardar}
       onCancelar={() => setModalElem(null)}

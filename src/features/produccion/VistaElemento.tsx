@@ -255,7 +255,9 @@ function VistaElemento({
           <button
             type="button"
             className="empresa-boton-secundario"
-            onClick={() => abrirEditar(actual, actual.parent_elemento_id)}
+            onClick={() =>
+              abrirEditar(actual, actual.parent_elemento_id, pila[pila.length - 2]?.tipo ?? null)
+            }
           >
             Editar datos
           </button>
@@ -292,6 +294,7 @@ function VistaElemento({
         <SeccionContenido
           proyectoId={actual.proyecto_id}
           parentId={actual.id}
+          parentTipo={actual.tipo}
           onEntrar={entrar}
         />
       )}

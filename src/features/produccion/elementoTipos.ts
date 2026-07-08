@@ -155,3 +155,16 @@ export async function crearMaterial(nombre: string): Promise<Material | null> {
     .maybeSingle()
   return existente ?? null
 }
+
+// Tipos de elemento que se pueden crear DENTRO de un contenedor de tipo `tipoPadre`
+// (null = la raíz del proyecto). Reglas del taller:
+//  - En la raíz: conjunto, subconjunto o componente.
+//  - Dentro de un conjunto o subconjunto: solo subconjunto o componente.
+//  - Un componente es hoja: no admite hijos.
+export function tiposHijoPermitidos(tipoPadre: string | null): string[] {
+  if (tipoPadre === null) return ['conjunto', 'subconjunto', 'componente']
+  if (tipoPadre === 'conjunto' || tipoPadre === 'subconjunto') {
+    return ['subconjunto', 'componente']
+  }
+  return []
+}

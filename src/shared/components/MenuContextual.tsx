@@ -19,6 +19,9 @@ function MenuContextual({
 
   function abrir(e: React.MouseEvent) {
     e.preventDefault()
+    // Cierra cualquier otro menú contextual abierto (los que ya tienen su listener
+    // registrado); este todavía no lo tiene, así que no se cierra a sí mismo.
+    window.dispatchEvent(new Event('menuctx-abrir'))
     // Si items es una función, se evalúa con el evento del clic derecho (permite
     // armar opciones según sobre qué se clickeó). Si es un array, se usa tal cual.
     setItemsResueltos(typeof items === 'function' ? items(e) : items)
@@ -36,12 +39,12 @@ function MenuContextual({
     }
     window.addEventListener('click', cerrar)
     window.addEventListener('scroll', cerrar, true)
-    window.addEventListener('contextmenu', cerrar)
+    window.addEventListener('menuctx-abrir', cerrar)
     window.addEventListener('keydown', onTecla)
     return () => {
       window.removeEventListener('click', cerrar)
       window.removeEventListener('scroll', cerrar, true)
-      window.removeEventListener('contextmenu', cerrar)
+      window.removeEventListener('menuctx-abrir', cerrar)
       window.removeEventListener('keydown', onTecla)
     }
   }, [pos])
