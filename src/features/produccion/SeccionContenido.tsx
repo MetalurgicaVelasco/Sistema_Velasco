@@ -52,6 +52,26 @@ function SeccionContenido({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proyectoId, parentId, deshabilitado])
 
+  // El menú "+ Agregar elemento" es un desplegable: cierra al clickear afuera,
+  // hacer scroll o apretar Escape (a diferencia de los modales, que no cierran).
+  useEffect(() => {
+    if (!menuAgregar) return
+    function cerrar() {
+      setMenuAgregar(false)
+    }
+    function onTecla(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuAgregar(false)
+    }
+    window.addEventListener('click', cerrar)
+    window.addEventListener('scroll', cerrar, true)
+    window.addEventListener('keydown', onTecla)
+    return () => {
+      window.removeEventListener('click', cerrar)
+      window.removeEventListener('scroll', cerrar, true)
+      window.removeEventListener('keydown', onTecla)
+    }
+  }, [menuAgregar])
+
   const { abrirNuevo, abrirEditar, modal } = useEditorElemento(proyectoId, recargar)
 
   function fotoPublicUrl(path: string | null): string | null {
@@ -88,7 +108,10 @@ function SeccionContenido({
             type="button"
             className="empresa-boton"
             disabled={deshabilitado}
-            onClick={() => setMenuAgregar((v) => !v)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuAgregar((v) => !v)
+            }}
           >
             + Agregar elemento ▾
           </button>
