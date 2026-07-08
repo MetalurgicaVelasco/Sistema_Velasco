@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import BuscadorEmpresa from '../../shared/components/BuscadorEmpresa'
+import Modal from '../../shared/components/Modal'
 import CajaFoto from './CajaFoto'
 import {
   URGENCIAS,
@@ -658,31 +659,28 @@ function VistaProyectoForm({
 
       {/* Modal: elegir sub-estado al cerrar el proyecto */}
       {modalCerrado && (
-        <div className="pf-modal-fondo" onClick={() => setModalCerrado(false)}>
-          <div className="pf-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="pf-modal-titulo">Sub-estado del cierre</h3>
-            <p className="pf-modal-texto">¿Cómo se cierra el proyecto?</p>
-            <div className="pf-modal-ops">
-              {SUB_ESTADOS_CERRADO.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className="empresa-boton"
-                  onClick={() => confirmarCerrado(s)}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="empresa-boton-secundario pf-modal-cancelar"
-              onClick={() => setModalCerrado(false)}
-            >
-              Cancelar
-            </button>
+        <Modal titulo="Sub-estado del cierre" onCerrar={() => setModalCerrado(false)} ancho={420}>
+          <p className="pf-modal-texto">¿Cómo se cierra el proyecto?</p>
+          <div className="pf-modal-ops">
+            {SUB_ESTADOS_CERRADO.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="empresa-boton"
+                onClick={() => confirmarCerrado(s)}
+              >
+                {s}
+              </button>
+            ))}
           </div>
-        </div>
+          <button
+            type="button"
+            className="empresa-boton-secundario pf-modal-cancelar"
+            onClick={() => setModalCerrado(false)}
+          >
+            Cancelar
+          </button>
+        </Modal>
       )}
 
     </div>

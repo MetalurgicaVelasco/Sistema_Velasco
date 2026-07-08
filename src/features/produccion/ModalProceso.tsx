@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../../shared/components/Modal'
 import ChecklistColumnas from '../../shared/components/ChecklistColumnas'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { TipoProceso, Maquina, Personal } from '../../shared/types/recursos'
@@ -121,11 +122,7 @@ function ModalProceso({
   }))
 
   return (
-    <div className="pf-modal-fondo" onClick={onCancelar}>
-      <div className="rec-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="pf-modal-titulo">
-          {esEditar ? 'Editar proceso' : 'Nuevo proceso'}
-        </h3>
+    <Modal titulo={esEditar ? 'Editar proceso' : 'Nuevo proceso'} onCerrar={onCancelar} ancho={560}>
 
         <label className="empresa-campo">
           Nombre del proceso *
@@ -227,8 +224,7 @@ function ModalProceso({
             {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

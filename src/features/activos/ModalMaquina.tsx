@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
+import Modal from '../../shared/components/Modal'
 // CajaFoto vive por ahora en produccion; idealmente va a shared (pendiente de
 // una pasada de orden). Se importa cruzado para no mover archivos en este paso.
 import CajaFoto from '../produccion/CajaFoto'
@@ -110,11 +111,7 @@ function ModalMaquina({
   }))
 
   return (
-    <div className="pf-modal-fondo" onClick={onCancelar}>
-      <div className="rec-modal rec-modal-ancho" onClick={(e) => e.stopPropagation()}>
-        <h3 className="pf-modal-titulo">
-          {esEditar ? 'Editar máquina' : 'Nueva máquina'}
-        </h3>
+    <Modal titulo={esEditar ? 'Editar máquina' : 'Nueva máquina'} onCerrar={onCancelar} ancho={620}>
 
         <label className="empresa-campo">
           Nombre *
@@ -200,8 +197,7 @@ function ModalMaquina({
             {guardando ? 'Guardando…' : esEditar ? 'Guardar' : 'Crear'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

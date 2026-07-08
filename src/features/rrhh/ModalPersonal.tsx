@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../../shared/components/Modal'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { Personal, Maquina, TipoProceso } from '../../shared/types/recursos'
 import { guardarPersonal, inhabilitarPersonal } from '../../shared/lib/recursosApi'
@@ -188,11 +189,7 @@ function ModalPersonal({
   }
 
   return (
-    <div className="pf-modal-fondo" onClick={onCancelar}>
-      <div className="rec-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="pf-modal-titulo">
-          {esEditar ? 'Editar persona' : 'Nueva persona'}
-        </h3>
+    <Modal titulo={esEditar ? 'Editar persona' : 'Nueva persona'} onCerrar={onCancelar} ancho={560}>
 
         {/* Nombre + apellido */}
         <div className="pers-fila-2">
@@ -416,8 +413,7 @@ function ModalPersonal({
             {guardando ? 'Guardando…' : esEditar ? 'Guardar' : 'Crear'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

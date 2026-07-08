@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import CajaFoto from './CajaFoto'
+import Modal from '../../shared/components/Modal'
 import SelectorConAlta from '../../shared/components/SelectorConAlta'
 import { ESTADOS_ELEMENTO } from './elementoTipos'
 import type { ElementoDraft, Material } from './elementoTipos'
@@ -61,13 +62,11 @@ function ModalItem({
   }
 
   return (
-    <div className="pf-modal-fondo" onClick={onCancelar}>
-      <div className="item-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="pf-modal-titulo">
-          {d.dbId == null
-            ? 'Nuevo ' + tipoLabel(d.tipo)
-            : 'Editar ' + tipoLabel(d.tipo)}
-        </h3>
+    <Modal
+      titulo={d.dbId == null ? 'Nuevo ' + tipoLabel(d.tipo) : 'Editar ' + tipoLabel(d.tipo)}
+      onCerrar={onCancelar}
+      ancho={620}
+    >
 
         {/* Tipo del elemento */}
         <label className="empresa-campo">
@@ -231,8 +230,7 @@ function ModalItem({
             {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
