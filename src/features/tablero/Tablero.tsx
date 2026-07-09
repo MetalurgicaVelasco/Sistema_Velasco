@@ -1171,12 +1171,12 @@ function ModalActividad({
         ) : null}
         <div className="tab-plan-botones">
           {b.hecho ? (
-            <button className="tab-btn-sec" onClick={() => onEstado(b.procesoId, 'planificado')}>
-              Desanclar
+            <button className="tab-btn-desanclar" onClick={() => onEstado(b.procesoId, 'planificado')}>
+              🔓 Desanclar
             </button>
           ) : (
-            <button className="tab-btn-sec" onClick={() => onEstado(b.procesoId, 'hecho')}>
-              Marcar como hecho
+            <button className="tab-btn-hecho" onClick={() => onEstado(b.procesoId, 'hecho')}>
+              ✓ Marcar como hecho
             </button>
           )}
           <button className="tab-btn-danger" onClick={() => onQuitar(b.procesoId)}>
@@ -1508,10 +1508,12 @@ function GhostSetup({
       title={`Setup — el operario está ocupado\n${b.descripcion}${b.pedidoNro ? ' · Ped. ' + b.pedidoNro : ''}`}
     >
       <span className="tab-ghost-lock">🔒</span>
-      <span className="tab-ghost-desc">
-        {b.descripcion}
-        {b.pedidoNro ? ` · Ped. ${b.pedidoNro}` : ''}
-      </span>
+      {b.setupMin >= 45 ? (
+        <span className="tab-ghost-desc">
+          {b.descripcion}
+          {b.pedidoNro ? ` · Ped. ${b.pedidoNro}` : ''}
+        </span>
+      ) : null}
     </div>
   )
 }

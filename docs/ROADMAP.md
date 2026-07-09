@@ -10,11 +10,10 @@
       no tiene foto propia).
 - [x] ~~Editar el modo (Manual / Semi / Automática) desde el modal de actividad.~~
 - [x] ~~Reordenar operarios~~ (botón "⇄ Orden" en la barra → modal con arrastre y flechas).
-- [ ] **Bug — candado (🔒) no centrado en setups cortos.** En bloques con poco tiempo de
-      setup, el ícono del candado del fantasma no queda centrado. En el sistema viejo
-      no pasa; revisar cómo lo resolvía.
-- [ ] **Estética de los botones "Marcar como hecho" / "Desanclar":** copiar la del
-      sistema viejo (colores, forma). Hoy usan el estilo secundario genérico.
+- [x] ~~Bug — candado (🔒) no centrado en setups cortos.~~ Faltaba `justify-content:center`
+      en el fantasma del setup.
+- [x] ~~Estética de los botones "Marcar como hecho" / "Desanclar".~~ Copiados del viejo
+      (verde y ámbar, con ✓ y 🔓).
 - [ ] **Velocidad (mejora de fondo).** Hoy cada acción relee todo el tablero de la base
       (~4 round-trips). La solución de fondo es actualizar el estado en memoria en vez
       de releer. Se pospuso: con la carga paralelizada quedó aceptable.
