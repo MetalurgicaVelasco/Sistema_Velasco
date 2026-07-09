@@ -165,8 +165,12 @@ const SECCIONES: Seccion[] = [
 // qué se eligió (o null cuando se cambia de sección y todavía no hay módulo).
 function BarraSecciones({
   onSeleccion,
+  accionesDerecha,
 }: {
   onSeleccion: (seleccion: Seleccion | null) => void
+  // Acciones propias del módulo activo, alineadas a la derecha de la fila de
+  // módulos (p. ej. el botón "Orden" del tablero). La barra no sabe qué son.
+  accionesDerecha?: React.ReactNode
 }) {
   const [seccionActivaId, setSeccionActivaId] = useState<string | null>(null)
   const [moduloActivoId, setModuloActivoId] = useState<string | null>(null)
@@ -225,6 +229,7 @@ function BarraSecciones({
               <span className="modulo-titulo">{modulo.titulo}</span>
             </button>
           ))}
+          {accionesDerecha ? <div className="barra-modulos-acciones">{accionesDerecha}</div> : null}
         </nav>
       )}
     </div>

@@ -17,11 +17,12 @@ import { cargarTablero, type TableroCargado } from './datos/cargarTablero'
 import type { ProcesoElegible } from './datos/elegibles'
 import { porcentajeLeft, porcentajeAncho } from './calculos/geometria'
 import { fotoPublica } from './calculos/foto'
+import Modal from '../../shared/components/Modal'
 import { snapearInsercion, type Ocupacion } from './calculos/insercion'
 import { simular, type ItemSimulacion, type ResultadoSimulacion } from './motor/simular'
 import { finMaquina, type ContextoOperario } from './motor/calendario'
 import type { Tiempos } from './motor/duraciones'
-import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, cambiarEstadoProceso, type CambioPlan } from './datos/escritura'
+import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, cambiarEstadoProceso, guardarOrdenOperarios, type CambioPlan } from './datos/escritura'
 import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { Divergencia } from './motor/divergencias'
 import type { ModoProceso } from '../produccion/procesoTipos'
@@ -60,7 +61,7 @@ function minAHora(min: number): string {
 
 type PlanCrudo = { ok: true; cambios: CambioPlan[]; movidos: number[] } | { ok: false; error: string }
 
-export default function Tablero() {
+export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNode) => void }) {
   const [datos, setDatos] = useState<TableroCargado | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tip, setTip] = useState<{ b: BloqueVisual; x: number; y: number } | null>(null)
@@ -79,6 +80,18 @@ export default function Tablero() {
   const [errorUndo, setErrorUndo] = useState<string | null>(null)
   const [modalActividad, setModalActividad] = useState<BloqueVisual | null>(null)
   const [selector, setSelector] = useState<{ operarioId: number; fecha: FechaISO } | null>(null)
+  const [modalOrden, setModalOrden] = useState(false)
+
+  // Publica el botón "Orden" a la derecha de la fila de módulos (no ocupa alto
+  // dentro del tablero, donde el espacio vertical es valioso).
+  useEffect(() => {
+    onAcciones?.(
+      <button className="tab-btn-sec" onClick={() => setModalOrden(true)} title="Reordenar columnas del tablero">
+        ⇄ Orden
+      </button>,
+    )
+    return () => onAcciones?.(null)
+  }, [onAcciones])
   const [insertar, setInsertar] = useState<{
     el: ProcesoElegible
     opciones: { label: string; startMin: number }[]
@@ -114,6 +127,18 @@ export default function Tablero() {
   function ocultarTip() {
     if (timerRef.current) clearTimeout(timerRef.current)
     setTip(null)
+  }
+
+  // Guarda el nuevo orden de las columnas (operarios) y recarga el tablero.
+  async function guardarOrden(idsEnOrden: number[]) {
+    try {
+      await guardarOrdenOperarios(idsEnOrden)
+      setModalOrden(false)
+      const nuevos = await cargarTablero()
+      setDatos(nuevos)
+    } catch (e) {
+      window.alert('No se pudo guardar el orden: ' + (e instanceof Error ? e.message : String(e)))
+    }
   }
 
   function abrirActividad(b: BloqueVisual) {
@@ -622,6 +647,9 @@ export default function Tablero() {
         ) : null}
         {errorUndo ? <div className="tab-undo-error">No se pudo deshacer: {errorUndo}</div> : null}
       </div>
+      {modalOrden ? (
+        <OrdenModal personal={personal} onCerrar={() => setModalOrden(false)} onGuardar={guardarOrden} />
+      ) : null}
       <DragOverlay>{dragActivo ? <OverlayBloque b={dragActivo} /> : null}</DragOverlay>
       {modalActividad ? (
         <ModalActividad
@@ -1343,6 +1371,104 @@ function InsertarModal({
         </div>
       </div>
     </div>
+  )
+}
+
+// Modal para reordenar las columnas del tablero (los operarios). Réplica del
+// sistema viejo: lista numerada con flechas ↑↓ y Guardar/Cancelar. El primero de
+// la lista queda como columna izquierda.
+function OrdenModal({
+  personal, onCerrar, onGuardar,
+}: {
+  personal: PersonalTablero[]
+  onCerrar: () => void
+  onGuardar: (idsEnOrden: number[]) => void
+}) {
+  const [ids, setIds] = useState<number[]>(personal.map((p) => p.id))
+  const [guardando, setGuardando] = useState(false)
+  const [arrastrado, setArrastrado] = useState<number | null>(null)
+
+  function mover(idx: number, dir: -1 | 1) {
+    const nuevo = idx + dir
+    if (nuevo < 0 || nuevo >= ids.length) return
+    const arr = [...ids]
+    ;[arr[idx], arr[nuevo]] = [arr[nuevo], arr[idx]]
+    setIds(arr)
+  }
+
+  // Arrastre de filas (HTML5 nativo): se toma la fila del asa ⠿ y se suelta sobre
+  // otra; la arrastrada se inserta en esa posición.
+  function soltarEn(destino: number) {
+    if (arrastrado == null || arrastrado === destino) return
+    const arr = [...ids]
+    const [movido] = arr.splice(arrastrado, 1)
+    arr.splice(destino, 0, movido)
+    setIds(arr)
+    setArrastrado(null)
+  }
+
+  function nombreDe(id: number): string {
+    const p = personal.find((x) => x.id === id)
+    return p ? nombreCorto(p) : `#${id}`
+  }
+
+  return (
+    <Modal titulo="Reordenar columnas del tablero" onCerrar={onCerrar} ancho={460}>
+      <p className="tab-orden-info">
+        Arrastrá por el ⠿ o usá las flechas para subir o bajar cada operario. El primero de la lista será la
+        columna izquierda del tablero.
+      </p>
+      <div className="tab-orden-lista">
+        {ids.map((id, idx) => (
+          <div
+            key={id}
+            className={`tab-orden-fila ${arrastrado === idx ? 'arrastrando' : ''}`}
+            draggable
+            onDragStart={() => setArrastrado(idx)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => soltarEn(idx)}
+            onDragEnd={() => setArrastrado(null)}
+          >
+            <span className="tab-orden-asa" title="Arrastrar para reordenar">
+              ⠿
+            </span>
+            <div className="tab-orden-num">{idx + 1}</div>
+            <div className="tab-orden-nombre">{nombreDe(id)}</div>
+            <button
+              className="tab-btn-sec tab-orden-flecha"
+              onClick={() => mover(idx, -1)}
+              disabled={idx === 0}
+              title="Subir"
+            >
+              ↑
+            </button>
+            <button
+              className="tab-btn-sec tab-orden-flecha"
+              onClick={() => mover(idx, 1)}
+              disabled={idx === ids.length - 1}
+              title="Bajar"
+            >
+              ↓
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="tab-plan-botones">
+        <button className="tab-btn-sec" onClick={onCerrar} disabled={guardando}>
+          Cancelar
+        </button>
+        <button
+          className="tab-btn-primario"
+          onClick={() => {
+            setGuardando(true)
+            onGuardar(ids)
+          }}
+          disabled={guardando}
+        >
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </button>
+      </div>
+    </Modal>
   )
 }
 

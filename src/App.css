@@ -8,6 +8,7 @@
 .contenido-area {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -2951,4 +2952,13 @@ textarea.ef-i {
 .menu-ctx-sub.izq {
   left: auto;
   right: 100%;
+}
+
+/* Acciones del módulo activo, alineadas a la derecha de la fila de módulos. */
+.barra-modulos-acciones {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-right: 8px;
 }

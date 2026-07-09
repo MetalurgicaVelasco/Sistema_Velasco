@@ -20,6 +20,8 @@ function App() {
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null)
   // Filtro que se aplica en el módulo destino al saltar por un enlazado.
   const [filtroEntrante, setFiltroEntrante] = useState<NavFiltro | null>(null)
+  // Acciones que el módulo activo publica en la barra (a la derecha de los módulos).
+  const [accionesBarra, setAccionesBarra] = useState<React.ReactNode>(null)
 
   // Navegación cross-módulo: cambia de módulo y deja el filtro para el destino.
   function navegar(sel: Seleccion, filtro: NavFiltro) {
@@ -66,7 +68,7 @@ function App() {
     }
 
     if (seleccion.seccionId === 'produccion' && seleccion.moduloId === 'tablero') {
-      return <Tablero />
+      return <Tablero onAcciones={setAccionesBarra} />
     }
 
     if (
@@ -104,9 +106,11 @@ function App() {
     <div className="app">
       <Encabezado email={sesion.user.email} />
       <BarraSecciones
+        accionesDerecha={accionesBarra}
         onSeleccion={(s) => {
           setSeleccion(s)
           setFiltroEntrante(null)
+          setAccionesBarra(null) // cada módulo publica las suyas al montarse
         }}
       />
       <main className="contenido-area">{renderContenido()}</main>

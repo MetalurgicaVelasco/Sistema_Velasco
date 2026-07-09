@@ -6,13 +6,10 @@
 
 ## Tablero de planificación
 
-- [ ] **Imágenes faltantes.** Falta mostrar la foto del elemento en: los bloques de las
-      actividades, los tooltips (hover) y el modal que se abre al clickear un bloque.
-      <- en curso.
-- [ ] **Editar el modo (Manual / Semiautomático / Automático) desde el tablero.** Hoy
-      el modo no se puede cambiar desde el modal de la actividad.
-- [ ] **Reordenar operarios.** Poder cambiar el orden en que aparecen los operarios
-      (las filas) en el tablero.
+- [x] ~~Imágenes en bloques, tooltips y modales~~ (heredando la del padre si el elemento
+      no tiene foto propia).
+- [x] ~~Editar el modo (Manual / Semi / Automática) desde el modal de actividad.~~
+- [x] ~~Reordenar operarios~~ (botón "⇄ Orden" en la barra → modal con arrastre y flechas).
 - [ ] **Bug — candado (🔒) no centrado en setups cortos.** En bloques con poco tiempo de
       setup, el ícono del candado del fantasma no queda centrado. En el sistema viejo
       no pasa; revisar cómo lo resolvía.
@@ -21,6 +18,15 @@
 - [ ] **Velocidad (mejora de fondo).** Hoy cada acción relee todo el tablero de la base
       (~4 round-trips). La solución de fondo es actualizar el estado en memoria en vez
       de releer. Se pospuso: con la carga paralelizada quedó aceptable.
+
+## Ideas a futuro (sin fecha)
+
+- [ ] **Navegación como panel lateral izquierdo.** Reemplazar la barra superior por un
+      panel a la izquierda: se ven las secciones y, al clickear una, se despliegan sus
+      módulos anidados debajo. Gana espacio vertical, clave para el tablero.
+- [ ] **Zoom del tablero.** Para ver más o menos días/horas según haga falta.
+- [ ] **Vista de solo lectura para proyectar** (el tablero en pantalla grande, sin
+      posibilidad de editar).
 
 ## Proyectos
 

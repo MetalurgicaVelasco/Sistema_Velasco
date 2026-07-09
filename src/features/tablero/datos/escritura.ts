@@ -125,3 +125,14 @@ export async function cambiarEstadoProceso(
   const { error } = await supabase.from('procesos').update({ estado }).eq('id', procesoId)
   if (error) throw new Error(error.message)
 }
+
+// Guarda el orden de las columnas del tablero: orden_tablero = posición (0-indexed)
+// según la lista que llega. Se escriben todas juntas.
+export async function guardarOrdenOperarios(idsEnOrden: number[]): Promise<void> {
+  const updates = idsEnOrden.map((id, idx) =>
+    supabase.from('personal').update({ orden_tablero: idx }).eq('id', id),
+  )
+  const resultados = await Promise.all(updates)
+  const conError = resultados.find((r) => r.error)
+  if (conError?.error) throw new Error(conError.error.message)
+}
