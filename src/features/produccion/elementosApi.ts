@@ -1,8 +1,10 @@
 import { supabase } from '../../shared/lib/supabaseClient'
 import type { Elemento } from './elementoTipos'
+import { DOMINIO_PROYECTO, type DominioElemento } from './dominioElemento'
 
-export const SELECT_ELEMENTO =
-  'id, proyecto_id, parent_elemento_id, tipo, descripcion, cantidad, material_id, presentacion_mat_prima, codigo_cliente, fecha_fin_estipulada, foto_url, estado, es_retrabajo, es_dispositivo'
+// Todas las funciones de este módulo trabajan sobre un DOMINIO (proyecto o
+// matriz). Por defecto, el de proyecto: así el código de Proyectos no cambia.
+export const SELECT_ELEMENTO = DOMINIO_PROYECTO.columnas
 
 // Un elemento es "contenedor" (puede tener hijos) si es conjunto o subconjunto.
 export function esContenedor(el: Elemento): boolean {
@@ -22,12 +24,10 @@ export function tipoLabel(tipo: string): string {
 export async function cargarHijos(
   proyectoId: number,
   parentId: number | null,
+  dom: DominioElemento = DOMINIO_PROYECTO,
 ): Promise<Elemento[]> {
-  const base = supabase.from('elementos').select(SELECT_ELEMENTO)
-  const q =
-    parentId != null
-      ? base.eq('parent_elemento_id', parentId)
-      : base.eq('proyecto_id', proyectoId).is('parent_elemento_id', null)
+  const base = supabase.from(dom.tabla).select(dom.columnas)
+  const q = parentId != null ? base.eq('parent_elemento_id', parentId) : dom.filtroRaices(base, proyectoId)
   const { data } = await q.order('id')
   return (data as unknown as Elemento[]) ?? []
 }
@@ -36,23 +36,25 @@ export async function cargarHijos(
 import { draftAGuardar } from './elementoTipos'
 import type { ElementoDraft } from './elementoTipos'
 
-const BUCKET = 'proyectos-fotos'
-
-// Sube la foto nueva a items/{id}/… y devuelve el path guardado, o null.
-async function subirFoto(elementoId: number, archivo: File): Promise<string | null> {
-  const ext =
-    archivo.name.split('.').pop() || archivo.type.split('/')[1] || 'png'
-  const ruta = `items/${elementoId}/${Date.now()}.${ext}`
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(ruta, archivo, { upsert: true })
+// Sube la foto nueva al bucket del dominio y devuelve el path guardado, o null.
+async function subirFoto(
+  elementoId: number,
+  archivo: File,
+  dom: DominioElemento,
+): Promise<string | null> {
+  const ext = archivo.name.split('.').pop() || archivo.type.split('/')[1] || 'png'
+  const ruta = `${dom.prefijoFoto}/${elementoId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from(dom.bucket).upload(ruta, archivo, { upsert: true })
   return error ? null : ruta
 }
 
 // ¿El elemento tiene al menos un hijo colgado?
-export async function tieneHijos(id: number): Promise<boolean> {
+export async function tieneHijos(
+  id: number,
+  dom: DominioElemento = DOMINIO_PROYECTO,
+): Promise<boolean> {
   const { count } = await supabase
-    .from('elementos')
+    .from(dom.tabla)
     .select('id', { count: 'exact', head: true })
     .eq('parent_elemento_id', id)
   return (count ?? 0) > 0
@@ -63,18 +65,16 @@ export async function crearElemento(
   d: ElementoDraft,
   proyectoId: number,
   parentId: number | null,
-): Promise<void> {
-  const payload = draftAGuardar(d, proyectoId, parentId)
-  const { data } = await supabase
-    .from('elementos')
-    .insert(payload)
-    .select('id')
-    .single()
-  const id = (data as { id: number } | null)?.id
+  dom: DominioElemento = DOMINIO_PROYECTO,
+): Promise<number | null> {
+  const payload = { ...draftAGuardar(d, parentId), ...dom.camposExtra(proyectoId, d.estado) }
+  const { data } = await supabase.from(dom.tabla).insert(payload).select('id').single()
+  const id = (data as { id: number } | null)?.id ?? null
   if (id != null && d.fotoArchivo) {
-    const ruta = await subirFoto(id, d.fotoArchivo)
-    if (ruta) await supabase.from('elementos').update({ foto_url: ruta }).eq('id', id)
+    const ruta = await subirFoto(id, d.fotoArchivo, dom)
+    if (ruta) await supabase.from(dom.tabla).update({ foto_url: ruta }).eq('id', id)
   }
+  return id
 }
 
 // Actualiza un elemento existente (no mueve de padre: parentId es el actual).
@@ -82,21 +82,25 @@ export async function actualizarElemento(
   d: ElementoDraft,
   proyectoId: number,
   parentId: number | null,
+  dom: DominioElemento = DOMINIO_PROYECTO,
 ): Promise<void> {
   if (d.dbId == null) return
-  const payload = draftAGuardar(d, proyectoId, parentId)
-  await supabase.from('elementos').update(payload).eq('id', d.dbId)
+  const payload = { ...draftAGuardar(d, parentId), ...dom.camposExtra(proyectoId, d.estado) }
+  await supabase.from(dom.tabla).update(payload).eq('id', d.dbId)
   if (d.fotoArchivo) {
-    const ruta = await subirFoto(d.dbId, d.fotoArchivo)
+    const ruta = await subirFoto(d.dbId, d.fotoArchivo, dom)
     if (ruta) {
-      await supabase.from('elementos').update({ foto_url: ruta }).eq('id', d.dbId)
+      await supabase.from(dom.tabla).update({ foto_url: ruta }).eq('id', d.dbId)
     }
   }
 }
 
 // Borra un elemento (sus procesos se van en cascada por la FK).
-export async function eliminarElemento(id: number): Promise<void> {
-  await supabase.from('elementos').delete().eq('id', id)
+export async function eliminarElemento(
+  id: number,
+  dom: DominioElemento = DOMINIO_PROYECTO,
+): Promise<void> {
+  await supabase.from(dom.tabla).delete().eq('id', id)
 }
 
 // Atajo "un solo item": crea un Componente raíz que hereda descripción y foto del
@@ -125,17 +129,20 @@ export async function crearComponenteInicial(
 // Sube por parent_elemento_id desde un elemento hasta la raíz. Devuelve la cadena
 // completa [raíz, …, elemento] para armar el breadcrumb con todos los niveles,
 // entres por donde entres.
-export async function cargarAncestros(elemento: Elemento): Promise<Elemento[]> {
+export async function cargarAncestros(
+  elemento: Elemento,
+  dom: DominioElemento = DOMINIO_PROYECTO,
+): Promise<Elemento[]> {
   const cadena: Elemento[] = [elemento]
   let parentId = elemento.parent_elemento_id
   while (parentId != null) {
     const { data, error } = await supabase
-      .from('elementos')
-      .select(SELECT_ELEMENTO)
+      .from(dom.tabla)
+      .select(dom.columnas)
       .eq('id', parentId)
       .single()
     if (error || !data) break
-    const padre = data as Elemento
+    const padre = data as unknown as Elemento
     cadena.unshift(padre)
     parentId = padre.parent_elemento_id
   }

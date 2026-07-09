@@ -10,6 +10,7 @@ import { contarProcesosPorElementos } from './procesosApi'
 import type { Elemento } from './elementoTipos'
 import { tiposHijoPermitidos } from './elementoTipos'
 import { useEditorElemento } from './useEditorElemento'
+import { DOMINIO_PROYECTO, type DominioElemento } from './dominioElemento'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -24,6 +25,7 @@ function SeccionContenido({
   onEntrar,
   deshabilitado = false,
   leyenda,
+  dom = DOMINIO_PROYECTO,
 }: {
   proyectoId: number
   parentId: number | null
@@ -31,6 +33,7 @@ function SeccionContenido({
   onEntrar: (h: Elemento) => void
   deshabilitado?: boolean
   leyenda?: string
+  dom?: DominioElemento
 }) {
   const [hijos, setHijos] = useState<Elemento[]>([])
   const [contarProc, setContarProc] = useState<Record<number, number>>({})
@@ -42,7 +45,7 @@ function SeccionContenido({
       setContarProc({})
       return
     }
-    const hs = await cargarHijos(proyectoId, parentId)
+    const hs = await cargarHijos(proyectoId, parentId, dom)
     setHijos(hs)
     setContarProc(await contarProcesosPorElementos(hs.map((h) => h.id)))
   }
@@ -72,7 +75,7 @@ function SeccionContenido({
     }
   }, [menuAgregar])
 
-  const { abrirNuevo, abrirEditar, modal } = useEditorElemento(proyectoId, recargar)
+  const { abrirNuevo, abrirEditar, modal } = useEditorElemento(proyectoId, recargar, dom)
 
   function fotoPublicUrl(path: string | null): string | null {
     return path
@@ -89,13 +92,13 @@ function SeccionContenido({
   }
   async function borrarHijo(h: Elemento) {
     if (!window.confirm(`¿Borrar "${h.descripcion}"?`)) return
-    if (await tieneHijos(h.id)) {
+    if (await tieneHijos(h.id, dom)) {
       window.alert(
         'Este elemento tiene elementos adentro. Vaciá o mové su contenido antes de borrarlo.',
       )
       return
     }
-    await eliminarElemento(h.id)
+    await eliminarElemento(h.id, dom)
     recargar()
   }
 

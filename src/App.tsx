@@ -9,6 +9,7 @@ import Login from './shared/components/Login'
 import Empresas from './features/empresas/Empresas'
 import Proyectos from './features/produccion/Proyectos'
 import Procesos from './features/produccion/Procesos'
+import Matriz from './features/produccion/Matriz'
 import Maquinas from './features/activos/Maquinas'
 import Personal from './features/rrhh/Personal'
 import Tablero from './features/tablero/Tablero'
@@ -69,6 +70,10 @@ function App() {
 
     if (seleccion.seccionId === 'produccion' && seleccion.moduloId === 'tablero') {
       return <Tablero onAcciones={setAccionesBarra} />
+    }
+
+    if (seleccion.seccionId === 'produccion' && seleccion.moduloId === 'matriz') {
+      return <Matriz />
     }
 
     if (

@@ -115,13 +115,13 @@ export function duplicarDraft(d: ElementoDraft): ElementoDraft {
 
 // Objeto para insertar/actualizar en elementos. La foto nueva se sube aparte
 // (necesita el id); foto_url va con lo que esté guardado o limpiado.
+// Campos comunes a los dos dominios (proyecto y matriz). Los propios de cada uno
+// (proyecto_id y estado en proyectos) los agrega el dominio vía camposExtra.
 export function draftAGuardar(
   d: ElementoDraft,
-  proyectoId: number,
   parentId: number | null = null,
 ) {
   return {
-    proyecto_id: proyectoId,
     parent_elemento_id: parentId,
     tipo: d.tipo,
     descripcion: d.descripcion.trim(),
@@ -130,7 +130,6 @@ export function draftAGuardar(
     presentacion_mat_prima: d.presentacionMatPrima.trim() || null,
     codigo_cliente: d.codigoCliente.trim() || null,
     fecha_fin_estipulada: d.fechaFinEstipulada || null,
-    estado: d.estado,
     es_retrabajo: d.esRetrabajo,
     es_dispositivo: d.esDispositivo,
     foto_url: d.fotoUrl,

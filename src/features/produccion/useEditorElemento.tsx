@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import { crearElemento, actualizarElemento, tieneHijos } from './elementosApi'
+import { DOMINIO_PROYECTO, type DominioElemento } from './dominioElemento'
 import { elementoDraftVacio, elementoRowADraft, crearMaterial, tiposHijoPermitidos } from './elementoTipos'
 import type { Elemento, ElementoDraft, Material } from './elementoTipos'
 import ModalItem from './ModalItem'
@@ -14,7 +15,11 @@ import ModalItem from './ModalItem'
 //  - abrirNuevo(tipo, parentId): abre el modal para crear un elemento bajo parentId.
 //  - abrirEditar(elemento, parentId): abre el modal para editar un elemento existente.
 //  - modal: el JSX del modal (o null); ubicalo en el render de quien use el hook.
-export function useEditorElemento(proyectoId: number, onGuardado: () => void) {
+export function useEditorElemento(
+  proyectoId: number,
+  onGuardado: () => void,
+  dom: DominioElemento = DOMINIO_PROYECTO,
+) {
   const [materiales, setMateriales] = useState<Material[]>([])
   const [modalElem, setModalElem] = useState<{
     draft: ElementoDraft
@@ -44,7 +49,7 @@ export function useEditorElemento(proyectoId: number, onGuardado: () => void) {
     if (
       draft.dbId != null &&
       draft.tipo === 'componente' &&
-      (await tieneHijos(draft.dbId))
+      (await tieneHijos(draft.dbId, dom))
     ) {
       window.alert(
         'Este elemento tiene elementos adentro; no puede pasar a Componente. ' +
@@ -53,9 +58,9 @@ export function useEditorElemento(proyectoId: number, onGuardado: () => void) {
       return
     }
     if (draft.dbId == null) {
-      await crearElemento(draft, proyectoId, modalElem.parentId)
+      await crearElemento(draft, proyectoId, modalElem.parentId, dom)
     } else {
-      await actualizarElemento(draft, proyectoId, modalElem.parentId)
+      await actualizarElemento(draft, proyectoId, modalElem.parentId, dom)
     }
     setModalElem(null)
     onGuardado()

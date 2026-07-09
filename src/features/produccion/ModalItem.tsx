@@ -67,7 +67,6 @@ function ModalItem({
       onCerrar={onCancelar}
       ancho={620}
     >
-
         {/* Tipo del elemento */}
         <label className="empresa-campo">
           Tipo

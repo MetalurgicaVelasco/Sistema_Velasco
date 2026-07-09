@@ -3051,3 +3051,235 @@ textarea.ef-i {
   flex: 1 1 auto;
   min-height: 220px;
 }
+
+/* ── Matriz de Productos ──────────────────────────────────────────────── */
+.mtz-vista {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.mtz-lista {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 14px;
+  background: #fafaf8;
+}
+/* Los botones de acción de los filtros, a la derecha y sin estirar la fila. */
+.mtz-filtros-acciones {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+.mtz-lista > .menu-ctx-zona {
+  min-height: 100%;
+}
+/* Nodos anidados: cada uno es una tarjeta, y sus hijos van en un recuadro
+   interior con fondo tenue (así se ve en qué nivel está cada cosa).
+   Medidas copiadas del sistema viejo. */
+.mtz-card {
+  background: #fff;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  margin-bottom: 3px;
+  overflow: hidden;
+}
+.mtz-fila {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+  cursor: pointer;
+}
+.mtz-fila:hover {
+  background: #f7faff;
+}
+/* El recuadro que contiene a los hijos de un nodo expandido. Padding vertical
+   mínimo: el cierre de cada nivel se percibe pero no desperdicia espacio. */
+.mtz-hijos {
+  border-top: 1px solid #e8e6df;
+  background: #faf9f5;
+  padding: 3px 6px;
+}
+.mtz-hijos-cliente {
+  padding-left: 14px;
+}
+.mtz-hijos-nivel {
+  padding-left: 16px;
+}
+/* La última tarjeta de un recuadro no deja aire abajo. */
+.mtz-hijos > .mtz-card:last-child {
+  margin-bottom: 0;
+}
+.mtz-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5f5e5a;
+  font-size: 13px;
+  padding: 0;
+  width: 14px;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+.mtz-espacio {
+  width: 14px;
+  flex: 0 0 auto;
+}
+.mtz-emoji {
+  flex: 0 0 auto;
+  line-height: 1;
+}
+.mtz-emoji-cliente {
+  font-size: 20px;
+}
+.mtz-emoji-nivel {
+  font-size: 22px;
+}
+/* Sector y equipo: íconos chicos y del mismo tamaño entre sí. */
+.mtz-emoji-compacto {
+  font-size: 15px;
+}
+.mtz-foto {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border: 1px solid #c8c6be;
+  background: #f5f4ee;
+}
+.mtz-foto-elemento {
+  width: 32px;
+  height: 32px;
+}
+.mtz-cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+.mtz-titulo {
+  font-weight: 600;
+  font-size: 13px;
+  color: #5f5e5a;
+}
+.mtz-titulo-cliente {
+  color: #0c447c;
+}
+.mtz-meta {
+  font-size: 11px;
+  color: #888;
+  margin-top: 1px;
+}
+/* Las filas de sector y equipo no llevan foto: más bajas. */
+.mtz-fila-compacta {
+  padding: 5px 12px;
+}
+.mtz-tipo {
+  font-size: 10px;
+  color: #888780;
+  background: #f5f4ee;
+  border-radius: 3px;
+  padding: 1px 5px;
+  flex: 0 0 auto;
+}
+.mtz-cant {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: #0c447c;
+  border-radius: 6px;
+  padding: 0 5px;
+  flex: 0 0 auto;
+}
+.mtz-cod {
+  font-size: 10px;
+  color: #5f5e5a;
+  flex: 0 0 auto;
+}
+.mtz-chip {
+  display: inline-block;
+  font-size: 9px;
+  background: #0c447c;
+  color: #fff;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  margin-left: 4px;
+}
+
+/* Matriz: acciones por fila y modal de agregar existente */
+.mtz-acciones {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.mtz-btn {
+  background: #fff;
+  border: 1px solid #c8c6be;
+  border-radius: 4px;
+  color: #2c2c2a;
+  font-size: 10px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.mtz-btn:hover {
+  border-color: #0c447c;
+  color: #0c447c;
+}
+.mtz-btn-x {
+  color: #a32d2d;
+  border-color: #e24b4a;
+  background: #fef0f0;
+}
+.mae-lista {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  margin: 8px 0 12px;
+}
+.mae-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0efe9;
+}
+.mae-fila:last-child {
+  border-bottom: none;
+}
+.mae-fila:hover {
+  background: #f7faff;
+}
+.mae-fila.elegido {
+  background: #0c447c;
+  color: #fff;
+}
+.mae-fila.elegido .mtz-tipo,
+.mae-fila.elegido .mtz-cod {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+.mtz-sin-hijos {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* Contador al lado del nombre (equipo): mantiene la fila en una sola línea,
+   con el mismo alto que la de sector. */
+.mtz-contador {
+  font-size: 11px;
+  color: #888;
+  font-weight: 400;
+  margin-left: 8px;
+}
