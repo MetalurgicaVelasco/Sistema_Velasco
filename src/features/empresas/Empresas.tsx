@@ -6,6 +6,8 @@ import MenuContextual from '../../shared/components/MenuContextual'
 import Modal from '../../shared/components/Modal'
 import ContactosEmpresa from './ContactosEmpresa'
 import DireccionesEmpresa from './DireccionesEmpresa'
+import SectoresEmpresa from './SectoresEmpresa'
+import { crearSectorGeneral } from './sectoresApi'
 import LogoEmpresa from './LogoEmpresa'
 
 type Empresa = {
@@ -69,6 +71,9 @@ const TABS_DETALLE = [
   { id: 'general', label: 'General' },
   { id: 'contactos', label: 'Contactos' },
   { id: 'direcciones', label: 'Direcciones' },
+  // Las ubicaciones (Sector → Equipo) solo tienen sentido en clientes: es donde
+  // se instalan las piezas del catálogo.
+  { id: 'sectores', label: 'Sectores y Equipos', soloCliente: true },
   { id: 'transportes', label: 'Transportes' },
 ]
 
@@ -407,6 +412,7 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
   })
 
   const [tabDetalle, setTabDetalle] = useState('general')
+  const [tabModal, setTabModal] = useState('general')
   const [tabEnlazados, setTabEnlazados] = useState('proyectos')
 
   const [mostrarNuevo, setMostrarNuevo] = useState(false)
@@ -467,14 +473,26 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
       return
     }
     setGuardandoNuevo(true)
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('empresas')
       .insert(formAGuardar(formNuevo))
-    setGuardandoNuevo(false)
-    if (error) {
+      .select('id')
+      .single()
+    if (error || !data) {
+      setGuardandoNuevo(false)
       setErrorNuevo('No se pudo crear la empresa.')
       return
     }
+    // Una empresa cliente nace con su "Sector General" (y su equipo general
+    // adentro): garantiza que siempre haya una ubicación válida para el catálogo.
+    if (formNuevo.es_cliente) {
+      try {
+        await crearSectorGeneral(data.id)
+      } catch {
+        /* la empresa ya está creada; el sector se puede cargar a mano */
+      }
+    }
+    setGuardandoNuevo(false)
     setMostrarNuevo(false)
     cargarEmpresas()
   }
@@ -484,6 +502,7 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
     setFormEdit(empresaAForm(empresa))
     setLogoUrlEdit(empresa.foto_url)
     setErrorEdit(null)
+    setTabModal('general')
   }
 
   async function guardarEdicion() {
@@ -612,7 +631,15 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
       {/* Franja 2: Lista */}
       <div className="franja franja-lista">
         <MenuContextual
-          items={[{ label: 'Nueva empresa', onSelect: abrirNuevo }]}
+          items={(e) => {
+            const fila = (e.target as HTMLElement).closest('[data-empresa-id]')
+            const id = fila ? Number(fila.getAttribute('data-empresa-id')) : null
+            const emp = id != null ? empresas.find((x) => x.id === id) : null
+            return [
+              ...(emp ? [{ label: `Editar "${emp.nombre}"`, onSelect: () => abrirEdicion(emp) }] : []),
+              { label: 'Nueva empresa', onSelect: abrirNuevo },
+            ]
+          }}
         >
         {cargando ? (
           <div className="empresas-estado">Cargando empresas…</div>
@@ -644,11 +671,13 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
               {empresasFiltradas.map((empresa) => (
                 <tr
                   key={empresa.id}
+                  data-empresa-id={empresa.id}
                   ref={empresa.id === seleccionadaId ? filaEmpSelRef : undefined}
                   className={
                     'tabla-fila' +
                     (empresa.id === seleccionadaId ? ' seleccionada' : '')
                   }
+                  onContextMenu={() => setSeleccionadaId(empresa.id)}
                   onClick={() => {
                     setSeleccionadaId(empresa.id)
                     listaEmpRef.current?.focus()
@@ -672,7 +701,7 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
         {empresaSeleccionada ? (
           <>
             <div className="enlazados-tabs">
-              {TABS_DETALLE.map((tab) => (
+              {TABS_DETALLE.filter((tab) => !tab.soloCliente || empresaSeleccionada.es_cliente).map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
@@ -779,6 +808,8 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
                 <ContactosEmpresa empresaId={empresaSeleccionada.id} />
               ) : tabDetalle === 'direcciones' ? (
                 <DireccionesEmpresa empresaId={empresaSeleccionada.id} />
+              ) : tabDetalle === 'sectores' ? (
+                <SectoresEmpresa empresaId={empresaSeleccionada.id} />
               ) : (
                 'Esta sección se construye más adelante.'
               )}
@@ -846,39 +877,73 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
         <Modal
           titulo={`Editar: ${empresaEditando.nombre}`}
           onCerrar={() => setEmpresaEditando(null)}
+          ancho={860}
         >
-          <div className="empresa-form-modal">
-            <div className="empresa-logo-editar">
-              <span className="empresa-logo-label">Logo</span>
-              <LogoEmpresa
-                empresaId={empresaEditando.id}
-                fotoUrl={logoUrlEdit}
-                onCambio={(ruta) => {
-                  setLogoUrlEdit(ruta)
-                  cargarEmpresas()
-                }}
-              />
-            </div>
-            <CamposEmpresa valor={formEdit} setValor={setFormEdit} />
-            {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
-            <div className="empresa-modal-acciones">
-              <button
-                type="button"
-                className="empresa-boton-secundario"
-                onClick={() => setEmpresaEditando(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="empresa-boton"
-                onClick={guardarEdicion}
-                disabled={guardandoEdit}
-              >
-                {guardandoEdit ? 'Guardando…' : 'Guardar cambios'}
-              </button>
-            </div>
+          {/* Pestañas dentro del modal: todo lo de la empresa se edita acá, sin
+              salir. Ojo: solo "General" difiere el guardado (botón Guardar); las
+              demás pestañas persisten al instante. */}
+          <div className="enlazados-tabs emp-modal-tabs">
+            {TABS_DETALLE.filter((t) => t.id !== 'transportes')
+              .filter((t) => !t.soloCliente || empresaEditando.es_cliente)
+              .map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={'enlazados-tab' + (tab.id === tabModal ? ' activa' : '')}
+                  onClick={() => setTabModal(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
           </div>
+
+          {tabModal === 'general' ? (
+            <div className="empresa-form-modal">
+              <div className="empresa-logo-editar">
+                <span className="empresa-logo-label">Logo</span>
+                <LogoEmpresa
+                  empresaId={empresaEditando.id}
+                  fotoUrl={logoUrlEdit}
+                  onCambio={(ruta) => {
+                    setLogoUrlEdit(ruta)
+                    cargarEmpresas()
+                  }}
+                />
+              </div>
+              <CamposEmpresa valor={formEdit} setValor={setFormEdit} />
+              {errorEdit && <p className="empresa-form-error">{errorEdit}</p>}
+              <div className="empresa-modal-acciones">
+                <button
+                  type="button"
+                  className="empresa-boton-secundario"
+                  onClick={() => setEmpresaEditando(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="empresa-boton"
+                  onClick={guardarEdicion}
+                  disabled={guardandoEdit}
+                >
+                  {guardandoEdit ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="emp-modal-tab-cont">
+              {tabModal === 'contactos' ? (
+                <ContactosEmpresa empresaId={empresaEditando.id} />
+              ) : tabModal === 'direcciones' ? (
+                <DireccionesEmpresa empresaId={empresaEditando.id} />
+              ) : tabModal === 'sectores' ? (
+                <SectoresEmpresa empresaId={empresaEditando.id} />
+              ) : null}
+              <p className="emp-modal-nota">
+                Los cambios de esta pestaña se guardan al instante.
+              </p>
+            </div>
+          )}
         </Modal>
       )}
 

@@ -62,6 +62,10 @@
   background: #fafafa;
   border-bottom: 1px solid #e4e4e7;
   overflow-x: auto;
+  /* Sin esto, los ítems se estiran al alto del más alto: el botón de acciones
+     del módulo (ej. "Orden" del tablero) agrandaba todos los botones. */
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .modulo-boton {
@@ -281,8 +285,13 @@
   border-bottom: 1px solid #e4e4e7;
 }
 
+/* La franja de filtros tiene ALTURA FIJA: no crece ni se encoge, así no le come
+   espacio a la lista. Los campos de adentro se achican hasta un mínimo legible;
+   si aun así no entran a lo ancho, aparece scroll horizontal (nunca vertical). */
 .franja-filtros {
-  flex: 15 1 0;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .franja-lista {
@@ -906,18 +915,27 @@
 .filtros-barra {
   display: flex;
   align-items: flex-start;
-  gap: 40px;
-  flex-wrap: wrap;
+  gap: 14px;
+  /* Sin wrap: las columnas nunca bajan de línea (la altura queda fija). Si no
+     entran, la franja scrollea en horizontal. */
+  flex-wrap: nowrap;
   padding: 6px 14px;
+  width: max-content;
+  min-width: 100%;
 }
 /* Cada columna es una grilla título + campo: los 3 campos quedan del mismo
-   ancho y alineados; el título toma el ancho del más largo de esa columna. */
+   ancho y alineados; el título toma el ancho del más largo de esa columna.
+   El campo se encoge hasta 77px (mínimo legible) antes de forzar el scroll.
+   flex-grow 0: al sobrar espacio las columnas NO se estiran (si no, el hueco
+   entre columnas se agranda en pantalla completa). */
 .filtros-col {
   display: grid;
-  grid-template-columns: max-content 175px;
+  grid-template-columns: max-content minmax(77px, 122px);
   column-gap: 5px;
   row-gap: 2px;
   align-items: start;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 /* En Proyectos la fila del medio (Cliente) lleva el checkbox debajo, así que
    las 3 filas usan alto fijo para que coincidan entre columnas. */
@@ -2961,4 +2979,75 @@ textarea.ef-i {
   gap: 8px;
   align-items: center;
   padding-right: 8px;
+  flex-shrink: 0;
+}
+/* El botón de acciones no debe ser más alto que los botones de módulo. */
+.barra-modulos-acciones button {
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Sectores y Equipos (ubicaciones del cliente) */
+.sec-fila-sector td {
+  background: #f5f3ec;
+}
+.sec-fila-sector.seleccionada td {
+  background: #0c447c;
+}
+.sec-celda-equipo {
+  padding-left: 30px;
+  color: #3f3f46;
+}
+.sec-rama {
+  color: #a1a1aa;
+  margin-right: 6px;
+}
+.sec-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5f5e5a;
+  font-size: 11px;
+  padding: 0 6px 0 0;
+  line-height: 1;
+}
+.tabla-fila.seleccionada .sec-toggle,
+.tabla-fila.seleccionada .sec-rama {
+  color: #fff;
+}
+.sec-badge {
+  margin-left: 8px;
+  font-size: 10px;
+  color: #888780;
+  background: #e8e6df;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-weight: 400;
+}
+
+/* Pestañas dentro del modal de empresa */
+.emp-modal-tabs {
+  margin-bottom: 12px;
+}
+.emp-modal-tab-cont {
+  min-height: 260px;
+}
+.emp-modal-nota {
+  font-size: 11px;
+  color: #888780;
+  margin-top: 12px;
+  font-style: italic;
+}
+
+/* La zona de clic derecho de sectores llena todo el alto disponible, así el
+   menú contextual aparece también en el espacio vacío debajo de la tabla. */
+.sec-zona {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.sec-zona > .menu-ctx-zona {
+  flex: 1 1 auto;
+  min-height: 220px;
 }
