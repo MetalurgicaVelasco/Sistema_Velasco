@@ -857,15 +857,20 @@ function ModalActividad({
   }) => void
 }) {
   const t = item?.tiempos
+  // OJO: un proceso multi-día se dibuja como varios bloques (fragmentos), y `b` es
+  // el fragmento clickeado. El inicio del PROCESO es el del item de simulación; si
+  // se usara b.fecha/b.inicioMin, editar desde la parte 2 correría el proceso entero.
+  const inicioProceso = item?.inicio
   const [operarioId, setOperarioId] = useState(b.operarioId)
   const [maquinaId, setMaquinaId] = useState<number | null>(b.maquinaId)
-  const [fecha, setFecha] = useState<string>(b.fecha)
-  const [hora, setHora] = useState<string>(minAHora(b.inicioMin))
+  const [fecha, setFecha] = useState<string>(inicioProceso?.fecha ?? b.fecha)
+  const [hora, setHora] = useState<string>(minAHora(inicioProceso?.min ?? b.inicioMin))
   const [setupMin, setSetupMin] = useState<number>(t?.setupMin ?? 0)
   const [operacionMin, setOperacionMin] = useState<number>(t?.operacionMin ?? 0)
   const [margenMin, setMargenMin] = useState<number>(t?.margenMin ?? 0)
   const [setupSolapable, setSetupSolapable] = useState<boolean>(item?.setupSolapable ?? false)
   const [urgencia, setUrgencia] = useState<string>(b.urgencia)
+  const [modo, setModo] = useState<ModoProceso>(b.modo)
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => {
@@ -875,14 +880,12 @@ function ModalActividad({
     return () => document.removeEventListener('keydown', esc)
   }, [onCerrar])
 
-  const tipoLabel =
-    b.modo === 'automatica' ? 'Automática (24/7)' : b.modo === 'semi_automatica' ? 'Semi-automática' : 'Manual'
-  const esAutoSemi = b.modo === 'automatica' || b.modo === 'semi_automatica'
+  const esAutoSemi = modo === 'automatica' || modo === 'semi_automatica'
   const puedeEditarTiempos = !!item // solo si el proceso está en la simulación (no pasado)
   const cantidad = t?.cantidad ?? 1
 
   // Fin calculado (read-only): inicio + tiempos, respetando la jornada del operario.
-  // Se recalcula en cada render → se actualiza al tocar fecha/hora/tiempos/operario.
+  // Se recalcula en cada render → se actualiza al tocar fecha/hora/tiempos/modo/operario.
   let fechaFin = ''
   let horaFin = ''
   const ctxOp = ctxs.get(operarioId)
@@ -890,7 +893,7 @@ function ModalActividad({
     try {
       const fin = finMaquina(
         { fecha: fecha as FechaISO, min: horaAMin(hora) },
-        { setupMin, operacionMin, margenMin, cantidad, modo: b.modo },
+        { setupMin, operacionMin, margenMin, cantidad, modo },
         ctxOp,
       )
       fechaFin = fin.fecha
@@ -906,7 +909,7 @@ function ModalActividad({
       maquinaId,
       fecha: fecha as FechaISO,
       hora,
-      tiempos: { setupMin, operacionMin, margenMin, cantidad: t?.cantidad ?? 1, modo: b.modo },
+      tiempos: { setupMin, operacionMin, margenMin, cantidad: t?.cantidad ?? 1, modo },
       setupSolapable,
       urgencia,
       proyectoId: b.proyectoId,
@@ -932,7 +935,7 @@ function ModalActividad({
         operacionMin: val('operacion', operacionMin),
         margenMin: val('margen', margenMin),
         cantidad: val('cantidad', cantidad),
-        modo: dModo ? (dModo.actual as ModoProceso) : b.modo,
+        modo: dModo ? (dModo.actual as ModoProceso) : modo,
       },
       setupSolapable,
       urgencia,
@@ -974,9 +977,6 @@ function ModalActividad({
               <b>Proceso:</b> {b.tipoProceso}
             </div>
           ) : null}
-          <div>
-            <b>Tipo:</b> {tipoLabel}
-          </div>
           {b.totalPartes > 1 ? (
             <div>
               <b>Parte:</b> {b.parte}/{b.totalPartes}
@@ -1036,6 +1036,14 @@ function ModalActividad({
                   {mq.nombre}
                 </option>
               ))}
+            </select>
+          </div>
+          <div className="tab-ed-campo">
+            <div className="tab-ed-l">Tipo</div>
+            <select className="tab-ed-i" value={modo} onChange={(e) => setModo(e.target.value as ModoProceso)}>
+              <option value="manual">Manual</option>
+              <option value="semi_automatica">Semi-automática</option>
+              <option value="automatica">Automática (24/7)</option>
             </select>
           </div>
         </div>
