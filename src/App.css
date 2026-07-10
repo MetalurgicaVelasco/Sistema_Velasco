@@ -3283,3 +3283,15 @@ textarea.ef-i {
   font-weight: 400;
   margin-left: 8px;
 }
+
+/* Chip de ubicación en línea (vista de elemento de matriz) */
+.ubic-chip-inline {
+  display: inline-block;
+  background: #eef4fb;
+  border: 1px solid #a8c8e8;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: #0c447c;
+  margin-right: 5px;
+}

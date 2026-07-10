@@ -3,6 +3,7 @@ import { supabase } from '../../shared/lib/supabaseClient'
 import MenuContextual from '../../shared/components/MenuContextual'
 import ModalElementoMatriz from './ModalElementoMatriz'
 import ModalAgregarExistente from './ModalAgregarExistente'
+import VistaElementoMatriz from './VistaElementoMatriz'
 import { tipoLabel } from './elementosApi'
 import { contiene } from '../../shared/lib/texto'
 import {
@@ -47,6 +48,8 @@ function Matriz() {
     { elemento: ElementoMatriz | null; padre: { id: number; tipo: string } | null } | null
   >(null)
   const [modalExistente, setModalExistente] = useState<{ id: number; tipo: string } | null>(null)
+  // Pieza abierta en su vista de detalle (espejo de VistaElemento en proyectos).
+  const [elementoAbierto, setElementoAbierto] = useState<ElementoMatriz | null>(null)
 
   async function recargar() {
     setCargando(true)
@@ -167,7 +170,12 @@ function Matriz() {
 
     return (
       <div className="mtz-card" data-elemento-id={el.id}>
-        <div className="mtz-fila" onClick={() => (esHoja ? undefined : toggle(clave, el.id))}>
+        <div
+          className="mtz-fila"
+          title="Doble click para abrir"
+          onDoubleClick={() => setElementoAbierto(el)}
+          onClick={() => (esHoja ? undefined : toggle(clave, el.id))}
+        >
           {esHoja ? <span className="mtz-espacio" /> : <button className="mtz-toggle">{abierto ? '▼' : '▶'}</button>}
           <span className="mtz-emoji mtz-emoji-nivel">🔧</span>
           {foto ? (
@@ -230,6 +238,18 @@ function Matriz() {
 
   function itemsMenu() {
     return [{ label: 'Nuevo elemento', onSelect: () => setModalElem({ elemento: null, padre: null }) }]
+  }
+
+  if (elementoAbierto) {
+    return (
+      <VistaElementoMatriz
+        elemento={elementoAbierto}
+        onCerrar={() => {
+          setElementoAbierto(null)
+          recargar()
+        }}
+      />
+    )
   }
 
   return (

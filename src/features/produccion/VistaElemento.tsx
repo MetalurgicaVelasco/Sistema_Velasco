@@ -77,8 +77,11 @@ function VistaElemento({
   }, [elemento.id])
 
   // Procesos + hijos del elemento ACTUAL (se recargan al navegar).
-  async function recargar(el: Elemento) {
-    setCargando(true)
+  // `primeraCarga`: solo la carga inicial muestra "Cargando…". En las recargas
+  // (tras guardar, mover, borrar) se mantiene la lista vieja hasta que llega la
+  // nueva, para no parpadear.
+  async function recargar(el: Elemento, primeraCarga = false) {
+    if (primeraCarga) setCargando(true)
     try {
       const pr = await cargarProcesosDeElemento(el.id)
       setProcesos(pr.procesos)
@@ -87,11 +90,11 @@ function VistaElemento({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar los procesos.')
     }
-    setCargando(false)
+    if (primeraCarga) setCargando(false)
   }
 
   useEffect(() => {
-    recargar(actual)
+    recargar(actual, true) // al entrar a un elemento sí mostramos "Cargando…"
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actual.id])
 

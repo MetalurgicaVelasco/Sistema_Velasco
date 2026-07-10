@@ -2,7 +2,12 @@ import { useState } from 'react'
 
 export type Opcion = { id: number; nombre: string }
 
-// Desplegable de un catálogo + botón "+ Nuevo" para agregar un valor al vuelo.
+// Valor centinela de la opción "+ Nuevo …" del desplegable.
+const NUEVO = '__nuevo__'
+
+// Desplegable de un catálogo con una opción "+ Nuevo …" AL FINAL de la lista:
+// así siempre está a la vista al abrir el desplegable, sin tener que scrollear ni
+// ocupar espacio con un botón al costado.
 // onAgregar inserta el valor (lo hace quien lo usa) y devuelve la opción creada.
 function SelectorConAlta({
   valor,
@@ -73,29 +78,26 @@ function SelectorConAlta({
   }
 
   return (
-    <div className="selector-alta">
-      <select
-        className="empresa-input"
-        value={valor ?? ''}
-        onChange={(e) =>
-          onCambiar(e.target.value ? Number(e.target.value) : null)
+    <select
+      className="empresa-input"
+      value={valor ?? ''}
+      onChange={(e) => {
+        if (e.target.value === NUEVO) {
+          setAgregando(true)
+          return
         }
-      >
-        <option value="">— Ninguno —</option>
-        {opciones.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.nombre}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        className="empresa-boton-secundario"
-        onClick={() => setAgregando(true)}
-      >
-        + Nuevo
-      </button>
-    </div>
+        onCambiar(e.target.value ? Number(e.target.value) : null)
+      }}
+    >
+      <option value="">— Ninguno —</option>
+      {opciones.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.nombre}
+        </option>
+      ))}
+      {/* Última opción: siempre visible al abrir, no hay que scrollear. */}
+      <option value={NUEVO}>+ {placeholderNuevo}…</option>
+    </select>
   )
 }
 

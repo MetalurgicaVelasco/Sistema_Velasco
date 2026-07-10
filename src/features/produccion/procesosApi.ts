@@ -1,10 +1,9 @@
 import { supabase } from '../../shared/lib/supabaseClient'
 import type { Proceso, Correlatividad, ModoProceso } from './procesoTipos'
+import { DOMINIO_PROCESO_PROYECTO, type DominioProceso } from './dominioProceso'
 
-const COLS =
-  'id, elemento_id, orden, tipo_proceso_id, proceso_otro, modo, setup_min, ' +
-  'operacion_min, margen_min, maquina_id, maquina_otra, operario_id, ' +
-  'detalle_trabajo, es_retrabajo'
+// Todas las funciones trabajan sobre un DOMINIO (proyecto o matriz). Por defecto,
+// el de proyecto: así el código de Proyectos no cambia.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapProceso(r: any): Proceso {
@@ -22,7 +21,7 @@ function mapProceso(r: any): Proceso {
     maquinaOtra: r.maquina_otra,
     operarioId: r.operario_id,
     detalleTrabajo: r.detalle_trabajo,
-    esRetrabajo: r.es_retrabajo,
+    esRetrabajo: r.es_retrabajo ?? false, // la matriz no tiene esta columna
   }
 }
 
@@ -30,10 +29,11 @@ function mapProceso(r: any): Proceso {
 // esos procesos (incluye las que van hacia/desde procesos de otros elementos).
 export async function cargarProcesosDeElemento(
   elementoId: number,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<{ procesos: Proceso[]; correlatividades: Correlatividad[] }> {
   const { data, error } = await supabase
-    .from('procesos')
-    .select(COLS)
+    .from(dom.tabla)
+    .select(dom.columnas)
     .eq('elemento_id', elementoId)
     .order('orden')
   if (error) throw new Error(error.message)
@@ -44,7 +44,7 @@ export async function cargarProcesosDeElemento(
   if (ids.length) {
     const lista = ids.join(',')
     const { data: corr, error: e2 } = await supabase
-      .from('correlatividades')
+      .from(dom.tablaCorrelatividades)
       .select('id, predecesor_id, sucesor_id')
       .or(`predecesor_id.in.(${lista}),sucesor_id.in.(${lista})`)
     if (e2) throw new Error(e2.message)
@@ -60,11 +60,12 @@ export async function cargarProcesosDeElemento(
 // Cuenta procesos por elemento (para el "N proceso(s)" de la lista de elementos).
 export async function contarProcesosPorElementos(
   elementoIds: number[],
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<Record<number, number>> {
   const out: Record<number, number> = {}
   if (!elementoIds.length) return out
   const { data, error } = await supabase
-    .from('procesos')
+    .from(dom.tabla)
     .select('elemento_id')
     .in('elemento_id', elementoIds)
   if (error) throw new Error(error.message)
@@ -88,8 +89,8 @@ export type GuardarProcesoInput = {
   esRetrabajo: boolean
 }
 
-function payloadDe(input: GuardarProcesoInput) {
-  return {
+function payloadDe(input: GuardarProcesoInput, dom: DominioProceso) {
+  const base: Record<string, unknown> = {
     elemento_id: input.elementoId,
     tipo_proceso_id: input.tipoProcesoId,
     proceso_otro: input.procesoOtro,
@@ -101,25 +102,29 @@ function payloadDe(input: GuardarProcesoInput) {
     maquina_otra: input.maquinaOtra,
     operario_id: input.operarioId,
     detalle_trabajo: input.detalleTrabajo,
-    es_retrabajo: input.esRetrabajo,
   }
+  // La receta del catálogo no tiene "es retrabajo": eso es una desviación que
+  // ocurre en un proyecto concreto, no en la plantilla.
+  if (dom.tieneRetrabajo) base.es_retrabajo = input.esRetrabajo
+  return base
 }
 
 // Inserta (al final del elemento, encadenado al anterior) o actualiza un proceso.
 export async function guardarProceso(
   input: GuardarProcesoInput,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<{ error?: string }> {
   if (input.id != null) {
     const { error } = await supabase
-      .from('procesos')
-      .update(payloadDe(input))
+      .from(dom.tabla)
+      .update(payloadDe(input, dom))
       .eq('id', input.id)
     return error ? { error: error.message } : {}
   }
 
   // Nuevo: orden = max + 1 entre los hermanos del elemento.
   const { data: hermanos, error: eH } = await supabase
-    .from('procesos')
+    .from(dom.tabla)
     .select('id, orden')
     .eq('elemento_id', input.elementoId)
     .order('orden', { ascending: false })
@@ -128,8 +133,8 @@ export async function guardarProceso(
   const maxOrden = previo ? previo.orden ?? 0 : 0
 
   const { data: nuevo, error } = await supabase
-    .from('procesos')
-    .insert({ ...payloadDe(input), orden: maxOrden + 1 })
+    .from(dom.tabla)
+    .insert({ ...payloadDe(input, dom), orden: maxOrden + 1 })
     .select('id')
     .single()
   if (error) return { error: error.message }
@@ -137,15 +142,18 @@ export async function guardarProceso(
   // Auto-correlatividad lineal: el proceso previo (mayor orden) → el nuevo.
   if (previo) {
     await supabase
-      .from('correlatividades')
+      .from(dom.tablaCorrelatividades)
       .insert({ predecesor_id: previo.id, sucesor_id: nuevo.id })
   }
   return {}
 }
 
 // Borra un proceso (la cascade se lleva sus correlatividades).
-export async function eliminarProceso(id: number): Promise<{ error?: string }> {
-  const { error } = await supabase.from('procesos').delete().eq('id', id)
+export async function eliminarProceso(
+  id: number,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
+): Promise<{ error?: string }> {
+  const { error } = await supabase.from(dom.tabla).delete().eq('id', id)
   return error ? { error: error.message } : {}
 }
 
@@ -154,9 +162,10 @@ export async function moverProceso(
   elementoId: number,
   id: number,
   delta: number,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<{ error?: string }> {
   const { data, error } = await supabase
-    .from('procesos')
+    .from(dom.tabla)
     .select('id, orden')
     .eq('elemento_id', elementoId)
     .order('orden')
@@ -167,9 +176,9 @@ export async function moverProceso(
   if (idx < 0 || nidx < 0 || nidx >= lista.length) return {}
   const a = lista[idx]
   const b = lista[nidx]
-  const e1 = await supabase.from('procesos').update({ orden: b.orden }).eq('id', a.id)
+  const e1 = await supabase.from(dom.tabla).update({ orden: b.orden }).eq('id', a.id)
   if (e1.error) return { error: e1.error.message }
-  const e2 = await supabase.from('procesos').update({ orden: a.orden }).eq('id', b.id)
+  const e2 = await supabase.from(dom.tabla).update({ orden: a.orden }).eq('id', b.id)
   return e2.error ? { error: e2.error.message } : {}
 }
 
@@ -179,9 +188,10 @@ export async function moverProcesoAPos(
   elementoId: number,
   id: number,
   posNueva: number,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<{ error?: string }> {
   const { data, error } = await supabase
-    .from('procesos')
+    .from(dom.tabla)
     .select('id, orden')
     .eq('elemento_id', elementoId)
     .order('orden')
@@ -199,7 +209,7 @@ export async function moverProcesoAPos(
   arr.splice(posNueva - 1, 0, movido)
   const updates = await Promise.all(
     arr.map((p, i) =>
-      supabase.from('procesos').update({ orden: i + 1 }).eq('id', p.id),
+      supabase.from(dom.tabla).update({ orden: i + 1 }).eq('id', p.id),
     ),
   )
   const conError = updates.find((u) => u.error)
@@ -211,21 +221,22 @@ export async function moverProcesoAPos(
 export async function duplicarProceso(
   id: number,
   asRetrabajo: boolean,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<{ error?: string }> {
   const { data, error } = await supabase
-    .from('procesos')
-    .select(COLS)
+    .from(dom.tabla)
+    .select(dom.columnas)
     .eq('id', id)
     .single()
   if (error) return { error: error.message }
   const orig = mapProceso(data)
   const { data: hermanos } = await supabase
-    .from('procesos')
+    .from(dom.tabla)
     .select('orden')
     .eq('elemento_id', orig.elementoId)
     .order('orden', { ascending: false })
   const maxOrden = hermanos && hermanos.length ? hermanos[0].orden ?? 0 : 0
-  const copia = {
+  const copia: Record<string, unknown> = {
     elemento_id: orig.elementoId,
     orden: maxOrden + 1,
     tipo_proceso_id: orig.tipoProcesoId,
@@ -238,9 +249,9 @@ export async function duplicarProceso(
     maquina_otra: orig.maquinaOtra,
     operario_id: orig.operarioId,
     detalle_trabajo: orig.detalleTrabajo,
-    es_retrabajo: asRetrabajo,
   }
-  const { error: eIns } = await supabase.from('procesos').insert(copia)
+  if (dom.tieneRetrabajo) copia.es_retrabajo = asRetrabajo
+  const { error: eIns } = await supabase.from(dom.tabla).insert(copia)
   return eIns ? { error: eIns.message } : {}
 }
 
@@ -248,9 +259,10 @@ export async function duplicarProceso(
 // orden actual (1→2→3…). Las que van a otros elementos no se tocan.
 export async function redefinirPredecesores(
   elementoId: number,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<{ error?: string }> {
   const { data: procs, error } = await supabase
-    .from('procesos')
+    .from(dom.tabla)
     .select('id')
     .eq('elemento_id', elementoId)
     .order('orden')
@@ -260,7 +272,7 @@ export async function redefinirPredecesores(
 
   const lista = ids.join(',')
   const { data: corr, error: e2 } = await supabase
-    .from('correlatividades')
+    .from(dom.tablaCorrelatividades)
     .select('id, predecesor_id, sucesor_id')
     .or(`predecesor_id.in.(${lista}),sucesor_id.in.(${lista})`)
   if (e2) return { error: e2.message }
@@ -268,28 +280,32 @@ export async function redefinirPredecesores(
     .filter((c) => ids.includes(c.predecesor_id) && ids.includes(c.sucesor_id))
     .map((c) => c.id)
   if (internas.length) {
-    const eDel = await supabase.from('correlatividades').delete().in('id', internas)
+    const eDel = await supabase.from(dom.tablaCorrelatividades).delete().in('id', internas)
     if (eDel.error) return { error: eDel.error.message }
   }
   const inserts = []
   for (let i = 1; i < ids.length; i++) {
     inserts.push({ predecesor_id: ids[i - 1], sucesor_id: ids[i] })
   }
-  const eIns = await supabase.from('correlatividades').insert(inserts)
+  const eIns = await supabase.from(dom.tablaCorrelatividades).insert(inserts)
   return eIns.error ? { error: eIns.error.message } : {}
 }
 
 export async function agregarCorrelatividad(
   predecesorId: number,
   sucesorId: number,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
 ): Promise<{ error?: string }> {
   const { error } = await supabase
-    .from('correlatividades')
+    .from(dom.tablaCorrelatividades)
     .insert({ predecesor_id: predecesorId, sucesor_id: sucesorId })
   return error ? { error: error.message } : {}
 }
 
-export async function quitarCorrelatividad(id: number): Promise<{ error?: string }> {
-  const { error } = await supabase.from('correlatividades').delete().eq('id', id)
+export async function quitarCorrelatividad(
+  id: number,
+  dom: DominioProceso = DOMINIO_PROCESO_PROYECTO,
+): Promise<{ error?: string }> {
+  const { error } = await supabase.from(dom.tablaCorrelatividades).delete().eq('id', id)
   return error ? { error: error.message } : {}
 }

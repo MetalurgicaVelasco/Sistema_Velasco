@@ -3,6 +3,7 @@ import Modal from '../../shared/components/Modal'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { TipoProceso, Maquina, Personal } from '../../shared/types/recursos'
 import { guardarProceso } from './procesosApi'
+import { DOMINIO_PROCESO_PROYECTO, type DominioProceso } from './dominioProceso'
 import type { Proceso, ModoProceso } from './procesoTipos'
 
 // Modal para crear o editar un proceso de un elemento. Los suplentes de máquina y
@@ -14,6 +15,7 @@ function ModalProcesoElemento({
   tiposProceso,
   maquinas,
   personal,
+  dom = DOMINIO_PROCESO_PROYECTO,
   onGuardado,
   onCancelar,
 }: {
@@ -22,6 +24,7 @@ function ModalProcesoElemento({
   tiposProceso: TipoProceso[]
   maquinas: Maquina[]
   personal: Personal[]
+  dom?: DominioProceso
   onGuardado: () => void
   onCancelar: () => void
 }) {
@@ -157,7 +160,7 @@ function ModalProcesoElemento({
       operarioId: opSel ? Number(opSel) : null,
       detalleTrabajo: detalle.trim() || null,
       esRetrabajo,
-    })
+    }, dom)
     setGuardando(false)
     if (err) {
       setError(err)
@@ -331,17 +334,19 @@ function ModalProcesoElemento({
         </select>
       </div>
 
-      {/* Es retrabajo */}
-      <div className={'proc-retrabajo-box' + (esRetrabajo ? ' on' : '')}>
-        <label>
-          <input
-            type="checkbox"
-            checked={esRetrabajo}
-            onChange={(e) => setEsRetrabajo(e.target.checked)}
-          />
-          🔁 Es retrabajo
-        </label>
-      </div>
+      {/* Es retrabajo: solo en proyectos. La receta del catálogo no lo tiene. */}
+      {dom.tieneRetrabajo ? (
+        <div className={'proc-retrabajo-box' + (esRetrabajo ? ' on' : '')}>
+          <label>
+            <input
+              type="checkbox"
+              checked={esRetrabajo}
+              onChange={(e) => setEsRetrabajo(e.target.checked)}
+            />
+            🔁 Es retrabajo
+          </label>
+        </div>
+      ) : null}
 
       {/* Detalle de tareas */}
       <div className="ef">

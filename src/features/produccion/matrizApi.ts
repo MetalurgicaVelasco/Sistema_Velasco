@@ -253,3 +253,40 @@ export async function quitarHijo(composicionId: number): Promise<void> {
   const { error } = await supabase.from('composicion_matriz').delete().eq('id', composicionId)
   if (error) throw new Error(error.message)
 }
+
+// Ruta legible de una ubicación: "Cliente › Sector › Equipo". Sirve para el
+// breadcrumb de la vista de elemento y para los chips del selector.
+export type RutaUbicacion = {
+  equipoId: number
+  clienteId: number
+  clienteNombre: string
+  sectorNombre: string
+  equipoNombre: string
+  texto: string
+}
+
+export async function cargarRutas(equipoIds: number[]): Promise<RutaUbicacion[]> {
+  if (!equipoIds.length) return []
+  const { data, error } = await supabase
+    .from('equipos')
+    .select('id, nombre, sector:sectores!sector_id ( nombre, empresa:empresas!empresa_id ( id, nombre ) )')
+    .in('id', equipoIds)
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as any[])
+    .filter((r) => r.sector?.empresa)
+    .map((r) => ({
+      equipoId: r.id,
+      clienteId: r.sector.empresa.id,
+      clienteNombre: r.sector.empresa.nombre,
+      sectorNombre: r.sector.nombre,
+      equipoNombre: r.nombre,
+      texto: `${r.sector.empresa.nombre} › ${r.sector.nombre} › ${r.nombre}`,
+    }))
+}
+
+// Un elemento del catálogo por id (para entrar a su vista).
+export async function cargarElementoMatriz(id: number): Promise<ElementoMatriz | null> {
+  const { data, error } = await supabase.from('elementos_matriz').select(COLS).eq('id', id).maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as unknown as ElementoMatriz) ?? null
+}

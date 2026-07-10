@@ -226,17 +226,16 @@ function ModalElementoMatriz({
             placeholderNuevo="Nuevo material"
           />
         </label>
+        <label className="empresa-campo">
+          Presentación de materia prima
+          <input
+            className="empresa-input"
+            placeholder="Ej. Barra Ø60 x 6mts"
+            value={presentacion}
+            onChange={(e) => setPresentacion(e.target.value)}
+          />
+        </label>
       </div>
-
-      <label className="empresa-campo">
-        Presentación de materia prima
-        <input
-          className="empresa-input"
-          placeholder="Ej. Barra Ø60 x 6mts"
-          value={presentacion}
-          onChange={(e) => setPresentacion(e.target.value)}
-        />
-      </label>
 
       <label className="filtro-check item-check">
         <input type="checkbox" checked={esDispositivo} onChange={(e) => setEsDispositivo(e.target.checked)} />

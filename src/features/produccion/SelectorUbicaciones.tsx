@@ -6,6 +6,7 @@ import {
   crearEquipo,
   type Sector,
 } from '../empresas/sectoresApi'
+import { cargarRutas } from './matrizApi'
 
 type Empresa = { id: number; nombre: string }
 
@@ -34,6 +35,23 @@ function SelectorUbicaciones({
   const [sectorId, setSectorId] = useState<number | ''>('')
   const [equipoId, setEquipoId] = useState<number | ''>('')
   const [error, setError] = useState<string | null>(null)
+
+  // Si llegan ubicaciones sin nombre resuelto (al editar una pieza), las
+  // completamos con su ruta legible "Cliente › Sector › Equipo".
+  useEffect(() => {
+    const sinResolver = valor.filter((u) => u.clienteId === 0)
+    if (!sinResolver.length) return
+    cargarRutas(sinResolver.map((u) => u.equipoId)).then((rutas) => {
+      if (!rutas.length) return
+      onCambiar(
+        valor.map((u) => {
+          const r = rutas.find((x) => x.equipoId === u.equipoId)
+          return r ? { equipoId: r.equipoId, clienteId: r.clienteId, texto: r.texto } : u
+        }),
+      )
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valor])
 
   // Clientes (solo empresas marcadas como cliente).
   useEffect(() => {
