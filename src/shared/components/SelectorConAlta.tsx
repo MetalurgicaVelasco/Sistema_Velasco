@@ -15,12 +15,19 @@ function SelectorConAlta({
   onCambiar,
   onAgregar,
   placeholderNuevo = 'Nuevo valor',
+  placeholderVacio = '— Ninguno —',
+  disabled = false,
 }: {
   valor: number | null
   opciones: Opcion[]
   onCambiar: (id: number | null) => void
   onAgregar: (nombre: string) => Promise<Opcion | null>
   placeholderNuevo?: string
+  // Texto de la primera opción (sin elegir). Ej: "— elegir —" en cadenas
+  // encadenadas donde "Ninguno" quedaría raro.
+  placeholderVacio?: string
+  // Bloquea el desplegable (ej: Equipo hasta que se elija Sector).
+  disabled?: boolean
 }) {
   const [agregando, setAgregando] = useState(false)
   const [nuevo, setNuevo] = useState('')
@@ -81,6 +88,7 @@ function SelectorConAlta({
     <select
       className="empresa-input"
       value={valor ?? ''}
+      disabled={disabled}
       onChange={(e) => {
         if (e.target.value === NUEVO) {
           setAgregando(true)
@@ -89,7 +97,7 @@ function SelectorConAlta({
         onCambiar(e.target.value ? Number(e.target.value) : null)
       }}
     >
-      <option value="">— Ninguno —</option>
+      <option value="">{placeholderVacio}</option>
       {opciones.map((o) => (
         <option key={o.id} value={o.id}>
           {o.nombre}

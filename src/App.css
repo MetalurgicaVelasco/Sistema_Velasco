@@ -3295,3 +3295,84 @@ textarea.ef-i {
   color: #0c447c;
   margin-right: 5px;
 }
+
+/* ====== Selector de ubicaciones (modal de elemento de matriz) ====== */
+.ubic-bloque {
+  border: 1px solid #a8c8e8;
+  background: #eef4fb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.ubic-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0c447c;
+  margin-bottom: 4px;
+}
+.ubic-ayuda {
+  font-size: 11px;
+  color: #5f5e5a;
+  margin: 0 0 10px;
+}
+/* Un campo (label + control) en columna, igual criterio que .empresa-campo. */
+.ubic-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #5f5e5a;
+}
+/* Cliente: fila propia, a lo ancho. */
+.ubic-campo-cliente {
+  margin-bottom: 10px;
+}
+/* Sector · Equipo · Agregar: una sola fila; los dos selects reparten el ancho
+   y el botón queda pegado a la derecha sin encogerse. */
+.ubic-fila-agregar {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.ubic-fila-agregar .ubic-campo {
+  flex: 1;
+  min-width: 0;
+}
+.ubic-agregar {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ubic-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+.ubic-chip {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #a8c8e8;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #0c447c;
+}
+.ubic-chip-x {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #a32d2d;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.ubic-vacio {
+  font-size: 11px;
+  color: #a32d2d;
+  margin: 10px 0 0;
+}
+.ubic-cliente-derivado {
+  margin-top: 12px;
+}

@@ -65,14 +65,20 @@ export async function cargarSectores(empresaId: number): Promise<Sector[]> {
 }
 
 // Crea un sector y, con él, su equipo general (así siempre hay dónde ubicar).
-export async function crearSector(empresaId: number, nombre: string): Promise<void> {
+// Devuelve el registro creado (id + nombre) para poder dejarlo seleccionado
+// cuando se crea al vuelo desde un desplegable.
+export async function crearSector(
+  empresaId: number,
+  nombre: string,
+): Promise<{ id: number; nombre: string }> {
   const { data, error } = await supabase
     .from('sectores')
     .insert({ empresa_id: empresaId, nombre: nombre.trim(), es_general: false })
-    .select('id')
+    .select('id, nombre')
     .single()
   if (error) throw new Error(error.message)
   await crearEquipoGeneral(data.id)
+  return { id: data.id, nombre: data.nombre }
 }
 
 // El "Sin equipo específico" de un sector. Se llama al crear cualquier sector.
@@ -100,11 +106,19 @@ export async function renombrarSector(id: number, nombre: string): Promise<void>
   if (error) throw new Error(error.message)
 }
 
-export async function crearEquipo(sectorId: number, nombre: string): Promise<void> {
-  const { error } = await supabase
+// Crea un equipo dentro de un sector. Devuelve el registro creado (id + nombre)
+// para poder dejarlo seleccionado cuando se crea al vuelo desde un desplegable.
+export async function crearEquipo(
+  sectorId: number,
+  nombre: string,
+): Promise<{ id: number; nombre: string }> {
+  const { data, error } = await supabase
     .from('equipos')
     .insert({ sector_id: sectorId, nombre: nombre.trim(), es_general: false })
+    .select('id, nombre')
+    .single()
   if (error) throw new Error(error.message)
+  return { id: data.id, nombre: data.nombre }
 }
 
 export async function renombrarEquipo(id: number, nombre: string): Promise<void> {

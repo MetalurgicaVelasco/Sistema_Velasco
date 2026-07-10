@@ -12,6 +12,7 @@ import {
   actualizarElementoMatriz,
   guardarUbicaciones,
   cargarUbicaciones,
+  cargarRutas,
   agregarHijo,
   type ElementoMatriz,
 } from './matrizApi'
@@ -69,13 +70,24 @@ function ModalElementoMatriz({
       .then(({ data }) => setMateriales((data as Material[] | null) ?? []))
   }, [])
 
-  // Al editar una pieza, precargar sus ubicaciones propias.
+  // Al editar una pieza, precargar sus ubicaciones propias YA RESUELTAS
+  // (Cliente › Sector › Equipo), para que los chips no muestren un placeholder.
   useEffect(() => {
     if (!elemento) return
-    cargarUbicaciones(elemento.id).then((equipoIds) => {
-      // Los textos de los chips los rellena el selector al montarse; acá solo
-      // guardamos los ids conocidos (el selector resuelve nombres al cargar).
-      setUbicaciones(equipoIds.map((equipoId) => ({ equipoId, clienteId: 0, texto: `Equipo #${equipoId}` })))
+    cargarUbicaciones(elemento.id).then(async (equipoIds) => {
+      if (!equipoIds.length) {
+        setUbicaciones([])
+        return
+      }
+      const rutas = await cargarRutas(equipoIds)
+      setUbicaciones(
+        equipoIds.map((equipoId) => {
+          const r = rutas.find((x) => x.equipoId === equipoId)
+          return r
+            ? { equipoId: r.equipoId, clienteId: r.clienteId, texto: r.texto }
+            : { equipoId, clienteId: 0, texto: `Equipo #${equipoId}` }
+        }),
+      )
     })
   }, [elemento])
 

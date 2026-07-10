@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
-import {
-  cargarSectores,
-  crearSector,
-  crearEquipo,
-  type Sector,
-} from '../empresas/sectoresApi'
+import SelectorConAlta from '../../shared/components/SelectorConAlta'
+import { cargarSectores, crearSector, crearEquipo, type Sector } from '../empresas/sectoresApi'
 import { cargarRutas } from './matrizApi'
 
 type Empresa = { id: number; nombre: string }
@@ -19,7 +15,8 @@ export type Ubicacion = {
 
 // Selector de ubicaciones del catálogo: dónde se instala una pieza.
 // Se eligen Cliente → Sector → Equipo y se agregan a una lista (puede haber
-// varias). Desde acá se pueden crear sectores y equipos nuevos.
+// varias). Los sectores y equipos se pueden crear al vuelo desde el propio
+// desplegable (opción "+ Nuevo…").
 //
 // El CLIENTE no se elige aparte: se deriva de las ubicaciones cargadas.
 function SelectorUbicaciones({
@@ -36,20 +33,26 @@ function SelectorUbicaciones({
   const [equipoId, setEquipoId] = useState<number | ''>('')
   const [error, setError] = useState<string | null>(null)
 
-  // Si llegan ubicaciones sin nombre resuelto (al editar una pieza), las
-  // completamos con su ruta legible "Cliente › Sector › Equipo".
+  // Red de seguridad: si llegan ubicaciones sin nombre resuelto (clienteId 0),
+  // se completan con su ruta legible. Normalmente el modal ya las manda resueltas.
   useEffect(() => {
     const sinResolver = valor.filter((u) => u.clienteId === 0)
     if (!sinResolver.length) return
-    cargarRutas(sinResolver.map((u) => u.equipoId)).then((rutas) => {
-      if (!rutas.length) return
-      onCambiar(
-        valor.map((u) => {
-          const r = rutas.find((x) => x.equipoId === u.equipoId)
-          return r ? { equipoId: r.equipoId, clienteId: r.clienteId, texto: r.texto } : u
-        }),
-      )
-    })
+    let vivo = true
+    cargarRutas(sinResolver.map((u) => u.equipoId))
+      .then((rutas) => {
+        if (!vivo || !rutas.length) return
+        onCambiar(
+          valor.map((u) => {
+            const r = rutas.find((x) => x.equipoId === u.equipoId)
+            return r ? { equipoId: r.equipoId, clienteId: r.clienteId, texto: r.texto } : u
+          }),
+        )
+      })
+      .catch(() => {}) // si falla, no rompe el modal; quedan con el texto que tengan
+    return () => {
+      vivo = false
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valor])
 
@@ -75,32 +78,38 @@ function SelectorUbicaciones({
 
   const equipos = sectorId === '' ? [] : (sectores.find((s) => s.id === sectorId)?.equipos ?? [])
 
-  async function recargarSectores() {
+  async function recargarSectores(): Promise<void> {
     if (clienteId === '') return
     setSectores(await cargarSectores(clienteId))
   }
 
-  async function nuevoSector() {
-    if (clienteId === '') return
-    const nombre = window.prompt('Nombre del nuevo sector:')
-    if (!nombre?.trim()) return
+  // Alta de sector desde el desplegable: crea, recarga la lista y devuelve el
+  // registro para que SelectorConAlta lo deje seleccionado.
+  async function altaSector(nombre: string): Promise<{ id: number; nombre: string } | null> {
+    if (clienteId === '') return null
+    setError(null)
     try {
-      await crearSector(clienteId, nombre.trim())
+      const creado = await crearSector(clienteId, nombre)
       await recargarSectores()
+      setEquipoId('')
+      return creado
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo crear el sector.')
+      return null
     }
   }
 
-  async function nuevoEquipo() {
-    if (sectorId === '') return
-    const nombre = window.prompt('Nombre del nuevo equipo:')
-    if (!nombre?.trim()) return
+  // Alta de equipo desde el desplegable (mismo patrón).
+  async function altaEquipo(nombre: string): Promise<{ id: number; nombre: string } | null> {
+    if (sectorId === '') return null
+    setError(null)
     try {
-      await crearEquipo(sectorId, nombre.trim())
+      const creado = await crearEquipo(sectorId, nombre)
       await recargarSectores()
+      return creado
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo crear el equipo.')
+      return null
     }
   }
 
@@ -142,84 +151,56 @@ function SelectorUbicaciones({
         ubicación.
       </p>
 
-      <div className="ubic-selects">
-        <label className="ubic-campo">
-          Cliente
-          <select
-            className="empresa-input"
-            value={clienteId}
-            onChange={(e) => {
-              setClienteId(e.target.value === '' ? '' : Number(e.target.value))
-              setSectorId('')
-              setEquipoId('')
-            }}
-          >
-            <option value="">— elegir —</option>
-            {empresas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
+      {/* Cliente: en su propia fila, a lo ancho. */}
+      <label className="ubic-campo ubic-campo-cliente">
+        Cliente
+        <select
+          className="empresa-input"
+          value={clienteId}
+          onChange={(e) => {
+            setClienteId(e.target.value === '' ? '' : Number(e.target.value))
+            setSectorId('')
+            setEquipoId('')
+          }}
+        >
+          <option value="">— elegir —</option>
+          {empresas.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.nombre}
+            </option>
+          ))}
+        </select>
+      </label>
 
+      {/* Sector · Equipo · Agregar: todo en una misma fila. */}
+      <div className="ubic-fila-agregar">
         <label className="ubic-campo">
           Sector
-          <div className="ubic-fila">
-            <select
-              className="empresa-input"
-              value={sectorId}
-              disabled={clienteId === ''}
-              onChange={(e) => {
-                setSectorId(e.target.value === '' ? '' : Number(e.target.value))
-                setEquipoId('')
-              }}
-            >
-              <option value="">— elegir —</option>
-              {sectores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nombre}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="empresa-boton-secundario ubic-mas"
-              disabled={clienteId === ''}
-              onClick={nuevoSector}
-              title="Nuevo sector"
-            >
-              +
-            </button>
-          </div>
+          <SelectorConAlta
+            valor={sectorId === '' ? null : sectorId}
+            opciones={sectores}
+            onCambiar={(id) => {
+              setSectorId(id ?? '')
+              setEquipoId('')
+            }}
+            onAgregar={altaSector}
+            placeholderNuevo="Nuevo sector"
+            placeholderVacio="— elegir —"
+            disabled={clienteId === ''}
+          />
         </label>
 
         <label className="ubic-campo">
           Equipo
-          <div className="ubic-fila">
-            <select
-              className="empresa-input"
-              value={equipoId}
-              disabled={sectorId === ''}
-              onChange={(e) => setEquipoId(e.target.value === '' ? '' : Number(e.target.value))}
-            >
-              <option value="">— elegir —</option>
-              {equipos.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="empresa-boton-secundario ubic-mas"
-              disabled={sectorId === ''}
-              onClick={nuevoEquipo}
-              title="Nuevo equipo"
-            >
-              +
-            </button>
-          </div>
+          <SelectorConAlta
+            valor={equipoId === '' ? null : equipoId}
+            opciones={equipos}
+            onCambiar={(id) => setEquipoId(id ?? '')}
+            onAgregar={altaEquipo}
+            placeholderNuevo="Nuevo equipo"
+            placeholderVacio="— elegir —"
+            disabled={sectorId === ''}
+          />
         </label>
 
         <button type="button" className="empresa-boton ubic-agregar" onClick={agregar}>
