@@ -566,9 +566,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
         </div>
         {tip ? <Tooltip tip={tip} /> : null}
         {planCrudo ? (
-          <div className="tab-modal-overlay">
-            <div className="tab-modal">
-              <div className="tab-plan-t">Plan calculado — todavía no se guarda</div>
+          <Modal titulo="Plan calculado — todavía no se guarda" onCerrar={cerrarPlan} ancho={520}>
             {planCrudo.ok ? (
               planCrudo.cambios.length ? (
                 <ul className="tab-plan-lista">
@@ -637,8 +635,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
                 </button>
               ) : null}
             </div>
-            </div>
-          </div>
+          </Modal>
         ) : null}
         {historialUndo.length > 0 ? (
           <button className="tab-undo" onClick={deshacer} disabled={guardando}>
@@ -900,14 +897,6 @@ function ModalActividad({
   const [urgencia, setUrgencia] = useState<string>(b.urgencia)
   const [modo, setModo] = useState<ModoProceso>(b.modo)
 
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar()
-    }
-    document.addEventListener('keydown', esc)
-    return () => document.removeEventListener('keydown', esc)
-  }, [onCerrar])
-
   const esAutoSemi = modo === 'automatica' || modo === 'semi_automatica'
   const puedeEditarTiempos = !!item // solo si el proceso está en la simulación (no pasado)
   const cantidad = t?.cantidad ?? 1
@@ -972,12 +961,7 @@ function ModalActividad({
   }
 
   return (
-    <div className="tab-modal-overlay">
-      <div className="tab-modal tab-modal-act">
-        <button className="tab-modal-x" onClick={onCerrar} aria-label="Cerrar">
-          ×
-        </button>
-        <div className="tab-modal-titulo">{b.descripcion}</div>
+    <Modal titulo={b.descripcion} onCerrar={onCerrar} ancho={660}>
         <div className="tab-act-cab">
           {fotoPublica(b.fotoUrl) ? (
             <img
@@ -1189,8 +1173,7 @@ function ModalActividad({
             Guardar
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -1209,24 +1192,26 @@ function ModalSelector({
 }) {
   const [texto, setTexto] = useState('')
   const [filtroMaquina, setFiltroMaquina] = useState<string>('')
-  const [filtroUrgencia, setFiltroUrgencia] = useState<string>('')
+  const [filtroCliente, setFiltroCliente] = useState<string>('')
   const [orden, setOrden] = useState<'urgencia' | 'maquina'>('urgencia')
-
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar()
-    }
-    document.addEventListener('keydown', esc)
-    return () => document.removeEventListener('keydown', esc)
-  }, [onCerrar])
 
   const op = personal.find((p) => p.id === operarioId)
   const ordenUrg: Record<string, number> = { urgente: 0, alta: 1, media: 2, baja: 3 }
 
+  // Opciones del filtro de cliente: clientes y clientes finales presentes en los
+  // elegibles (sin repetir), alfabético.
+  const clientesOpts = [
+    ...new Set(
+      elegibles
+        .flatMap((e) => [e.cliente, e.clienteFinal])
+        .filter((c): c is string => !!c && c.trim() !== ''),
+    ),
+  ].sort((a, b) => a.localeCompare(b))
+
   const lista = elegibles
     .filter((el) => {
       if (filtroMaquina !== '' && String(el.maquinaId ?? '') !== filtroMaquina) return false
-      if (filtroUrgencia !== '' && el.urgencia !== filtroUrgencia) return false
+      if (filtroCliente !== '' && el.cliente !== filtroCliente && el.clienteFinal !== filtroCliente) return false
       if (texto.trim() !== '') {
         const t = texto.trim().toLowerCase()
         const hay = `${el.descripcion} ${el.cliente} ${el.tipoProceso ?? ''} ${el.pedidoNro ?? ''}`.toLowerCase()
@@ -1247,14 +1232,11 @@ function ModalSelector({
   }
 
   return (
-    <div className="tab-modal-overlay">
-      <div className="tab-modal tab-modal-selector">
-        <button className="tab-modal-x" onClick={onCerrar} aria-label="Cerrar">
-          ×
-        </button>
-        <div className="tab-modal-titulo">
-          Asignar a {op ? nombreCorto(op) : `operario ${operarioId}`} · {fecha}
-        </div>
+    <Modal
+      titulo={`Asignar a ${op ? nombreCorto(op) : `operario ${operarioId}`} · ${fecha}`}
+      onCerrar={onCerrar}
+      ancho={620}
+    >
         <div className="tab-sel-filtros">
           <input
             className="tab-sel-buscar"
@@ -1270,12 +1252,13 @@ function ModalSelector({
               </option>
             ))}
           </select>
-          <select value={filtroUrgencia} onChange={(e) => setFiltroUrgencia(e.target.value)}>
-            <option value="">Toda urgencia</option>
-            <option value="urgente">Urgente</option>
-            <option value="alta">Alta</option>
-            <option value="media">Media</option>
-            <option value="baja">Baja</option>
+          <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)}>
+            <option value="">Todo cliente</option>
+            {clientesOpts.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
           <select value={orden} onChange={(e) => setOrden(e.target.value as 'urgencia' | 'maquina')}>
             <option value="urgencia">Ordenar por urgencia</option>
@@ -1322,8 +1305,7 @@ function ModalSelector({
             Cerrar
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -1338,21 +1320,8 @@ function InsertarModal({
   onCerrar: () => void
   onElegir: (startMin: number) => void
 }) {
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar()
-    }
-    document.addEventListener('keydown', esc)
-    return () => document.removeEventListener('keydown', esc)
-  }, [onCerrar])
-
   return (
-    <div className="tab-modal-overlay">
-      <div className="tab-modal tab-modal-insertar">
-        <button className="tab-modal-x" onClick={onCerrar} aria-label="Cerrar">
-          ×
-        </button>
-        <div className="tab-modal-titulo">¿Dónde ubico "{el.descripcion}"?</div>
+    <Modal titulo={`¿Dónde ubico "${el.descripcion}"?`} onCerrar={onCerrar} ancho={460}>
         <p className="tab-ins-info">
           No entra en ningún hueco libre del día. Elegí dónde ponerlo (va a reacomodar las actividades
           siguientes):
@@ -1369,8 +1338,7 @@ function InsertarModal({
             Cancelar
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

@@ -22,6 +22,7 @@ export type ProcesoElegible = {
   tipoProceso: string | null
   modo: ModoProceso
   cliente: string
+  clienteFinal: string | null
   pedidoNro: string | null
   urgencia: string
   fotoUrl: string | null
@@ -47,7 +48,8 @@ export async function cargarProcesosElegibles(
     .select(
       'id, tipo_proceso_id, proceso_otro, modo, setup_min, operacion_min, margen_min, maquina_id, maquina_otra, ' +
         'elemento:elementos!elemento_id ( descripcion, cantidad, foto_url, estado, ' +
-        'proyecto:proyectos!proyecto_id ( estado, urgencia, pedido_nro, empresa:empresas!empresa_id ( nombre ) ) )',
+        'proyecto:proyectos!proyecto_id ( estado, urgencia, pedido_nro, cliente_final_texto, ' +
+        'empresa:empresas!empresa_id ( nombre ), cliente_final:empresas!cliente_final_empresa_id ( nombre ) ) )',
     )
     .eq('estado', 'sin_planificar')
     .eq('proceso_eliminado', false)
@@ -67,6 +69,7 @@ export async function cargarProcesosElegibles(
       tipoProceso: r.tipo_proceso_id != null ? (tiposProceso.get(r.tipo_proceso_id) ?? null) : r.proceso_otro,
       modo: r.modo,
       cliente: proy.empresa?.nombre ?? '',
+      clienteFinal: proy.cliente_final?.nombre ?? proy.cliente_final_texto ?? null,
       pedidoNro: proy.pedido_nro ?? null,
       urgencia: proy.urgencia ?? 'media',
       fotoUrl: elem.foto_url ?? null,
