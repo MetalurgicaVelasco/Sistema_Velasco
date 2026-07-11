@@ -3425,3 +3425,120 @@ textarea.ef-i {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* ====== Modal "Importar de la Matriz" ====== */
+.imp-filtros {
+  display: grid;
+  grid-template-columns: 7fr 3fr;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+.imp-celda {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.imp-orden {
+  text-align: left;
+}
+.imp-limpiar {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.imp-aviso {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #28a745;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.imp-lista {
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+.imp-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+}
+.imp-fila-alt {
+  background: #faf9f5;
+}
+.imp-tipo {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.imp-tipo-conjunto {
+  background: #e7f0ff;
+  color: #0c447c;
+}
+.imp-tipo-subconjunto {
+  background: #eef4fb;
+  color: #3a6ea5;
+}
+.imp-tipo-componente {
+  background: #f0efe9;
+  color: #5f5e5a;
+}
+.imp-fila-txt {
+  flex: 1;
+  min-width: 0;
+}
+.imp-fila-desc {
+  font-size: 13px;
+  color: #2c2c2a;
+  font-weight: 500;
+}
+.imp-fila-sub {
+  font-size: 11px;
+  color: #888;
+}
+.imp-btn {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+.imp-confirmar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f5f3ec;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+}
+.imp-confirmar-txt {
+  flex: 1;
+  min-width: 160px;
+  font-size: 12px;
+  color: #2c2c2a;
+  align-self: center;
+}
+.imp-confirmar-cant {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #5f5e5a;
+}
+.imp-confirmar-cant input {
+  width: 80px;
+}
+.imp-confirmar-error {
+  align-self: center;
+}
+.imp-abrir {
+  margin-left: auto;
+  font-size: 12px;
+}

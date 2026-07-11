@@ -4,6 +4,7 @@ import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
 import VistaElemento from './VistaElemento'
+import ModalImportarMatriz from './ModalImportarMatriz'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
@@ -96,6 +97,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
 
   // Elemento cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
   const [elementoVista, setElementoVista] = useState<Elemento | null>(null)
+  const [importarAbierto, setImportarAbierto] = useState(false)
   // Proyecto a mostrar en la vista de elemento cuando lo pasa el form (ej. un
   // proyecto recién creado que todavía no está en la lista).
   const [proyectoVista, setProyectoVista] = useState<Proyecto | null>(null)
@@ -658,6 +660,13 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                 <h3 className="detalle-titulo">
                   #{seleccionado.id} — {seleccionado.descripcion}
                 </h3>
+                <button
+                  type="button"
+                  className="empresa-boton-secundario imp-abrir"
+                  onClick={() => setImportarAbierto(true)}
+                >
+                  📥 Importar de la Matriz
+                </button>
               </div>
               {elementosCargando ? (
                 <span className="franja-placeholder">Cargando items…</span>
@@ -804,6 +813,13 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       )}
 
       {modalNuevoElem}
+      {importarAbierto && seleccionado && (
+        <ModalImportarMatriz
+          proyectoId={seleccionado.id}
+          onImportado={() => cargarElementos(seleccionado.id)}
+          onCerrar={() => setImportarAbierto(false)}
+        />
+      )}
     </>
   )
 }
