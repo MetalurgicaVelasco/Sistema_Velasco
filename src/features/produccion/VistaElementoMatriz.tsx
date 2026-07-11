@@ -53,6 +53,9 @@ function VistaElementoMatriz({
   const [hijos, setHijos] = useState<HijoComposicion[]>([])
   const [rutas, setRutas] = useState<RutaUbicacion[]>([])
   const [recursos, setRecursos] = useState<RecursosData | null>(null)
+  const [materiales, setMateriales] = useState<Map<number, string>>(new Map())
+  const [editandoPosId, setEditandoPosId] = useState<number | null>(null)
+  const [posInput, setPosInput] = useState('')
 
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +68,18 @@ function VistaElementoMatriz({
 
   useEffect(() => {
     cargarRecursos().then(setRecursos)
+  }, [])
+
+  // Catálogo de materiales (id → nombre), para mostrar el nombre en el encabezado.
+  useEffect(() => {
+    supabase
+      .from('materiales')
+      .select('id, nombre')
+      .then(({ data }) => {
+        const m = new Map<number, string>()
+        for (const r of (data as { id: number; nombre: string }[] | null) ?? []) m.set(r.id, r.nombre)
+        setMateriales(m)
+      })
   }, [])
 
   // Solo la primera carga muestra "Cargando…"; las recargas mantienen la lista.
@@ -138,9 +153,13 @@ function VistaElementoMatriz({
     recargar(actual)
   }
   async function aplicarPos(p: Proceso) {
-    const txt = window.prompt(`Nueva posición de "${nombreProceso(p)}" (1..${procesos.length}):`)
-    if (!txt) return
-    const { error } = await moverProcesoAPos(actual.id, p.id, Number(txt), DOMINIO_PROCESO_MATRIZ)
+    const pos = Number(posInput)
+    if (!Number.isFinite(pos) || pos < 1 || pos > procesos.length) {
+      setEditandoPosId(null)
+      return
+    }
+    const { error } = await moverProcesoAPos(actual.id, p.id, pos, DOMINIO_PROCESO_MATRIZ)
+    setEditandoPosId(null)
     if (error) {
       window.alert(error)
       return
@@ -185,7 +204,7 @@ function VistaElementoMatriz({
   const esContenedor = actual.tipo !== 'componente'
 
   return (
-    <div className="vi-vista">
+    <div className="vista-item">
       {/* Breadcrumb */}
       <div className="vi-breadcrumb">
         <span className="vi-crumb vi-crumb-link" onClick={onCerrar}>
@@ -230,7 +249,8 @@ function VistaElementoMatriz({
             </div>
             <div>
               <b>Material:</b>{' '}
-              {actual.material_id != null ? `#${actual.material_id}` : '—'} · <b>Presentación:</b>{' '}
+              {actual.material_id != null ? (materiales.get(actual.material_id) ?? '—') : '—'} ·{' '}
+              <b>Presentación:</b>{' '}
               {actual.presentacion_mat_prima ?? '—'}
             </div>
             <div>
@@ -321,7 +341,7 @@ function VistaElementoMatriz({
         <div className="vi-proc-head-btns">
           <button
             type="button"
-            className="empresa-boton-secundario"
+            className="empresa-boton-secundario proc-btn-redefinir"
             onClick={onRedefinir}
             title="Asigna predecesores lineales según el orden actual"
           >
@@ -384,29 +404,77 @@ function VistaElementoMatriz({
                 </div>
               </div>
               <div className="proc-card-acciones">
-                <button type="button" className="proc-btn" disabled={idx === 0} onClick={() => onMoverProc(p, -1)} title="Subir">
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="proc-btn"
-                  disabled={idx === procesos.length - 1}
-                  onClick={() => onMoverProc(p, 1)}
-                  title="Bajar"
-                >
-                  ↓
-                </button>
-                <button type="button" className="proc-btn" onClick={() => aplicarPos(p)} title="Mover a posición">
-                  #
-                </button>
-                <button type="button" className="proc-btn" onClick={() => onDuplicarProc(p)} title="Duplicar">
-                  ⧉
-                </button>
+                <div className="proc-mover-row">
+                  <button
+                    type="button"
+                    className="proc-btn-mini"
+                    disabled={idx === 0}
+                    onClick={() => onMoverProc(p, -1)}
+                    title="Subir"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="proc-btn-mini"
+                    disabled={idx === procesos.length - 1}
+                    onClick={() => onMoverProc(p, 1)}
+                    title="Bajar"
+                  >
+                    ▼
+                  </button>
+                  {editandoPosId === p.id ? (
+                    <span className="proc-pos">
+                      <input
+                        type="number"
+                        min={1}
+                        max={procesos.length}
+                        className="proc-pos-input"
+                        value={posInput}
+                        autoFocus
+                        onChange={(e) => setPosInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            aplicarPos(p)
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setEditandoPosId(null)
+                          }
+                        }}
+                      />
+                      <button type="button" className="proc-btn-mini" onClick={() => aplicarPos(p)} title="Aplicar">
+                        ✓
+                      </button>
+                      <button type="button" className="proc-btn-mini" onClick={() => setEditandoPosId(null)} title="Cancelar">
+                        ✗
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="proc-pos">
+                      {idx + 1}/{procesos.length}
+                      <button
+                        type="button"
+                        className="proc-btn-mini"
+                        onClick={() => {
+                          setEditandoPosId(p.id)
+                          setPosInput(String(idx + 1))
+                        }}
+                        title="Editar posición"
+                      >
+                        ✏
+                      </button>
+                    </span>
+                  )}
+                </div>
                 <button type="button" className="proc-btn" onClick={() => setModalProc({ proceso: p })}>
                   Editar
                 </button>
-                <button type="button" className="proc-btn proc-btn-x" onClick={() => onEliminarProc(p)}>
-                  Borrar
+                <button type="button" className="proc-btn" onClick={() => onDuplicarProc(p)}>
+                  📋 Duplicar
+                </button>
+                <button type="button" className="proc-btn proc-btn-danger" onClick={() => onEliminarProc(p)}>
+                  Eliminar
                 </button>
               </div>
             </div>

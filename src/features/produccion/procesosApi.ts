@@ -309,3 +309,70 @@ export async function quitarCorrelatividad(
   const { error } = await supabase.from(dom.tablaCorrelatividades).delete().eq('id', id)
   return error ? { error: error.message } : {}
 }
+
+// ── Estado de avance (SOLO proyecto) ────────────────────────────────────────
+// El estado ('sin_planificar' | 'planificado' | 'hecho'), el plan y los tiempos
+// reales viven solo en la tabla `procesos` (el catálogo/matriz no tiene avance).
+// Estas funciones son específicas de proyecto: la vista de elemento las usa para
+// marcar "hecho" sin pasar por el tablero. No dependen del Tablero (sin acople).
+
+export type EstadoProcesoInfo = {
+  estado: string
+  planFecha: string | null
+  realFechaFin: string | null
+  realHoraFin: string | null
+}
+
+// Estado + plan + real de un conjunto de procesos (por id).
+export async function cargarEstadosProcesos(
+  procesoIds: number[],
+): Promise<Map<number, EstadoProcesoInfo>> {
+  const out = new Map<number, EstadoProcesoInfo>()
+  if (!procesoIds.length) return out
+  const { data, error } = await supabase
+    .from('procesos')
+    .select('id, estado, plan_fecha, real_fecha_fin, real_hora_fin')
+    .in('id', procesoIds)
+  if (error) throw new Error(error.message)
+  for (const r of data ?? []) {
+    out.set(r.id, {
+      estado: r.estado,
+      planFecha: r.plan_fecha ?? null,
+      realFechaFin: r.real_fecha_fin ?? null,
+      realHoraFin: r.real_hora_fin ?? null,
+    })
+  }
+  return out
+}
+
+// Marca un proceso como hecho y sella la fecha/hora del momento (para la línea
+// "✓ Hecho: fecha · hora"). Escribe solo en `procesos`; el motor del tablero usa
+// plan_*, no real_*, así que esto no lo afecta.
+export async function marcarHechoProyecto(id: number): Promise<{ error?: string }> {
+  const ahora = new Date()
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  const fecha = `${ahora.getFullYear()}-${p2(ahora.getMonth() + 1)}-${p2(ahora.getDate())}`
+  const hora = `${p2(ahora.getHours())}:${p2(ahora.getMinutes())}:00`
+  const { error } = await supabase
+    .from('procesos')
+    .update({ estado: 'hecho', real_fecha_fin: fecha, real_hora_fin: hora })
+    .eq('id', id)
+  return error ? { error: error.message } : {}
+}
+
+// Deshace el "hecho": si el proceso tenía plan_fecha vuelve a 'planificado'
+// (respeta su lugar en el tablero); si no, a 'sin_planificar'. Limpia el sello.
+export async function deshacerHechoProyecto(
+  id: number,
+  tienePlanFecha: boolean,
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('procesos')
+    .update({
+      estado: tienePlanFecha ? 'planificado' : 'sin_planificar',
+      real_fecha_fin: null,
+      real_hora_fin: null,
+    })
+    .eq('id', id)
+  return error ? { error: error.message } : {}
+}

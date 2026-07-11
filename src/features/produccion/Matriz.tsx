@@ -6,6 +6,7 @@ import ModalAgregarExistente from './ModalAgregarExistente'
 import VistaElementoMatriz from './VistaElementoMatriz'
 import { tipoLabel } from './elementosApi'
 import { contiene } from '../../shared/lib/texto'
+import { guardarVista, leerVista } from '../../shared/lib/vistaModulos'
 import {
   cargarMatriz,
   cargarComposicion,
@@ -19,6 +20,22 @@ import {
 const BUCKET = 'proyectos-fotos'
 const BUCKET_LOGOS = 'empresas-logos' // los logos de empresa viven en otro bucket
 
+const MODULO = 'matriz'
+
+// Estado de vista que se preserva al salir del módulo y volver (memoria de
+// sesión, vía vistaModulos): filtros, nodos desplegados y la composición ya
+// cargada. Así no hay que re-desplegar ni re-consultar al volver de otro módulo.
+type VistaMatriz = {
+  busqueda: string
+  codigos: string
+  filtroCliente: number | ''
+  filtroSector: number | ''
+  filtroEquipo: number | ''
+  filtroTipo: string
+  abiertos: Set<string>
+  composicion: Record<number, HijoComposicion[]>
+}
+
 // Matriz de Productos: el catálogo de piezas, agrupado por dónde se instala cada
 // una (Cliente → Sector → Equipo) y desplegable por su composición.
 //
@@ -26,22 +43,26 @@ const BUCKET_LOGOS = 'empresas-logos' // los logos de empresa viven en otro buck
 // con cantidades distintas. Por eso los hijos se cargan por composición, no por
 // un `parent_id` en la fila.
 function Matriz() {
+  const guardada = leerVista<VistaMatriz>(MODULO)
+
   const [clientes, setClientes] = useState<ClienteNodo[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Filtros
-  const [busqueda, setBusqueda] = useState('')
-  const [codigos, setCodigos] = useState('')
-  const [filtroCliente, setFiltroCliente] = useState<number | ''>('')
-  const [filtroSector, setFiltroSector] = useState<number | ''>('')
-  const [filtroEquipo, setFiltroEquipo] = useState<number | ''>('')
-  const [filtroTipo, setFiltroTipo] = useState<string>('')
+  const [busqueda, setBusqueda] = useState(guardada?.busqueda ?? '')
+  const [codigos, setCodigos] = useState(guardada?.codigos ?? '')
+  const [filtroCliente, setFiltroCliente] = useState<number | ''>(guardada?.filtroCliente ?? '')
+  const [filtroSector, setFiltroSector] = useState<number | ''>(guardada?.filtroSector ?? '')
+  const [filtroEquipo, setFiltroEquipo] = useState<number | ''>(guardada?.filtroEquipo ?? '')
+  const [filtroTipo, setFiltroTipo] = useState<string>(guardada?.filtroTipo ?? '')
 
   // Nodos expandidos y composición cargada (lazy). La clave del elemento incluye
   // la ruta, porque la misma pieza puede aparecer en varios lugares del árbol.
-  const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
-  const [composicion, setComposicion] = useState<Record<number, HijoComposicion[]>>({})
+  const [abiertos, setAbiertos] = useState<Set<string>>(guardada?.abiertos ?? new Set())
+  const [composicion, setComposicion] = useState<Record<number, HijoComposicion[]>>(
+    guardada?.composicion ?? {},
+  )
 
   // Modales
   const [modalElem, setModalElem] = useState<
@@ -51,12 +72,17 @@ function Matriz() {
   // Pieza abierta en su vista de detalle (espejo de VistaElemento en proyectos).
   const [elementoAbierto, setElementoAbierto] = useState<ElementoMatriz | null>(null)
 
-  async function recargar() {
+  // resetArbol=false en la primera carga: conserva la vista restaurada desde
+  // vistaModulos (nodos desplegados + composición). Las recargas tras una edición
+  // sí colapsan, como antes.
+  async function recargar(resetArbol = true) {
     setCargando(true)
     try {
       setClientes(await cargarMatriz())
-      setComposicion({})
-      setAbiertos(new Set()) // al recargar, todo colapsado
+      if (resetArbol) {
+        setComposicion({})
+        setAbiertos(new Set()) // al recargar tras una edición, todo colapsado
+      }
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cargar la matriz.')
@@ -66,8 +92,23 @@ function Matriz() {
   }
 
   useEffect(() => {
-    recargar()
+    recargar(false) // primera carga: preservar la vista restaurada
   }, [])
+
+  // Persistir la vista (memoria de sesión) cada vez que cambia algo que define
+  // "dónde quedé": filtros, nodos desplegados y composición cargada.
+  useEffect(() => {
+    guardarVista<VistaMatriz>(MODULO, {
+      busqueda,
+      codigos,
+      filtroCliente,
+      filtroSector,
+      filtroEquipo,
+      filtroTipo,
+      abiertos,
+      composicion,
+    })
+  }, [busqueda, codigos, filtroCliente, filtroSector, filtroEquipo, filtroTipo, abiertos, composicion])
 
   async function toggle(clave: string, elementoId?: number) {
     const abriendo = !abiertos.has(clave)

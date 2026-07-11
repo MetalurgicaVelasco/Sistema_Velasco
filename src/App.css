@@ -3376,3 +3376,52 @@ textarea.ef-i {
 .ubic-cliente-derivado {
   margin-top: 12px;
 }
+
+/* ====== Estado "Hecho" en la vista de elemento (Proyectos) ====== */
+/* Modificadores de color sobre .proc-btn (mismo tamaño que Editar/Eliminar). */
+/* Verde "Hecho": valores del Tablero (.tab-btn-hecho). */
+.proc-btn-hecho {
+  background: #d4edda;
+  border-color: #28a745;
+  color: #155724;
+}
+.proc-btn-hecho:hover {
+  background: #c3e6cb;
+}
+/* Ámbar "Desanclar": valores del Tablero (.tab-btn-desanclar). */
+.proc-btn-desanclar {
+  background: #fff4e0;
+  border-color: #e0a800;
+  color: #854f0b;
+}
+.proc-btn-desanclar:hover {
+  background: #ffe9c4;
+}
+
+/* Botón "Redefinir predecesores" en ámbar/crema (estética del sistema viejo).
+   Se aplica sobre .empresa-boton-secundario para conservar el tamaño de header. */
+.proc-btn-redefinir {
+  background: #fdf6e3;
+  border-color: #e0b400;
+  color: #7a5c00;
+}
+.proc-btn-redefinir:hover {
+  background: #f7ecc8;
+}
+
+/* Tarjeta de proceso YA HECHO: fondo verde suave y borde izquierdo verde
+   (estética del viejo, no el gris del Tablero). */
+.proc-card-hecho {
+  background: #eff8f1;
+  border-left-color: #28a745;
+}
+/* Línea "✓ Hecho: fecha · hora" dentro de la tarjeta. */
+.proc-hecho-banner {
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: #d4edda;
+  border-radius: 5px;
+  color: #155724;
+  font-size: 12px;
+  font-weight: 600;
+}

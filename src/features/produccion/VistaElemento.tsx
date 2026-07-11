@@ -11,6 +11,10 @@ import {
   duplicarProceso,
   redefinirPredecesores,
   quitarCorrelatividad,
+  cargarEstadosProcesos,
+  marcarHechoProyecto,
+  deshacerHechoProyecto,
+  type EstadoProcesoInfo,
 } from './procesosApi'
 import { esContenedor, tipoLabel, cargarAncestros, SELECT_ELEMENTO } from './elementosApi'
 import { useEditorElemento } from './useEditorElemento'
@@ -40,6 +44,7 @@ function VistaElemento({
 
   const [procesos, setProcesos] = useState<Proceso[]>([])
   const [correlatividades, setCorrelatividades] = useState<Correlatividad[]>([])
+  const [estadosProc, setEstadosProc] = useState<Map<number, EstadoProcesoInfo>>(new Map())
   const [recursos, setRecursos] = useState<RecursosData | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +91,7 @@ function VistaElemento({
       const pr = await cargarProcesosDeElemento(el.id)
       setProcesos(pr.procesos)
       setCorrelatividades(pr.correlatividades)
+      setEstadosProc(await cargarEstadosProcesos(pr.procesos.map((p) => p.id)))
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar los procesos.')
@@ -204,6 +210,22 @@ function VistaElemento({
     await redefinirPredecesores(actual.id)
     recargar(actual)
   }
+
+  // Marca/desmarca un proceso como hecho. Sin planificar por el tablero: escribe
+  // directo el estado. Deshacer respeta si el proceso tenía plan (vuelve a
+  // 'planificado') o no ('sin_planificar'), sin borrar una planificación.
+  async function onToggleHecho(p: Proceso) {
+    const info = estadosProc.get(p.id)
+    const estaHecho = info?.estado === 'hecho'
+    const { error: err } = estaHecho
+      ? await deshacerHechoProyecto(p.id, info?.planFecha != null)
+      : await marcarHechoProyecto(p.id)
+    if (err) {
+      window.alert(err)
+      return
+    }
+    recargar(actual)
+  }
   async function onQuitarPred(c: Correlatividad) {
     await quitarCorrelatividad(c.id)
     recargar(actual)
@@ -308,7 +330,7 @@ function VistaElemento({
         <div className="vi-proc-head-btns">
           <button
             type="button"
-            className="empresa-boton-secundario"
+            className="empresa-boton-secundario proc-btn-redefinir"
             onClick={onRedefinir}
             title="Asigna predecesores lineales según el orden actual"
           >
@@ -337,10 +359,18 @@ function VistaElemento({
           const preds = correlatividades.filter((c) => c.sucesorId === p.id)
           const supMaq = maqSuplentesTexto(p)
           const supOp = opSuplentesTexto(p)
+          const infoEstado = estadosProc.get(p.id)
+          const hecho = infoEstado?.estado === 'hecho'
+          const hechoFecha = infoEstado?.realFechaFin ?? null
+          const hechoHora = infoEstado?.realHoraFin ?? null
           return (
             <div
               key={p.id}
-              className={'proc-card' + (p.esRetrabajo ? ' proc-card-ret' : '')}
+              className={
+                'proc-card' +
+                (p.esRetrabajo ? ' proc-card-ret' : '') +
+                (hecho ? ' proc-card-hecho' : '')
+              }
             >
               <div className="proc-card-body">
                 <div className="proc-card-t">
@@ -404,6 +434,12 @@ function VistaElemento({
                     })}
                   </div>
                 </div>
+                {hecho && (
+                  <div className="proc-hecho-banner">
+                    ✓ Hecho
+                    {hechoFecha ? `: ${hechoFecha}${hechoHora ? ` · ${hechoHora.slice(0, 5)}` : ''}` : ''}
+                  </div>
+                )}
               </div>
 
               <div className="proc-card-acciones">
@@ -500,6 +536,13 @@ function VistaElemento({
                   onClick={() => onDuplicar(p, true)}
                 >
                   🔁 Crear retrabajo
+                </button>
+                <button
+                  type="button"
+                  className={hecho ? 'proc-btn proc-btn-desanclar' : 'proc-btn proc-btn-hecho'}
+                  onClick={() => onToggleHecho(p)}
+                >
+                  {hecho ? '🔓 Desanclar' : '✓ Hecho'}
                 </button>
                 <button
                   type="button"
