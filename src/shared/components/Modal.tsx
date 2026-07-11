@@ -1,5 +1,10 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 
+// Pila de modales abiertos. Esc cierra únicamente el de más arriba, para que los
+// modales anidados (p. ej. un alta rápida abierta sobre otro modal) no se cierren
+// todos de una.
+const pilaModales: symbol[] = []
+
 type ModalProps = {
   titulo: string
   onCerrar: () => void
@@ -14,11 +19,26 @@ type ModalProps = {
 function Modal({ titulo, onCerrar, children, ancho }: ModalProps) {
   const cajaRef = useRef<HTMLDivElement>(null)
   const pos = useRef({ x: 0, y: 0 })
+  // Identidad estable de este modal dentro de la pila.
+  const idRef = useRef<symbol | null>(null)
+  if (idRef.current === null) idRef.current = Symbol('modal')
 
-  // Cerrar con Esc.
+  // Registrar/desregistrar este modal en la pila mientras está montado.
+  useEffect(() => {
+    const id = idRef.current as symbol
+    pilaModales.push(id)
+    return () => {
+      const i = pilaModales.lastIndexOf(id)
+      if (i !== -1) pilaModales.splice(i, 1)
+    }
+  }, [])
+
+  // Cerrar con Esc, pero SOLO si este es el modal de más arriba en la pila.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCerrar()
+      if (e.key !== 'Escape') return
+      if (pilaModales[pilaModales.length - 1] !== idRef.current) return
+      onCerrar()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
