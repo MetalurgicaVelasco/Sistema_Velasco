@@ -42,6 +42,18 @@ export function sumarDias(iso: FechaISO, dias: number): FechaISO {
   return fechaAISO(d)
 }
 
+/** Avanza (n>0) o retrocede (n<0) `n` días HÁBILES (sin domingos) desde `iso`. */
+export function sumarHabiles(iso: FechaISO, n: number): FechaISO {
+  const paso = n < 0 ? -1 : 1
+  let quedan = Math.abs(n)
+  let f = iso
+  while (quedan > 0) {
+    f = sumarDias(f, paso)
+    if (parseFecha(f).getDay() !== 0) quedan--
+  }
+  return f
+}
+
 /** Día de la semana: 0=domingo, 1=lunes, ... 6=sábado (local). */
 export function diaSemana(iso: FechaISO): number {
   return parseFecha(iso).getDay()

@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { supabase } from '../../../shared/lib/supabaseClient'
-import { hoyISO, sumarDias } from '../../../shared/lib/fechas'
+import { hoyISO, sumarDias, sumarHabiles } from '../../../shared/lib/fechas'
 import { cargarConfigTablero } from '../configTablero'
 import {
   cargarProcesosPlanificados,
@@ -104,6 +104,8 @@ export type TableroCargado = {
   personal: PersonalTablero[]
   desde: string
   hasta: string
+  diasAtras: number // offset visible (días hábiles) hacia atrás desde la fecha base
+  diasAdelante: number // offset visible (días hábiles) hacia adelante
   ventanaInicio: string // 'HH:MM'
   ventanaFin: string // 'HH:MM'
   // Material para simular movimientos (drag & drop):
@@ -114,11 +116,19 @@ export type TableroCargado = {
   elegibles: ProcesoElegible[] // procesos sin planificar disponibles para el "+"
 }
 
-export async function cargarTablero(): Promise<TableroCargado> {
+export async function cargarTablero(fechaBase?: string): Promise<TableroCargado> {
   const config = await cargarConfigTablero()
   const hoy = hoyISO()
-  const desde = sumarDias(hoy, -config.diasAtras)
-  const hasta = sumarDias(hoy, config.diasAdelante)
+  // La ventana se ancla en fechaBase (para navegar por semanas); si no viene, hoy.
+  // `hoy` real se conserva aparte para el sombreado y el corte de la cascada.
+  const base = fechaBase ?? hoy
+  // Ventana de DATOS ancha: se carga lo visible + un colchón de 3 semanas a cada
+  // lado, para que navegar por semanas dentro de ese rango sea instantáneo (se
+  // filtra client-side, sin releer). Los offsets visibles se cuentan en días
+  // HÁBILES (sin domingos). CUSHION_DIAS debe coincidir con el del Tablero.
+  const CUSHION_DIAS = 21
+  const desde = sumarHabiles(sumarDias(base, -CUSHION_DIAS), -config.diasAtras)
+  const hasta = sumarHabiles(sumarDias(base, CUSHION_DIAS), config.diasAdelante)
 
   // Lecturas independientes en paralelo.
   const [procesos, personalArr, maquinasArr, vacaciones, tiposProceso] = await Promise.all([
@@ -164,6 +174,8 @@ export async function cargarTablero(): Promise<TableroCargado> {
     personal: personalArr,
     desde,
     hasta,
+    diasAtras: config.diasAtras,
+    diasAdelante: config.diasAdelante,
     ventanaInicio: config.ventanaInicio,
     ventanaFin: config.ventanaFin,
     materialSim,

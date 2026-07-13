@@ -27,7 +27,7 @@ import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { Divergencia } from './motor/divergencias'
 import type { ModoProceso } from '../produccion/procesoTipos'
 import type { PersonalTablero, MaquinaTablero } from './tipos'
-import { horaAMin, parseFecha, hoyISO, sumarDias, type FechaISO } from '../../shared/lib/fechas'
+import { horaAMin, parseFecha, hoyISO, sumarDias, sumarHabiles, type FechaISO } from '../../shared/lib/fechas'
 import { jornada } from '../../shared/lib/jornada'
 import './tablero.css'
 
@@ -63,6 +63,9 @@ type PlanCrudo = { ok: true; cambios: CambioPlan[]; movidos: number[] } | { ok: 
 
 export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNode) => void }) {
   const [datos, setDatos] = useState<TableroCargado | null>(null)
+  // Fecha que ancla la ventana de días visible. Se corre por semanas con los
+  // botones ◀ / Hoy / ▶. Arranca en hoy.
+  const [fechaBase, setFechaBase] = useState<FechaISO>(hoyISO())
   const [error, setError] = useState<string | null>(null)
   const [tip, setTip] = useState<{ b: BloqueVisual; x: number; y: number } | null>(null)
   const [dragActivo, setDragActivo] = useState<BloqueVisual | null>(null)
@@ -86,12 +89,36 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
   // dentro del tablero, donde el espacio vertical es valioso).
   useEffect(() => {
     onAcciones?.(
-      <button className="tab-btn-sec" onClick={() => setModalOrden(true)} title="Reordenar columnas del tablero">
-        ⇄ Orden
-      </button>,
+      <>
+        <button
+          className="tab-btn-sec"
+          onClick={() => setFechaBase((f) => sumarDias(f, -7))}
+          title="Semana anterior"
+        >
+          ◀ Semana
+        </button>
+        <button
+          className="tab-btn-sec"
+          onClick={() => setFechaBase(hoyISO())}
+          disabled={fechaBase === hoyISO()}
+          title="Volver a hoy"
+        >
+          Hoy
+        </button>
+        <button
+          className="tab-btn-sec"
+          onClick={() => setFechaBase((f) => sumarDias(f, 7))}
+          title="Semana siguiente"
+        >
+          Semana ▶
+        </button>
+        <button className="tab-btn-sec" onClick={() => setModalOrden(true)} title="Reordenar columnas del tablero">
+          ⇄ Orden
+        </button>
+      </>,
     )
     return () => onAcciones?.(null)
-  }, [onAcciones])
+  }, [onAcciones, fechaBase])
   const [insertar, setInsertar] = useState<{
     el: ProcesoElegible
     opciones: { label: string; startMin: number }[]
@@ -102,15 +129,24 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
-    cargarTablero()
+    // Si la ventana visible ya está dentro de lo cargado (el colchón), no se
+    // recarga: cambiar de semana solo re-renderiza (instantáneo). Se recarga
+    // (y re-centra el colchón) al montar o al salirse del rango cargado.
+    if (datos) {
+      const vDesde = sumarHabiles(fechaBase, -datos.diasAtras)
+      const vHasta = sumarHabiles(fechaBase, datos.diasAdelante)
+      if (vDesde >= datos.desde && vHasta <= datos.hasta) return
+    }
+    cargarTablero(fechaBase)
       .then(setDatos)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaBase])
 
   if (error) return <div className="tab-estado tab-error">No se pudo cargar el tablero: {error}</div>
   if (!datos) return <div className="tab-estado">Cargando tablero…</div>
 
-  const { bloques, personal, desde, hasta, ventanaInicio, ventanaFin } = datos
+  const { bloques, personal, ventanaInicio, ventanaFin } = datos
   const vIni = horaAMin(ventanaInicio)
   const vTotal = horaAMin(ventanaFin) - vIni
   const hoy = hoyISO()
@@ -134,7 +170,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
     try {
       await guardarOrdenOperarios(idsEnOrden)
       setModalOrden(false)
-      const nuevos = await cargarTablero()
+      const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
     } catch (e) {
       window.alert('No se pudo guardar el orden: ' + (e instanceof Error ? e.message : String(e)))
@@ -151,7 +187,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
     setModalActividad(null)
     try {
       await quitarDelTablero(procesoId)
-      const nuevos = await cargarTablero()
+      const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
     } catch (e) {
       window.alert('No se pudo quitar: ' + (e instanceof Error ? e.message : String(e)))
@@ -163,7 +199,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
     setModalActividad(null)
     try {
       await cambiarEstadoProceso(procesoId, estado)
-      const nuevos = await cargarTablero()
+      const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
     } catch (e) {
       window.alert('No se pudo cambiar el estado: ' + (e instanceof Error ? e.message : String(e)))
@@ -463,7 +499,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
     setErrorGuardar(null)
     try {
       await aplicarPlan(cambios) // escribe por la RPC (atómico)
-      const nuevos = await cargarTablero() // recarga completa desde la base
+      const nuevos = await cargarTablero(fechaBase) // recarga completa desde la base
       setDatos(nuevos)
       setHistorialUndo((h) => [...h, inverso].slice(-5)) // guarda los últimos 5
       return true
@@ -493,7 +529,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
     setErrorUndo(null)
     try {
       await aplicarPlan(inverso)
-      const nuevos = await cargarTablero()
+      const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
       setHistorialUndo((h) => h.slice(0, -1))
     } catch (e) {
@@ -509,9 +545,12 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
     setErrorGuardar(null)
   }
 
-  // Días visibles (sin domingos) entre desde y hasta.
+  // Ventana VISIBLE (sin domingos) alrededor de la fecha base. Los datos cargados
+  // son más anchos (colchón de semanas), así que acá se muestra solo lo pedido.
+  const visDesde = sumarHabiles(fechaBase, -datos.diasAtras)
+  const visHasta = sumarHabiles(fechaBase, datos.diasAdelante)
   const dias: FechaISO[] = []
-  for (let f = desde; f <= hasta; f = sumarDias(f, 1)) {
+  for (let f = visDesde; f <= visHasta; f = sumarDias(f, 1)) {
     if (parseFecha(f).getDay() !== 0) dias.push(f)
   }
 
