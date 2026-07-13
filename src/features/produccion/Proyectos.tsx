@@ -26,6 +26,11 @@ import type { Navegar } from '../../shared/types/navegacion'
 // Estado de vista que se conserva al saltar a otro módulo y volver (en memoria,
 // se pierde al recargar la página).
 const MODULO = 'proyectos'
+
+// Primera letra en mayúscula (para mostrar la urgencia: "Urgente", "Alta"…).
+function cap(s: string | null | undefined): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
+}
 type VistaProyectos = {
   filtros: FiltrosProyectos
   seleccionadoId: number | null
@@ -312,9 +317,26 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
         <div className="vista-franjas">
       {/* Franja 1 — Filtros */}
       <div className="franja franja-filtros">
+        <div className="filtros-check-row">
+          <label className="filtro-check-inline">
+            <input
+              type="checkbox"
+              checked={filtros.incluirClienteFinal}
+              onChange={(e) => setF('incluirClienteFinal', e.target.checked)}
+            />
+            Incl. Cliente Final
+          </label>
+        </div>
         <div className="filtros-barra filtros-barra-proy">
-          {/* Columna 1: Estado, Cliente (+ cliente final), Apellido */}
+          {/* Columna 1: Cliente, Estado, Apellido */}
           <div className="filtros-col">
+            <span className="filtro-lbl">Cliente</span>
+            <input
+              className="filtro-input"
+              value={filtros.cliente}
+              onChange={(e) => setF('cliente', e.target.value)}
+            />
+
             <span className="filtro-lbl">Estado</span>
             <select
               className="filtro-input filtro-select"
@@ -328,23 +350,6 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                 </option>
               ))}
             </select>
-
-            <span className="filtro-lbl">Cliente</span>
-            <div className="filtro-campo-col">
-              <input
-                className="filtro-input"
-                value={filtros.cliente}
-                onChange={(e) => setF('cliente', e.target.value)}
-              />
-              <label className="filtro-check-inline">
-                <input
-                  type="checkbox"
-                  checked={filtros.incluirClienteFinal}
-                  onChange={(e) => setF('incluirClienteFinal', e.target.checked)}
-                />
-                Incl. Cliente Final
-              </label>
-            </div>
 
             <span className="filtro-lbl">Apellido</span>
             <input
@@ -548,7 +553,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                       </td>
                       <td>{p.descripcion}</td>
                       <td>{p.estado}</td>
-                      <td>{p.urgencia}</td>
+                      <td>{cap(p.urgencia)}</td>
                       <td>{p.pedido_nro ?? '—'}</td>
                       <td>{fechaCorta(p.fecha_entrega)}</td>
                       <td className="tabla-acciones">
@@ -582,6 +587,9 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
           )}
         </MenuContextual>
       </div>
+
+      {/* Separador negro entre franja 2 y franja 3 */}
+      <div className="franja-sep" />
 
       {/* Franja 3 — Detalle del proyecto seleccionado */}
       <div className="franja franja-detalle">
@@ -660,13 +668,22 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                 <h3 className="detalle-titulo">
                   #{seleccionado.id} — {seleccionado.descripcion}
                 </h3>
-                <button
-                  type="button"
-                  className="empresa-boton-secundario imp-abrir"
-                  onClick={() => setImportarAbierto(true)}
-                >
-                  📥 Importar de la Matriz
-                </button>
+                <div className="detalle-header-btns">
+                  <button
+                    type="button"
+                    className="detalle-btn-add"
+                    onClick={() => abrirNuevo('componente', null, null)}
+                  >
+                    + Agregar elemento
+                  </button>
+                  <button
+                    type="button"
+                    className="detalle-btn-add"
+                    onClick={() => setImportarAbierto(true)}
+                  >
+                    + Importar elemento
+                  </button>
+                </div>
               </div>
               {elementosCargando ? (
                 <span className="franja-placeholder">Cargando items…</span>
@@ -775,6 +792,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
 
       {/* Franja 4 — Enlazados (placeholder) */}
       <div className="franja franja-enlazados">
+        <div className="franja-titulo-negro">Enlazados</div>
         <span className="franja-placeholder">Enlazados (próximamente)</span>
       </div>
 

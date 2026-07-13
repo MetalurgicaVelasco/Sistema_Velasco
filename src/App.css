@@ -313,6 +313,8 @@
 .franja-enlazados {
   flex: 15 1 0;
   border-bottom: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .franja-filtros-barra {
@@ -940,7 +942,12 @@
 /* En Proyectos la fila del medio (Cliente) lleva el checkbox debajo, así que
    las 3 filas usan alto fijo para que coincidan entre columnas. */
 .filtros-barra-proy .filtros-col {
-  grid-template-rows: 26px 44px 26px;
+  grid-template-rows: 26px 26px 26px;
+}
+/* Fila del checkbox "Incl. Cliente Final": sola, arriba de las columnas,
+   alineada al borde izquierdo de los filtros. */
+.filtros-check-row {
+  padding: 4px 14px 0;
 }
 .filtro-fila {
   display: flex;
@@ -2542,11 +2549,11 @@ textarea.ef-i {
 /* Fila seleccionada: fondo azul marino + texto blanco (pisa el lila anterior),
    y se mantiene aunque se hoveree. */
 .tabla-fila.seleccionada td {
-  background: #0c447c;
+  background: #3f72ad;
   color: #fff;
 }
 .tabla-fila.seleccionada:hover td {
-  background: #0c447c;
+  background: #3f72ad;
 }
 /* Los botones de acción sobre el azul: fondo blanco para que se lean bien. */
 .tabla-fila.seleccionada .empresas-editar,
@@ -2581,6 +2588,8 @@ textarea.ef-i {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  padding-top: 10px;
+  box-sizing: border-box;
 }
 .detalle-proy .detalle-fotos {
   flex: 0 0 150px;
@@ -2630,12 +2639,22 @@ textarea.ef-i {
   flex-direction: column;
   overflow: hidden;
 }
+/* El MenuContextual mete un .menu-ctx-zona entre .detalle-proy y .detalle-main.
+   Sin flex:1 no crece y la tabla queda angosta; acá lo hacemos llenar el ancho. */
+.detalle-proy > .menu-ctx-zona {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 /* La tabla de items scrollea internamente: así la columna de fotos no crece
    ni empuja scroll en la franja. */
 .detalle-proy .detalle-main .lista-focus {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  width: 100%;
 }
 
 /* Barra superior con el botón "← Volver": queda fija arriba al scrollear,
@@ -2732,7 +2751,6 @@ textarea.ef-i {
 .filtros-col-limpiar {
   align-self: stretch;
   display: flex;
-  margin-left: auto;
 }
 .filtro-limpiar-alto {
   width: 72px;
@@ -3697,4 +3715,61 @@ textarea.ef-i {
 .imp-multi-op-off {
   color: #bbb;
   cursor: not-allowed;
+}
+
+/* ====== Franjas de Proyectos: botones del detalle + separadores negros ====== */
+/* Botones "+ Agregar / + Importar elemento": compactos (~30% menos que el base). */
+.detalle-header-btns {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.detalle-btn-add {
+  padding: 8px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: #0c447c;
+  border: 1px solid #0c447c;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.detalle-btn-add:hover {
+  background: #0a3866;
+}
+
+/* Franja 2 (lista de proyectos): fila de título negra, letras blancas.
+   Alturas invertidas: título 26px, filas 22px (las franjas negras van a 26px). */
+.franja-lista .tabla thead th {
+  background: #1a1a1a;
+  color: #fff;
+  height: 20px;
+  padding: 0 10px;
+}
+.franja-lista .tabla-fila td {
+  height: 22px;
+  padding: 0 10px;
+}
+
+/* Separador negro entre franja 2 y franja 3 (mismo alto que la fila de título). */
+.franja-sep {
+  flex: 0 0 auto;
+  height: 20px;
+  background: #1a1a1a;
+}
+
+/* Título negro de franja (ej. "Enlazados" en franja 4). */
+.franja-titulo-negro {
+  flex: 0 0 auto;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
