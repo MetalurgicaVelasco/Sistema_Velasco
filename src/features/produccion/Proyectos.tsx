@@ -276,7 +276,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       {/* Formulario (alta o edición). Queda montado (oculto) si se abre un
           elemento, para no perder su estado al volver. */}
       {formActivo !== null && (
-        <div style={elementoVista ? { display: 'none' } : undefined}>
+        <div style={{ height: '100%', display: elementoVista ? 'none' : undefined }}>
           <VistaProyectoForm
             proyecto={formActivo === 'nuevo' ? null : formActivo}
             empresas={empresas}

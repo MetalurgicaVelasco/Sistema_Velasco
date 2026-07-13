@@ -4,31 +4,52 @@ import { cargarProcesosDeElemento } from './procesosApi'
 import { DOMINIO_PROCESO_MATRIZ } from './dominioProceso'
 
 // -----------------------------------------------------------------------------
-// Importar un producto de la Matriz a un proyecto.
+// Importar un producto de la Matriz a un proyecto (copia-snapshot, NEGOCIO §5).
 //
-// Es una COPIA-SNAPSHOT independiente (NEGOCIO §5): se crea un item nuevo con los
-// datos, procesos y correlatividades del producto de matriz, y toda su composición
-// recursiva. Como el proyecto es un ÁRBOL y la matriz un GRAFO reutilizable, un
-// componente compartido se DUPLICA en cada lugar donde aparece.
+// Crea un item nuevo con datos, procesos y correlatividades del producto de
+// matriz, y toda su composición recursiva. El proyecto es ÁRBOL y la matriz un
+// GRAFO reutilizable: un componente compartido se DUPLICA en cada lugar.
+// Queda el vínculo histórico `imported_from_matriz_id` (no propaga cambios).
 //
-// Queda el vínculo histórico `imported_from_matriz_id` (no propaga cambios: una vez
-// importado, el item es independiente del producto de matriz).
+// Los campos del modal:
+//  - estado + fechaFin se aplican a TODOS los items importados.
+//  - presentación / esRetrabajo / esDispositivo se aplican solo al ITEM RAÍZ
+//    (para un componente suelto). En un conjunto, los hijos toman lo del matriz.
 //
 // NO se copian ubicaciones (el proyecto no las modela) ni notas (aún no existen).
 // -----------------------------------------------------------------------------
+
+export type OpcionesImport = {
+  cantidad: number
+  fechaFin: string | null
+  estado: string
+  // Solo para el componente raíz; en conjunto/hijos van los valores del matriz.
+  presentacion?: string | null
+  esRetrabajo?: boolean
+  esDispositivo?: boolean
+}
+
+type Overrides = {
+  presentacion?: string | null
+  esRetrabajo?: boolean
+  esDispositivo?: boolean
+}
 
 export async function importarProductoMatriz(
   matrizElementoId: number,
   proyectoId: number,
   parentElementoId: number | null,
-  cantidad: number,
+  opts: OpcionesImport,
 ): Promise<{ elementoId?: number; error?: string }> {
   try {
     const elementoId = await copiarElemento(
       matrizElementoId,
       proyectoId,
       parentElementoId,
-      cantidad,
+      opts.cantidad,
+      opts.estado,
+      opts.fechaFin,
+      { presentacion: opts.presentacion, esRetrabajo: opts.esRetrabajo, esDispositivo: opts.esDispositivo },
       new Set(),
     )
     return { elementoId }
@@ -37,13 +58,17 @@ export async function importarProductoMatriz(
   }
 }
 
-// Copia UN elemento de matriz (con sus procesos + correlatividades) y baja
-// recursivamente su composición. `ancestros` corta un eventual ciclo del grafo.
+// Copia UN elemento (con procesos + correlatividades) y baja su composición.
+// `over` trae los overrides del item raíz; para los hijos va undefined (usan el
+// matriz). `ancestros` corta un eventual ciclo.
 async function copiarElemento(
   matrizId: number,
   proyectoId: number,
   parentId: number | null,
   cantidad: number,
+  estado: string,
+  fechaFin: string | null,
+  over: Overrides | undefined,
   ancestros: Set<number>,
 ): Promise<number> {
   if (ancestros.has(matrizId)) {
@@ -53,7 +78,6 @@ async function copiarElemento(
   const el = await cargarElementoMatriz(matrizId)
   if (!el) throw new Error('No se encontró el producto de matriz.')
 
-  // 1. Crear el item del proyecto (copia de datos + vínculo histórico).
   const { data: nuevo, error: eEl } = await supabase
     .from('elementos')
     .insert({
@@ -63,13 +87,13 @@ async function copiarElemento(
       descripcion: el.descripcion,
       cantidad,
       material_id: el.material_id,
-      presentacion_mat_prima: el.presentacion_mat_prima,
+      presentacion_mat_prima: over?.presentacion ?? el.presentacion_mat_prima,
       codigo_cliente: el.codigo_cliente,
-      fecha_fin_estipulada: null,
+      fecha_fin_estipulada: fechaFin,
       foto_url: el.foto_url,
-      es_retrabajo: false,
-      es_dispositivo: el.es_dispositivo,
-      estado: 'Espera MP',
+      es_retrabajo: over?.esRetrabajo ?? false,
+      es_dispositivo: over?.esDispositivo ?? el.es_dispositivo,
+      estado,
       imported_from_matriz_id: matrizId,
     })
     .select('id')
@@ -77,9 +101,9 @@ async function copiarElemento(
   if (eEl) throw new Error(eEl.message)
   const nuevoId = nuevo.id as number
 
-  // 2. Procesos (en orden) + correlatividades internas remapeadas.
+  // Procesos (en orden) + correlatividades internas remapeadas.
   const { procesos, correlatividades } = await cargarProcesosDeElemento(matrizId, DOMINIO_PROCESO_MATRIZ)
-  const mapProc = new Map<number, number>() // id de proceso matriz → id de proceso nuevo
+  const mapProc = new Map<number, number>()
   for (const p of procesos) {
     const { data: np, error: eP } = await supabase
       .from('procesos')
@@ -104,7 +128,6 @@ async function copiarElemento(
     if (eP) throw new Error(eP.message)
     mapProc.set(p.id, np.id as number)
   }
-  // Solo las correlatividades cuyos dos extremos son procesos de este elemento.
   const corrInserts = correlatividades
     .filter((c) => mapProc.has(c.predecesorId) && mapProc.has(c.sucesorId))
     .map((c) => ({
@@ -116,11 +139,11 @@ async function copiarElemento(
     if (eC) throw new Error(eC.message)
   }
 
-  // 3. Composición: bajar cada hijo con su cantidad (recursivo).
+  // Composición: cada hijo con su cantidad; sin overrides (usan el matriz).
   const hijos = await cargarComposicion(matrizId)
   const sigAncestros = new Set(ancestros).add(matrizId)
   for (const h of hijos) {
-    await copiarElemento(h.id, proyectoId, nuevoId, h.cantidad, sigAncestros)
+    await copiarElemento(h.id, proyectoId, nuevoId, h.cantidad, estado, fechaFin, undefined, sigAncestros)
   }
 
   return nuevoId

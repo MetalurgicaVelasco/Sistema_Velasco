@@ -3427,37 +3427,73 @@ textarea.ef-i {
 }
 
 /* ====== Modal "Importar de la Matriz" ====== */
+/* Zona de filtros: recuadro gris, grilla 70/30, compacta y de tamaño fijo. */
 .imp-filtros {
   display: grid;
   grid-template-columns: 7fr 3fr;
-  gap: 8px 12px;
-  margin-bottom: 10px;
+  gap: 5px 12px;
+  background: #f5f3ec;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  padding: 8px 10px;
 }
 .imp-celda {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
+.imp-filtros .filtro-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: #5f5e5a;
+}
+.imp-filtros .empresa-input {
+  padding: 3px 6px;
+  font-size: 12px;
+}
+/* Celda de "Ordenar por": dropdown + flecha, MISMO ancho que las demás. */
 .imp-orden {
-  text-align: left;
+  display: flex;
+  gap: 4px;
+}
+.imp-orden-sel {
+  flex: 1;
+  min-width: 0;
+}
+.imp-orden-dir {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+/* Línea de estado con alto fijo (aviso/error/limpiar) para que nada salte. */
+.imp-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 22px;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.imp-msg-ok {
+  color: #155724;
+  font-weight: 600;
 }
 .imp-limpiar {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #0c447c;
+  cursor: pointer;
   font-size: 12px;
-  margin-bottom: 8px;
+  padding: 0;
 }
-.imp-aviso {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #28a745;
-  border-radius: 5px;
-  padding: 6px 10px;
-  font-size: 12px;
-  margin-bottom: 8px;
-}
+/* Zona de resultados: ALTO FIJO + scroll interno (no cambia con los resultados). */
 .imp-lista {
   border: 1px solid #c8c6be;
   border-radius: 6px;
-  max-height: 380px;
+  height: 340px;
   overflow-y: auto;
 }
 .imp-fila {
@@ -3507,38 +3543,158 @@ textarea.ef-i {
   padding: 4px 12px;
   font-size: 12px;
 }
-.imp-confirmar {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: #f5f3ec;
-  border: 1px solid #c8c6be;
-  border-radius: 6px;
-}
-.imp-confirmar-txt {
-  flex: 1;
-  min-width: 160px;
+/* Modal de importación (variante conjunto): resumen + detalle. */
+.imp-resumen {
+  background: #e8f2fc;
+  border: 1px solid #a8c8e8;
+  color: #0c447c;
+  border-radius: 5px;
+  padding: 8px 12px;
   font-size: 12px;
-  color: #2c2c2a;
-  align-self: center;
+  margin-bottom: 10px;
 }
-.imp-confirmar-cant {
+.imp-resumen-detalle {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #e8e6df;
+  border-radius: 5px;
+  padding: 4px 10px;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+.imp-resumen-fila {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.imp-resumen-cant {
+  color: #0c447c;
+  font-weight: 600;
+}
+.imp-checks {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.imp-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 11px;
   color: #5f5e5a;
+  background: #f5f3ec;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  padding: 7px 10px;
+  cursor: pointer;
 }
-.imp-confirmar-cant input {
-  width: 80px;
+.imp-check input {
+  margin-top: 2px;
 }
-.imp-confirmar-error {
-  align-self: center;
+
+/* Multiselección de clientes (filtro): campo de alto fijo, chips truncados. */
+.imp-multi-wrap {
+  position: relative;
 }
-.imp-abrir {
-  margin-left: auto;
+.imp-multi {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  overflow: hidden;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  background: #fff;
+  padding: 0 6px;
+  cursor: pointer;
   font-size: 12px;
+}
+.imp-multi-ph {
+  color: #888;
+}
+.imp-multi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 96px;
+  flex: 0 0 auto;
+  background: #0c447c;
+  color: #fff;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+.imp-multi-chip-txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imp-multi-x {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+}
+.imp-multi-caret {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: #5f5e5a;
+}
+.imp-multi-dd {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin-top: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.imp-multi-search {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 1px solid #eee;
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
+}
+.imp-multi-nota {
+  padding: 4px 8px;
+  font-size: 10px;
+  color: #a32d2d;
+}
+.imp-multi-vacio {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+}
+.imp-multi-op {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.imp-multi-op:hover {
+  background: #f5f3ec;
+}
+.imp-multi-op-txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imp-multi-op-off {
+  color: #bbb;
+  cursor: not-allowed;
 }
