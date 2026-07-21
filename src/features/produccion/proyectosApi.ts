@@ -157,6 +157,11 @@ async function proyectoIdsPorItem(texto: string): Promise<number[] | null> {
 }
 
 // Búsqueda principal de proyectos con todos los filtros aplicados en el servidor.
+// Normaliza para comparar sin distinguir mayúsculas ni TILDES ("america" == "América").
+function sinTildes(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
 export async function buscarProyectos(
   f: FiltrosProyectos,
 ): Promise<{ data: Proyecto[]; error: string | null }> {
@@ -165,24 +170,24 @@ export async function buscarProyectos(
   // Cliente: ids de empresas cuyo nombre matchea el texto.
   let empresaIds: number[] | null = null
   if (f.cliente.trim() !== '') {
-    const { data, error } = await supabase
-      .from('empresas')
-      .select('id')
-      .ilike('nombre', like(f.cliente))
+    const { data, error } = await supabase.from('empresas').select('id, nombre')
     if (error) return { data: [], error: 'No se pudo filtrar por cliente.' }
-    empresaIds = (data ?? []).map((e) => e.id as number)
+    const q = sinTildes(f.cliente)
+    empresaIds = (data ?? [])
+      .filter((e) => sinTildes((e.nombre as string) ?? '').includes(q))
+      .map((e) => e.id as number)
     if (empresaIds.length === 0) return { data: [], error: null }
   }
 
   // Apellido: ids de contactos cuyo apellido matchea.
   let contactoIds: number[] | null = null
   if (f.apellido.trim() !== '') {
-    const { data, error } = await supabase
-      .from('empresa_contactos')
-      .select('id')
-      .ilike('apellido', like(f.apellido))
+    const { data, error } = await supabase.from('empresa_contactos').select('id, apellido')
     if (error) return { data: [], error: 'No se pudo filtrar por apellido.' }
-    contactoIds = (data ?? []).map((c) => c.id as number)
+    const q = sinTildes(f.apellido)
+    contactoIds = (data ?? [])
+      .filter((c) => sinTildes((c.apellido as string) ?? '').includes(q))
+      .map((c) => c.id as number)
     if (contactoIds.length === 0) return { data: [], error: null }
   }
 

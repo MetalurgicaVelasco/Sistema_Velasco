@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
 import VistaElemento from './VistaElemento'
 import ModalImportarMatriz from './ModalImportarMatriz'
+import TablaConfigurable, { type ColumnaDef, type OrdenTabla } from '../../shared/components/TablaConfigurable'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
@@ -103,6 +104,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   // Elemento cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
   const [elementoVista, setElementoVista] = useState<Elemento | null>(null)
   const [importarAbierto, setImportarAbierto] = useState(false)
+  const [ordenF2, setOrdenF2] = useState<OrdenTabla>(null)
   // Proyecto a mostrar en la vista de elemento cuando lo pasa el form (ej. un
   // proyecto recién creado que todavía no está en la lista).
   const [proyectoVista, setProyectoVista] = useState<Proyecto | null>(null)
@@ -219,6 +221,51 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     })
   }
   const fotoProyectoUrl = seleccionado ? fotoPublica(seleccionado.foto_url) : null
+
+  // Columnas de Franja 2 (lista de proyectos). `valor` es lo que se ordena;
+  // `render` lo que se muestra.
+  const colsProyectos: ColumnaDef<Proyecto>[] = useMemo(
+    () => [
+      { id: 'id', titulo: 'Nº', tipo: 'numero', valor: (p) => p.id },
+      {
+        id: 'cliente',
+        titulo: 'Cliente',
+        tipo: 'texto',
+        valor: (p) => p.empresa?.nombre ?? '',
+        render: (p) =>
+          p.empresa?.nombre ? (
+            <span
+              className="empresa-link"
+              title="Doble click para ir a la empresa"
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                onNavegar?.(
+                  { seccionId: 'empresas', moduloId: 'empresas', moduloTitulo: 'Empresas' },
+                  { tipo: 'empresa', empresaId: p.empresa_id },
+                )
+              }}
+            >
+              {p.empresa.nombre}
+            </span>
+          ) : (
+            '—'
+          ),
+      },
+      { id: 'descripcion', titulo: 'Descripción', tipo: 'texto', valor: (p) => p.descripcion },
+      { id: 'estado', titulo: 'Estado', tipo: 'texto', valor: (p) => p.estado },
+      { id: 'urgencia', titulo: 'Urgencia', tipo: 'texto', valor: (p) => p.urgencia, render: (p) => cap(p.urgencia) },
+      { id: 'pedido', titulo: 'Pedido', tipo: 'texto', valor: (p) => p.pedido_nro, render: (p) => p.pedido_nro ?? '—' },
+      {
+        id: 'plazo',
+        titulo: 'Plazo',
+        tipo: 'fecha',
+        valor: (p) => p.fecha_entrega,
+        render: (p) => fechaCorta(p.fecha_entrega),
+      },
+    ],
+    [onNavegar],
+  )
+
   const fotoElementoUrl = elementoSeleccionado ? fotoPublica(elementoSeleccionado.foto_url) : null
 
   function volverALista() {
@@ -317,25 +364,25 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
         <div className="vista-franjas">
       {/* Franja 1 — Filtros */}
       <div className="franja franja-filtros">
-        <div className="filtros-check-row">
-          <label className="filtro-check-inline">
-            <input
-              type="checkbox"
-              checked={filtros.incluirClienteFinal}
-              onChange={(e) => setF('incluirClienteFinal', e.target.checked)}
-            />
-            Incl. Cliente Final
-          </label>
-        </div>
         <div className="filtros-barra filtros-barra-proy">
-          {/* Columna 1: Cliente, Estado, Apellido */}
-          <div className="filtros-col">
+          {/* Columna 1: Cliente (+ checkbox CF), Estado, Apellido — más ancha */}
+          <div className="filtros-col filtros-col-cli">
             <span className="filtro-lbl">Cliente</span>
-            <input
-              className="filtro-input"
-              value={filtros.cliente}
-              onChange={(e) => setF('cliente', e.target.value)}
-            />
+            <div className="fcli-campo">
+              <input
+                className="filtro-input"
+                value={filtros.cliente}
+                onChange={(e) => setF('cliente', e.target.value)}
+              />
+              <label className="fcli-cf" title="Incluir Cliente Final">
+                <span className="fcli-cf-lbl">CF</span>
+                <input
+                  type="checkbox"
+                  checked={filtros.incluirClienteFinal}
+                  onChange={(e) => setF('incluirClienteFinal', e.target.checked)}
+                />
+              </label>
+            </div>
 
             <span className="filtro-lbl">Estado</span>
             <select
@@ -498,91 +545,46 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
               ref={listaProyRef}
               onKeyDown={onKeyProyectos}
             >
-              <table className="tabla">
-                <thead>
-                  <tr>
-                    <th>Nº</th>
-                    <th>Cliente</th>
-                    <th>Descripción</th>
-                    <th>Estado</th>
-                    <th>Urgencia</th>
-                    <th>Pedido</th>
-                    <th>Plazo</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {proyectos.map((p) => (
-                    <tr
-                      key={p.id}
-                      data-proyecto-id={p.id}
-                      onContextMenu={() => setSeleccionadoId(p.id)}
-                      ref={p.id === seleccionadoId ? filaProySelRef : undefined}
-                      className={
-                        'tabla-fila' +
-                        (p.id === seleccionadoId ? ' seleccionada' : '')
-                      }
-                      onClick={() => {
-                        setSeleccionadoId(p.id)
-                        listaProyRef.current?.focus()
+              <TablaConfigurable<Proyecto>
+                columnas={colsProyectos}
+                filas={proyectos}
+                orden={ordenF2}
+                onOrden={setOrdenF2}
+                filaKey={(p) => p.id}
+                filaClase={(p) => (p.id === seleccionadoId ? 'seleccionada' : '')}
+                filaData={(p) => ({ 'data-proyecto-id': p.id })}
+                filaRef={(p) => (p.id === seleccionadoId ? filaProySelRef : undefined)}
+                onFilaClick={(p) => {
+                  setSeleccionadoId(p.id)
+                  listaProyRef.current?.focus()
+                }}
+                onFilaContextMenu={(p) => setSeleccionadoId(p.id)}
+                acciones={(p) => (
+                  <>
+                    <button
+                      type="button"
+                      className="empresas-editar"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setFormActivo(p)
                       }}
                     >
-                      <td>{p.id}</td>
-                      <td>
-                        {p.empresa?.nombre ? (
-                          <span
-                            className="empresa-link"
-                            title="Doble click para ir a la empresa"
-                            onDoubleClick={(e) => {
-                              e.stopPropagation()
-                              onNavegar?.(
-                                {
-                                  seccionId: 'empresas',
-                                  moduloId: 'empresas',
-                                  moduloTitulo: 'Empresas',
-                                },
-                                { tipo: 'empresa', empresaId: p.empresa_id },
-                              )
-                            }}
-                          >
-                            {p.empresa.nombre}
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>{p.descripcion}</td>
-                      <td>{p.estado}</td>
-                      <td>{cap(p.urgencia)}</td>
-                      <td>{p.pedido_nro ?? '—'}</td>
-                      <td>{fechaCorta(p.fecha_entrega)}</td>
-                      <td className="tabla-acciones">
-                        <button
-                          type="button"
-                          className="empresas-editar"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setFormActivo(p)
-                          }}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="empresas-borrar"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setProyectoBorrando(p)
-                            setErrorBorrar(null)
-                          }}
-                        >
-                          Borrar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="empresas-borrar"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setProyectoBorrando(p)
+                        setErrorBorrar(null)
+                      }}
+                    >
+                      Borrar
+                    </button>
+                  </>
+                )}
+              />
             </div>
           )}
         </MenuContextual>

@@ -2947,7 +2947,7 @@ textarea.ef-i {
     gap: 26px;
   }
   .filtros-barra-proy .filtros-col {
-    grid-template-rows: 22px 40px 22px;
+    grid-template-rows: 22px 22px 22px;
   }
   .filtro-lbl {
     padding-top: 3px;
@@ -3772,4 +3772,45 @@ textarea.ef-i {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* Encabezados ordenables (TablaConfigurable): clic para ordenar. */
+.th-ordenable {
+  cursor: pointer;
+  user-select: none;
+}
+.franja-lista .tabla thead th.th-ordenable:hover {
+  background: #333;
+}
+
+/* Columna 1 de filtros (Cliente/Estado/Apellido): más ancha, con el checkbox
+   "CF" (Cliente Final) a la derecha del campo Cliente y su título encima. */
+.filtros-col-cli {
+  grid-template-columns: max-content 160px;
+}
+.fcli-campo {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+.fcli-campo .filtro-input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.fcli-cf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  line-height: 1;
+  cursor: pointer;
+}
+.fcli-cf-lbl {
+  font-size: 9px;
+  color: #52525b;
+  margin-bottom: 1px;
+}
+.fcli-cf input {
+  margin: 0;
 }
