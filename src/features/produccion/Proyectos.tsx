@@ -5,7 +5,8 @@ import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
 import VistaElemento from './VistaElemento'
 import ModalImportarMatriz from './ModalImportarMatriz'
-import TablaConfigurable, { type ColumnaDef, type OrdenTabla } from '../../shared/components/TablaConfigurable'
+import TablaConfigurable, { type ColumnaDef, type OrdenTabla, type ConfigTabla } from '../../shared/components/TablaConfigurable'
+import PanelColumnas from '../../shared/components/PanelColumnas'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
@@ -105,6 +106,16 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   const [elementoVista, setElementoVista] = useState<Elemento | null>(null)
   const [importarAbierto, setImportarAbierto] = useState(false)
   const [ordenF2, setOrdenF2] = useState<OrdenTabla>(null)
+  const [configF2, setConfigF2] = useState<ConfigTabla>(() => [
+    { id: 'id', visible: true },
+    { id: 'cliente', visible: true },
+    { id: 'descripcion', visible: true },
+    { id: 'estado', visible: true },
+    { id: 'urgencia', visible: true },
+    { id: 'pedido', visible: true },
+    { id: 'plazo', visible: true },
+  ])
+  const [panelColsF2, setPanelColsF2] = useState(false)
   // Proyecto a mostrar en la vista de elemento cuando lo pasa el form (ej. un
   // proyecto recién creado que todavía no está en la lista).
   const [proyectoVista, setProyectoVista] = useState<Proyecto | null>(null)
@@ -529,6 +540,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
             return [
               ...(p ? [{ label: `Editar "${p.descripcion}"`, onSelect: () => setFormActivo(p) }] : []),
               { label: 'Nuevo proyecto', onSelect: () => setFormActivo('nuevo') },
+              { label: 'Columnas…', onSelect: () => setPanelColsF2(true) },
             ]
           }}
         >
@@ -547,6 +559,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
             >
               <TablaConfigurable<Proyecto>
                 columnas={colsProyectos}
+                config={configF2}
                 filas={proyectos}
                 orden={ordenF2}
                 onOrden={setOrdenF2}
@@ -832,6 +845,14 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
         </div>
       )}
 
+      {panelColsF2 && (
+        <PanelColumnas
+          columnas={colsProyectos}
+          config={configF2}
+          onConfig={setConfigF2}
+          onCerrar={() => setPanelColsF2(false)}
+        />
+      )}
       {modalNuevoElem}
       {importarAbierto && seleccionado && (
         <ModalImportarMatriz
