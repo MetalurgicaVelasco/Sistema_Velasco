@@ -1,5 +1,6 @@
 import { supabase } from '../../shared/lib/supabaseClient'
 import type { Proyecto } from './proyectoTipos'
+import { contiene } from '../../shared/lib/texto'
 
 // Estados posibles de un proyecto (para el desplegable de filtro).
 export const ESTADOS_PROYECTO = [
@@ -75,10 +76,6 @@ export function hayFiltrosActivos(f: FiltrosProyectos): boolean {
 const SELECT_PROYECTO =
   'id, empresa_id, contacto_id, pedido_nro, descripcion, urgencia, estado, sub_estado_cerrado, fecha_ingreso, fecha_entrega, fecha_limite_cotizar, plazo_dias_habiles, paso_por_solicitud, observaciones_mail, observaciones_anulacion, cliente_final_empresa_id, cliente_final_texto, moneda, oc_cliente, foto_url, empresa:empresas!empresa_id ( nombre ), contacto:empresa_contactos!contacto_id ( apellido ), cliente_final:empresas!cliente_final_empresa_id ( nombre )'
 
-function like(texto: string): string {
-  return '%' + texto.trim() + '%'
-}
-
 // ── Rango de fechas según el preset elegido (o null si no filtra) ──────────
 function pad(n: number): string {
   return String(n).padStart(2, '0')
@@ -147,21 +144,15 @@ function rangoDeFecha(f: FiltrosProyectos): { desde: string; hasta: string } | n
 // Proyectos que tienen algún item cuya descripción matchea (paso 1 de la
 // búsqueda que cruza tablas). Devuelve null si hubo error.
 async function proyectoIdsPorItem(texto: string): Promise<number[] | null> {
-  const { data, error } = await supabase
-    .from('elementos')
-    .select('proyecto_id')
-    .ilike('descripcion', like(texto))
+  const { data, error } = await supabase.from('elementos').select('proyecto_id, descripcion')
   if (error) return null
-  const ids = (data ?? []).map((r) => r.proyecto_id as number)
+  const ids = (data ?? [])
+    .filter((r) => contiene((r.descripcion as string) ?? '', texto))
+    .map((r) => r.proyecto_id as number)
   return Array.from(new Set(ids))
 }
 
 // Búsqueda principal de proyectos con todos los filtros aplicados en el servidor.
-// Normaliza para comparar sin distinguir mayúsculas ni TILDES ("america" == "América").
-function sinTildes(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-}
-
 export async function buscarProyectos(
   f: FiltrosProyectos,
 ): Promise<{ data: Proyecto[]; error: string | null }> {
@@ -172,9 +163,8 @@ export async function buscarProyectos(
   if (f.cliente.trim() !== '') {
     const { data, error } = await supabase.from('empresas').select('id, nombre')
     if (error) return { data: [], error: 'No se pudo filtrar por cliente.' }
-    const q = sinTildes(f.cliente)
     empresaIds = (data ?? [])
-      .filter((e) => sinTildes((e.nombre as string) ?? '').includes(q))
+      .filter((e) => contiene((e.nombre as string) ?? '', f.cliente))
       .map((e) => e.id as number)
     if (empresaIds.length === 0) return { data: [], error: null }
   }
@@ -184,9 +174,8 @@ export async function buscarProyectos(
   if (f.apellido.trim() !== '') {
     const { data, error } = await supabase.from('empresa_contactos').select('id, apellido')
     if (error) return { data: [], error: 'No se pudo filtrar por apellido.' }
-    const q = sinTildes(f.apellido)
     contactoIds = (data ?? [])
-      .filter((c) => sinTildes((c.apellido as string) ?? '').includes(q))
+      .filter((c) => contiene((c.apellido as string) ?? '', f.apellido))
       .map((c) => c.id as number)
     if (contactoIds.length === 0) return { data: [], error: null }
   }
@@ -219,8 +208,6 @@ export async function buscarProyectos(
 
   if (f.nroPedido.trim() !== '') q = q.eq('pedido_nro', f.nroPedido.trim())
 
-  if (f.descProyecto.trim() !== '') q = q.ilike('descripcion', like(f.descProyecto))
-
   // Cliente / cliente final
   if (empresaIds !== null) {
     const lista = empresaIds.join(',')
@@ -235,14 +222,6 @@ export async function buscarProyectos(
 
   if (proyectoIdsItem !== null) q = q.in('id', proyectoIdsItem)
 
-  if (proyectoIdsGlobal !== null) {
-    // "descripción del proyecto contiene X" O "el proyecto está entre los que
-    // tienen un item que matchea". Comillas para tolerar espacios/comas.
-    const g = f.descGlobal.trim().replace(/"/g, '')
-    const idList = proyectoIdsGlobal.length > 0 ? proyectoIdsGlobal.join(',') : '0'
-    q = q.or(`descripcion.ilike."%${g}%",id.in.(${idList})`)
-  }
-
   const rango = rangoDeFecha(f)
   if (rango) {
     q = q
@@ -254,7 +233,19 @@ export async function buscarProyectos(
 
   const { data, error } = await q
   if (error) return { data: [], error: 'No se pudieron cargar los proyectos.' }
-  return { data: (data as unknown as Proyecto[]) ?? [], error: null }
+  let filas = (data as unknown as Proyecto[]) ?? []
+
+  // Filtros de texto SIN distinguir tildes (client-side). Ver ROADMAP: a futuro,
+  // pasar a la base con `unaccent` cuando las tablas crezcan.
+  if (f.descProyecto.trim() !== '') {
+    filas = filas.filter((pr) => contiene(pr.descripcion ?? '', f.descProyecto))
+  }
+  if (f.descGlobal.trim() !== '' && proyectoIdsGlobal !== null) {
+    const idsItem = new Set(proyectoIdsGlobal)
+    filas = filas.filter((pr) => contiene(pr.descripcion ?? '', f.descGlobal) || idsItem.has(pr.id))
+  }
+
+  return { data: filas, error: null }
 }
 
 // Filtros con los que arranca el módulo al entrar por primera vez (o tras F5):

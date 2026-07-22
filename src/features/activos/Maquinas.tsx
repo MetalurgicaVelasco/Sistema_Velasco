@@ -1,3 +1,4 @@
+import { contiene } from '../../shared/lib/texto'
 import { useEffect, useState } from 'react'
 import ModalMaquina from './ModalMaquina'
 import ComboMultiBuscable from '../../shared/components/ComboMultiBuscable'
@@ -63,10 +64,10 @@ function Maquinas() {
   }
 
   // Filtrado + orden (derivado, sin estado extra).
-  const q = busqueda.trim().toLowerCase()
+  const q = busqueda.trim()
   const filtradas = maquinas
     .filter((m) => {
-      if (q && !m.nombre.toLowerCase().includes(q)) return false
+      if (q && !contiene(m.nombre, busqueda)) return false
       if (
         procesosFiltro.length &&
         !procesosFiltro.every((id) => m.tipoProcesoIds.includes(id))

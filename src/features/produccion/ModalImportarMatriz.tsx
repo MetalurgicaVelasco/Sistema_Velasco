@@ -1,3 +1,4 @@
+import { contiene } from '../../shared/lib/texto'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
@@ -48,7 +49,7 @@ function MultiCliente({
     else if (!tope) onChange([...seleccionados, c])
   }
 
-  const filtradas = opciones.filter((o) => o.toLowerCase().includes(q.trim().toLowerCase()))
+  const filtradas = opciones.filter((o) => contiene(o, q))
 
   return (
     <div className="imp-multi-wrap" ref={ref}>
@@ -191,8 +192,8 @@ function ModalImportarMatriz({
   }, [facetas, clienteProyecto])
 
   const lista = useMemo(() => {
-    const t = buscar.trim().toLowerCase()
-    const c = codigos.trim().toLowerCase()
+    const t = buscar.trim()
+    const c = codigos.trim()
     const cmp = (a: ItemCatalogo, b: ItemCatalogo) => {
       let r = 0
       if (sortBy === 'descripcion') r = a.descripcion.localeCompare(b.descripcion)
@@ -203,8 +204,8 @@ function ModalImportarMatriz({
     }
     return items
       .filter((i) => {
-        if (t && !i.descripcion.toLowerCase().includes(t)) return false
-        if (c && !(i.codigoCliente ?? '').toLowerCase().includes(c)) return false
+        if (t && !contiene(i.descripcion, buscar)) return false
+        if (c && !contiene(i.codigoCliente ?? '', codigos)) return false
         if (fClientes.length && !fClientes.some((c) => i.clientes.includes(c))) return false
         if (fSector && !i.sectores.includes(fSector)) return false
         if (fEquipo && !i.equipos.includes(fEquipo)) return false

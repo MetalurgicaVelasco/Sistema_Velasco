@@ -45,3 +45,10 @@
 - [x] ~~Persistir la vista por módulo.~~ Hecho en Proyectos (filtros + selecciones) vía
       `shared/lib/vistaModulos.ts`; el mismo mecanismo sirve para otros módulos.
       Además, Proyectos arranca filtrado en estado "Pedido".
+- [ ] **Filtros sin tildes en la base (`unaccent`).** Hoy los filtros de texto que cruzan
+      tablas potencialmente grandes (descripción de proyecto / item) ignoran tildes
+      filtrando **client-side** (traen la lista y comparan con `contiene()` de
+      `shared/lib/texto`). Anda perfecto a la escala actual. A futuro, cuando `proyectos`
+      o `elementos` crezcan mucho, conviene pasarlo a la base para volver a filtrar en el
+      servidor: extensión `unaccent` + función inmutable `f_unaccent` + columnas generadas
+      `descripcion_norm` (lower + sin tildes) con índice, y filtrar sobre esas columnas.

@@ -1,3 +1,4 @@
+import { contiene } from '../lib/texto'
 import { useState } from 'react'
 
 // Combo multi-selección con búsqueda: muestra chips de lo elegido + un input
@@ -22,10 +23,9 @@ function ComboMultiBuscable({
   const [abierto, setAbierto] = useState(false)
 
   const set = new Set(seleccionados)
-  const q = query.trim().toLowerCase()
   const chips = opciones.filter((o) => set.has(o.id))
   const coincidencias = opciones.filter(
-    (o) => !set.has(o.id) && o.label.toLowerCase().includes(q),
+    (o) => !set.has(o.id) && contiene(o.label, query),
   )
 
   return (

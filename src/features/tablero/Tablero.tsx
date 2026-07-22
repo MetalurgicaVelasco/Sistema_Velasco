@@ -8,6 +8,7 @@
 // los sub-pasos siguientes.
 // -----------------------------------------------------------------------------
 
+import { contiene } from '../../shared/lib/texto'
 import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
@@ -1252,9 +1253,8 @@ function ModalSelector({
       if (filtroMaquina !== '' && String(el.maquinaId ?? '') !== filtroMaquina) return false
       if (filtroCliente !== '' && el.cliente !== filtroCliente && el.clienteFinal !== filtroCliente) return false
       if (texto.trim() !== '') {
-        const t = texto.trim().toLowerCase()
-        const hay = `${el.descripcion} ${el.cliente} ${el.tipoProceso ?? ''} ${el.pedidoNro ?? ''}`.toLowerCase()
-        if (!hay.includes(t)) return false
+        const hay = `${el.descripcion} ${el.cliente} ${el.tipoProceso ?? ''} ${el.pedidoNro ?? ''}`
+        if (!contiene(hay, texto)) return false
       }
       return true
     })
