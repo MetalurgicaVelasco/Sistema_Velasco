@@ -21,6 +21,7 @@ import SeccionContenido from './SeccionContenido'
 import { cargarRemitidoPorProyecto } from './remitidoApi'
 import MenuEnvio from './MenuEnvio'
 import ModalNotaEnvio from './ModalNotaEnvio'
+import ModalRemito from './ModalRemito'
 import { crearComponenteInicial } from './elementosApi'
 
 const BUCKET = 'proyectos-fotos'
@@ -51,6 +52,7 @@ function VistaProyectoForm({
   // Modal de nota de envío: null = cerrado; el booleano indica si es externa.
   const [notaEnvio, setNotaEnvio] = useState<{ esExterna: boolean } | null>(null)
   const [avisoNota, setAvisoNota] = useState<string | null>(null)
+  const [remitoAbierto, setRemitoAbierto] = useState(false)
 
   useEffect(() => {
     if (proyecto?.id == null) return
@@ -345,6 +347,7 @@ function VistaProyectoForm({
           <div className="pf-barra-acciones">
             <MenuEnvio
               onNotaEnvio={() => setNotaEnvio({ esExterna: false })}
+              onCargarRemito={() => setRemitoAbierto(true)}
               onNotaExterna={() => setNotaEnvio({ esExterna: true })}
             />
           </div>
@@ -718,6 +721,21 @@ function VistaProyectoForm({
           onGuardada={(numero) => {
             setNotaEnvio(null)
             setAvisoNota(`Nota de envío ${numero} generada.`)
+            if (proyecto?.id != null) {
+              cargarRemitidoPorProyecto(proyecto.id).then(setRemitido).catch(() => {})
+            }
+          }}
+        />
+      ) : null}
+
+      {remitoAbierto && idExistente != null && form.empresaId != null ? (
+        <ModalRemito
+          proyectoId={idExistente}
+          empresaId={form.empresaId}
+          onCerrar={() => setRemitoAbierto(false)}
+          onGuardado={(numero) => {
+            setRemitoAbierto(false)
+            setAvisoNota(`Remito ${numero} cargado.`)
             if (proyecto?.id != null) {
               cargarRemitidoPorProyecto(proyecto.id).then(setRemitido).catch(() => {})
             }
