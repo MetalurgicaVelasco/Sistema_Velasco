@@ -4,33 +4,39 @@ import Modal from '../../shared/components/Modal'
 import {
   cargarLineasDisponibles,
   crearNotaEnvio,
+  actualizarNotaEnvio,
   PREFIJO_IMPRESO_NDE,
   type LineaDisponible,
   type LineaNota,
+  type NotaParaEditar,
 } from './notasEnvioApi'
 
 type Fila = LineaNota & { clave: string; max: number | null }
 
-// Genera una nota de envío para un proyecto. En modo `esExterna` registra una
-// nota que se confeccionó fuera del sistema (el Word), pidiendo el número que
-// figura en el papel.
+// Genera o EDITA una nota de envío. En modo `esExterna` (solo alta) pide el
+// número impreso en el papel. Si viene `notaEditar`, precarga esa nota.
 function ModalNotaEnvio({
   proyectoId,
   empresaId,
   pedidoNro,
   contactoId,
   esExterna,
+  notaEditar,
   onCerrar,
   onGuardada,
 }: {
-  proyectoId: number
+  proyectoId: number | null
   empresaId: number
   pedidoNro: string | null
   contactoId: number | null
   esExterna: boolean
+  notaEditar?: NotaParaEditar
   onCerrar: () => void
   onGuardada: (numero: string) => void
 }) {
+  const editando = notaEditar != null
+  const externa = editando ? notaEditar!.esExterna : esExterna
+
   const [disponibles, setDisponibles] = useState<LineaDisponible[]>([])
   const [filas, setFilas] = useState<Fila[]>([])
   const [cargando, setCargando] = useState(true)
@@ -38,29 +44,45 @@ function ModalNotaEnvio({
   const [error, setError] = useState<string | null>(null)
 
   const hoy = new Date().toISOString().slice(0, 10)
-  const [fecha, setFecha] = useState(hoy)
-  const [pedido, setPedido] = useState(pedidoNro ?? '')
-  const [observaciones, setObservaciones] = useState('')
-  const [numImpreso, setNumImpreso] = useState('')
-  const [cli, setCli] = useState({ nombre: '', razonSocial: '', cuit: '', contacto: '', direccion: '' })
+  const [fecha, setFecha] = useState(editando ? notaEditar!.fecha || hoy : hoy)
+  const [pedido, setPedido] = useState(editando ? notaEditar!.pedidoNro : pedidoNro ?? '')
+  const [observaciones, setObservaciones] = useState(editando ? notaEditar!.observaciones : '')
+  const [numImpreso, setNumImpreso] = useState(editando ? notaEditar!.numeroImpresoDigitos : '')
+  const [cli, setCli] = useState(
+    editando
+      ? notaEditar!.cliente
+      : { nombre: '', razonSocial: '', cuit: '', contacto: '', direccion: '' },
+  )
 
   useEffect(() => {
     let vivo = true
     ;(async () => {
       try {
-        const [lineas, emp, cont, dirs] = await Promise.all([
-          cargarLineasDisponibles(proyectoId),
-          supabase.from('empresas').select('nombre, razon_social, cuit').eq('id', empresaId).maybeSingle(),
-          contactoId
-            ? supabase.from('empresa_contactos').select('nombre, apellido').eq('id', contactoId).maybeSingle()
-            : Promise.resolve({ data: null, error: null }),
-          supabase
-            .from('empresa_direcciones')
-            .select('tipo, calle, numero, localidades ( nombre )')
-            .eq('empresa_id', empresaId),
-        ])
+        // Disponibilidad solo si la nota cuelga de un proyecto. Al editar, se
+        // excluye la propia nota para que sus unidades no se cuenten en contra.
+        const lineas =
+          proyectoId != null
+            ? await cargarLineasDisponibles(proyectoId, notaEditar?.id)
+            : []
         if (!vivo) return
         setDisponibles(lineas)
+
+        if (editando) {
+          const disp = new Map(lineas.map((l) => [l.elementoId, l] as const))
+          setFilas(
+            notaEditar!.lineas.map((l, i) => ({
+              clave: l.elementoId != null ? 'el:' + l.elementoId : 'man:' + i,
+              elementoId: l.elementoId,
+              descripcion: l.descripcion,
+              cantidad: l.cantidad,
+              max: l.elementoId != null ? (disp.get(l.elementoId)?.disponible ?? null) : null,
+            })),
+          )
+          setCargando(false)
+          return
+        }
+
+        // Alta: líneas por defecto (lo disponible) + snapshot del cliente.
         setFilas(
           lineas
             .filter((l) => l.disponible > 0)
@@ -72,6 +94,17 @@ function ModalNotaEnvio({
               max: l.disponible,
             })),
         )
+        const [emp, cont, dirs] = await Promise.all([
+          supabase.from('empresas').select('nombre, razon_social, cuit').eq('id', empresaId).maybeSingle(),
+          contactoId
+            ? supabase.from('empresa_contactos').select('nombre, apellido').eq('id', contactoId).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+          supabase
+            .from('empresa_direcciones')
+            .select('tipo, calle, numero, localidades ( nombre )')
+            .eq('empresa_id', empresaId),
+        ])
+        if (!vivo) return
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const e = emp.data as any
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,9 +132,9 @@ function ModalNotaEnvio({
     return () => {
       vivo = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proyectoId, empresaId, contactoId])
 
-  // Avisos: qué quedó afuera y por qué.
   const aviso = useMemo(() => {
     const bloqueadas = disponibles.filter((l) => l.porRemitoDirecto > 0).length
     const yaEnNotas = disponibles.filter((l) => l.porRemitoDirecto === 0 && l.yaRemitido > 0).length
@@ -136,7 +169,7 @@ function ModalNotaEnvio({
       setError('Ingresá la fecha.')
       return
     }
-    if (esExterna && !numImpreso.replace(/\D/g, '')) {
+    if (externa && !numImpreso.replace(/\D/g, '')) {
       setError('Ingresá los últimos 4 dígitos del número impreso en la nota.')
       return
     }
@@ -146,35 +179,40 @@ function ModalNotaEnvio({
       return
     }
     setGuardando(true)
-    const r = await crearNotaEnvio({
+    const datos = {
       proyectoId,
       empresaId,
       fecha,
       pedidoNro: pedido.trim() || null,
       observaciones: observaciones.trim() || null,
-      esExterna,
-      numeroImpresoDigitos: esExterna ? numImpreso : null,
+      esExterna: externa,
+      numeroImpresoDigitos: externa ? numImpreso : null,
       cliente: cli,
       lineas: filas.map((f) => ({
         elementoId: f.elementoId,
         descripcion: f.descripcion,
         cantidad: f.cantidad,
       })),
-    })
+    }
+    const r = editando
+      ? await actualizarNotaEnvio(notaEditar!.id, datos)
+      : await crearNotaEnvio(datos)
     setGuardando(false)
     if (r.error) {
       setError(r.error)
       return
     }
-    onGuardada(r.numero ?? '')
+    onGuardada(editando ? notaEditar!.numero : (r as { numero?: string }).numero ?? '')
   }
 
+  const titulo = editando
+    ? `Editar nota de envío ${notaEditar!.numero}`
+    : externa
+      ? 'Cargar nota de envío externa'
+      : 'Nueva nota de envío'
+
   return (
-    <Modal
-      titulo={esExterna ? 'Cargar nota de envío externa' : 'Nueva nota de envío'}
-      onCerrar={onCerrar}
-      ancho={820}
-    >
+    <Modal titulo={titulo} onCerrar={onCerrar} ancho={820}>
       {cargando ? (
         <div className="rec-vacio">Cargando…</div>
       ) : (
@@ -190,7 +228,7 @@ function ModalNotaEnvio({
               Nº de pedido
               <input className="empresa-input" value={pedido} onChange={(e) => setPedido(e.target.value)} />
             </label>
-            {esExterna && (
+            {externa && (
               <label className="empresa-campo">
                 Nº impreso en la nota *
                 <div className="ne-numimp">
@@ -261,8 +299,6 @@ function ModalNotaEnvio({
                     value={f.cantidad}
                     onChange={(e) => setFila(f.clave, 'cantidad', e.target.value)}
                   />
-                  {/* Se renderiza siempre (vacía en las líneas manuales) para que
-                      las columnas queden alineadas entre todas las filas. */}
                   <span className="ne-linea-max">{f.max != null ? `de ${f.max}` : ''}</span>
                   <button
                     type="button"
@@ -293,7 +329,7 @@ function ModalNotaEnvio({
               Cancelar
             </button>
             <button type="button" className="empresa-boton" onClick={guardar} disabled={guardando}>
-              {guardando ? 'Guardando…' : esExterna ? 'Registrar nota' : 'Generar nota'}
+              {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : externa ? 'Registrar nota' : 'Generar nota'}
             </button>
           </div>
         </>

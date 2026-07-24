@@ -162,3 +162,32 @@ export async function crearRemito(r: DatosRemito): Promise<{ numero?: string; er
   }
   return { numero: remito.numero as string }
 }
+
+// ── Editar (número/fecha) y borrar un remito ────────────────────────────────
+// La cobertura del remito (qué notas cierra o qué manda directo) no se edita
+// acá: para cambiar eso conviene borrar y rehacer, así el conteo de remitido no
+// queda inconsistente.
+
+export async function actualizarRemito(
+  id: number,
+  numeroDigitos: string,
+  fecha: string,
+): Promise<{ error?: string }> {
+  const digitos = numeroDigitos.replace(/\D/g, '')
+  if (!digitos) return { error: 'Ingresá los últimos 4 dígitos del remito.' }
+  if (!fecha) return { error: 'Ingresá la fecha.' }
+  const numero = PREFIJO_IMPRESO_REMITO + digitos.padStart(4, '0')
+  const { error } = await supabase.from('remitos').update({ numero, fecha }).eq('id', id)
+  if (error) {
+    return { error: error.code === '23505' ? `Ya existe un remito con el número ${numero}.` : error.message }
+  }
+  return {}
+}
+
+export async function eliminarRemito(id: number): Promise<{ error?: string }> {
+  // La cascade borra los remitos_items. Si el remito cerraba notas de envío,
+  // esas notas vuelven a quedar abiertas (correcto). Si era directo, esas
+  // unidades dejan de contar como remitidas (correcto).
+  const { error } = await supabase.from('remitos').delete().eq('id', id)
+  return error ? { error: error.message } : {}
+}

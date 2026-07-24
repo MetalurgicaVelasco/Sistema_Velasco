@@ -171,3 +171,79 @@ async function guardarLineas(notaId: number, lineas: LineaNota[]): Promise<strin
   const { error } = await supabase.from('notas_envio_items').insert(filas)
   return error ? error.message : null
 }
+
+// ── Editar / borrar una nota ya cargada ─────────────────────────────────────
+
+export type NotaParaEditar = {
+  id: number
+  proyectoId: number | null
+  empresaId: number
+  numero: string
+  esExterna: boolean
+  fecha: string
+  pedidoNro: string
+  observaciones: string
+  numeroImpresoDigitos: string
+  cliente: { nombre: string; razonSocial: string; cuit: string; contacto: string; direccion: string }
+  lineas: LineaNota[]
+  cerrada: boolean // cerrada por un remito → no editable
+}
+
+// ¿Algún remito referencia esta nota? (si sí, está "cerrada").
+async function notaEstaCerrada(notaId: number): Promise<boolean> {
+  const { data } = await supabase
+    .from('remitos_items')
+    .select('id')
+    .eq('nota_envio_id', notaId)
+    .limit(1)
+  return (data ?? []).length > 0
+}
+
+export async function cargarNotaParaEditar(notaId: number): Promise<NotaParaEditar> {
+  const { data, error } = await supabase
+    .from('notas_envio')
+    .select(
+      'id, proyecto_id, empresa_id, numero, es_externa, fecha, pedido_nro, observaciones, numero_impreso, cliente_nombre, cliente_razon_social, cliente_cuit, cliente_contacto, cliente_direccion, items:notas_envio_items ( elemento_id, descripcion, cantidad )',
+    )
+    .eq('id', notaId)
+    .single()
+  if (error) throw new Error(error.message)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const n = data as any
+  return {
+    id: n.id,
+    proyectoId: n.proyecto_id ?? null,
+    empresaId: n.empresa_id,
+    numero: n.numero ?? '',
+    esExterna: !!n.es_externa,
+    fecha: n.fecha ?? '',
+    pedidoNro: n.pedido_nro ?? '',
+    observaciones: n.observaciones ?? '',
+    // El número impreso se guarda como prefijo + 4 dígitos: recuperamos los 4.
+    numeroImpresoDigitos: n.numero_impreso ? String(n.numero_impreso).slice(-4) : '',
+    cliente: {
+      nombre: n.cliente_nombre ?? '',
+      razonSocial: n.cliente_razon_social ?? '',
+      cuit: n.cliente_cuit ?? '',
+      contacto: n.cliente_contacto ?? '',
+      direccion: n.cliente_direccion ?? '',
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    lineas: ((n.items ?? []) as any[]).map((it) => ({
+      elementoId: it.elemento_id ?? null,
+      descripcion: it.descripcion ?? '',
+      cantidad: Number(it.cantidad ?? 0),
+    })),
+    cerrada: await notaEstaCerrada(notaId),
+  }
+}
+
+export async function eliminarNotaEnvio(notaId: number): Promise<{ error?: string }> {
+  // Borrar una nota cerrada por un remito desvincularía los ítems de ese remito
+  // (FK set null) y esas unidades pasarían a contar doble. Se bloquea.
+  if (await notaEstaCerrada(notaId)) {
+    return { error: 'La nota ya fue cerrada por un remito; no se puede borrar.' }
+  }
+  const { error } = await supabase.from('notas_envio').delete().eq('id', notaId)
+  return error ? { error: error.message } : {}
+}
