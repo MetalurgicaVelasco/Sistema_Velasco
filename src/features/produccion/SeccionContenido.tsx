@@ -18,15 +18,24 @@ const BUCKET = 'proyectos-fotos'
 // si parentId es null, el proyecto raíz) y permite agregar/editar/borrar con
 // persistencia inmediata. El alta/edición de elementos la maneja el hook
 // useEditorElemento (compartido con VistaElemento y Proyectos).
+// Color de la celda "Remitidos": verde si ya se remitió todo, ámbar si va por
+// la mitad, gris si todavía no se remitió nada.
+function claseRemitido(rem: number, total: number): string {
+  if (rem <= 0) return 'sc-remit-nada'
+  return rem >= total ? 'sc-remit-ok' : 'sc-remit-parcial'
+}
+
 function SeccionContenido({
   proyectoId,
   parentId,
   parentTipo,
   onEntrar,
+  remitido,
   deshabilitado = false,
   leyenda,
   dom = DOMINIO_PROYECTO,
 }: {
+  remitido?: Record<number, number> // cantidad remitida por elemento (opcional)
   proyectoId: number
   parentId: number | null
   parentTipo: string | null
@@ -143,6 +152,7 @@ function SeccionContenido({
               <th>Tipo</th>
               <th>Descripción</th>
               <th>Cant.</th>
+              {remitido ? <th>Remit.</th> : null}
               <th>Estado</th>
               <th>Procesos</th>
               <th></th>
@@ -169,6 +179,11 @@ function SeccionContenido({
                   <td>{tipoLabel(h.tipo)}</td>
                   <td>{h.descripcion}</td>
                   <td>{h.cantidad ?? 1}</td>
+                  {remitido ? (
+                    <td className={'sc-remit ' + claseRemitido(remitido[h.id] ?? 0, h.cantidad ?? 1)}>
+                      {remitido[h.id] ?? 0}
+                    </td>
+                  ) : null}
                   <td>{h.estado}</td>
                   <td>{contarProc[h.id] ?? 0} proceso(s)</td>
                   <td className="tabla-acciones">

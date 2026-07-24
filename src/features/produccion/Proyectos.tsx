@@ -433,6 +433,15 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
             setProyectoVista(null)
             if (seleccionadoId != null) cargarElementos(seleccionadoId)
           }}
+          onIrAProyecto={() => {
+            // El crumb del proyecto abre su vista general. Si el proyecto no
+            // está en la lista cargada, se vuelve a la lista (como antes).
+            const proy =
+              proyectos.find((p) => p.id === elementoVista.proyecto_id) ?? seleccionado ?? null
+            setElementoVista(null)
+            setProyectoVista(null)
+            if (proy) setFormActivo(proy)
+          }}
         />
       )}
 
@@ -639,6 +648,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                   listaProyRef.current?.focus()
                 }}
                 onFilaContextMenu={(p) => setSeleccionadoId(p.id)}
+                onFilaDobleClick={(p) => setFormActivo(p)}
                 acciones={(p) => (
                   <>
                     <button

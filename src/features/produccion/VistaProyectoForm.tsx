@@ -18,9 +18,13 @@ import {
 import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
 import SeccionContenido from './SeccionContenido'
+import { cargarRemitidoPorProyecto } from './remitidoApi'
 import { crearComponenteInicial } from './elementosApi'
 
 const BUCKET = 'proyectos-fotos'
+
+// Estados en los que TacticaSoft ya exige el número de pedido.
+const ESTADOS_EXIGEN_PEDIDO = new Set(['Pedido', 'Anulado', 'Cerrado'])
 
 function VistaProyectoForm({
   proyecto,
@@ -40,6 +44,23 @@ function VistaProyectoForm({
   )
   const [contactos, setContactos] = useState<ContactoMin[]>([])
   const [guardando, setGuardando] = useState(false)
+  // Cantidad remitida por elemento (derivada de notas de envío y remitos).
+  const [remitido, setRemitido] = useState<Record<number, number>>({})
+
+  useEffect(() => {
+    if (proyecto?.id == null) return
+    let vivo = true
+    cargarRemitidoPorProyecto(proyecto.id)
+      .then((r) => {
+        if (vivo) setRemitido(r)
+      })
+      .catch(() => {
+        /* si falla, la columna queda en 0: no bloquea la vista */
+      })
+    return () => {
+      vivo = false
+    }
+  }, [proyecto?.id])
   const [error, setError] = useState<string | null>(null)
   const [modalCerrado, setModalCerrado] = useState(false)
 
@@ -309,8 +330,20 @@ function VistaProyectoForm({
 
       <div className="pf-card">
         <h2 className="pf-titulo">
-          {esNuevo ? 'Nuevo proyecto' : `Editar proyecto #${proyecto!.id}`}
+          {esNuevo
+            ? 'Nuevo proyecto'
+            : `#${proyecto!.id} — ${proyecto!.descripcion || '(sin descripción)'}`}
+          {!esNuevo && form.estado ? <span className="pf-estado">{form.estado}</span> : null}
         </h2>
+
+        {/* En estos estados TacticaSoft ya tiene el pedido creado: si acá falta
+            el número, el proyecto queda sin vincular. */}
+        {!esNuevo && ESTADOS_EXIGEN_PEDIDO.has(form.estado) && !(form.pedidoNro ?? '').trim() ? (
+          <div className="pf-aviso-pedido">
+            ⚠ El proyecto está en estado <b>{form.estado}</b> pero le falta el número de pedido.
+            Cargalo en TacticaSoft y completalo acá.
+          </div>
+        ) : null}
 
         {/* Bloque superior: la foto sola a la izquierda; todos los campos a la
             derecha (debajo de la foto no va nada). Los campos van en una grilla
@@ -628,6 +661,7 @@ function VistaProyectoForm({
             parentId={null}
             parentTipo={null}
             onEntrar={(el) => onAbrirElemento(el, proyVista())}
+            remitido={remitido}
             deshabilitado={idExistente == null}
             leyenda="Creá el proyecto para poder cargar elementos."
           />

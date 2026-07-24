@@ -11,6 +11,7 @@ import { crearSectorGeneral } from './sectoresApi'
 import LogoEmpresa from './LogoEmpresa'
 import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
 import PanelColumnas from '../../shared/components/PanelColumnas'
+import RemitosNdEEmpresa from './RemitosNdEEmpresa'
 import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
 
 type Empresa = {
@@ -84,7 +85,7 @@ const TABS_ENLAZADOS = [
   { id: 'proyectos', label: 'Proyectos' },
   { id: 'pedidos', label: 'Pedidos' },
   { id: 'facturas', label: 'Facturas' },
-  { id: 'remitos', label: 'Remitos' },
+  { id: 'remitos', label: 'Remitos y NdE' },
   { id: 'ordenes-compra', label: 'Órdenes de compra' },
   { id: 'recibos', label: 'Recibos' },
   { id: 'pagos', label: 'Pagos' },
@@ -852,9 +853,13 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
           ))}
         </div>
         <div className="enlazados-contenido">
-          {empresaSeleccionada
-            ? 'Esta sección se construye más adelante.'
-            : 'Seleccioná una empresa.'}
+          {!empresaSeleccionada ? (
+            <div className="enlazados-aviso">Seleccioná una empresa.</div>
+          ) : tabEnlazados === 'remitos' ? (
+            <RemitosNdEEmpresa empresaId={empresaSeleccionada.id} />
+          ) : (
+            <div className="enlazados-aviso">Esta sección se construye más adelante.</div>
+          )}
         </div>
       </div>
 

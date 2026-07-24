@@ -4052,3 +4052,66 @@ body.resizeando-col {
 .enlazados-contenido {
   padding: 0;
 }
+
+/* Distintivo de tipo de documento en la solapa "Remitos y NdE". */
+.doc-tipo {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.doc-tipo-rm {
+  background: #e7f0ff;
+  color: #0c447c;
+}
+.doc-tipo-ne {
+  background: #fdf0e0;
+  color: #9a5b00;
+}
+/* Texto de las solapas que todavía no tienen contenido (mantiene el aire que
+   antes daba el padding de .enlazados-contenido). */
+.enlazados-aviso {
+  padding: 8px 14px;
+  color: #71717a;
+}
+
+/* ── Vista del proyecto: estado y aviso de pedido ─────────────────────────── */
+.pf-estado {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #eef2f7;
+  border: 1px solid #c8c6be;
+  color: #2c2c2a;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.pf-aviso-pedido {
+  background: #fedada;
+  color: #a32d2d;
+  border: 1px solid #e24b4a;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Celda "Remitidos" en la lista de elementos del proyecto. */
+.sc-remit {
+  text-align: center;
+  font-weight: 700;
+}
+.sc-remit-ok {
+  color: #1e7a34;
+}
+.sc-remit-parcial {
+  color: #a35a00;
+}
+.sc-remit-nada {
+  color: #5f5e5a;
+}

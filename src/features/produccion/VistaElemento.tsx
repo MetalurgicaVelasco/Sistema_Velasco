@@ -36,10 +36,14 @@ function VistaElemento({
   elemento,
   proyecto,
   onCerrar,
+  onIrAProyecto,
 }: {
   elemento: Elemento
   proyecto: Proyecto | null
   onCerrar: () => void
+  // Crumb del proyecto: abre la vista del proyecto. Si no viene, cae en
+  // onCerrar (vuelve a la lista), que es el comportamiento anterior.
+  onIrAProyecto?: () => void
 }) {
   // Pila de navegación: arranca en el elemento por el que se entró; entrar a un
   // hijo lo agrega, el breadcrumb y "Volver" retroceden. El "actual" es el tope.
@@ -314,7 +318,11 @@ function VistaElemento({
         {proyecto ? (
           <span className="vi-crumb-grupo">
             <span className="vi-crumb-sep">›</span>
-            <span className="vi-crumb vi-crumb-link" onClick={onCerrar}>
+            <span
+              className="vi-crumb vi-crumb-link"
+              onClick={onIrAProyecto ?? onCerrar}
+              title="Ir a la vista del proyecto"
+            >
               {proyecto.descripcion}
               {proyecto.pedido_nro ? ` (Ped. ${proyecto.pedido_nro})` : ''}
             </span>
