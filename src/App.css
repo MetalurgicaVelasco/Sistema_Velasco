@@ -4115,3 +4115,150 @@ body.resizeando-col {
 .sc-remit-nada {
   color: #5f5e5a;
 }
+
+/* ── Botón "Envío" con desplegable (estética del sistema viejo) ───────────── */
+.pf-barra-acciones {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+.envio-menu {
+  position: relative;
+  display: inline-block;
+}
+.envio-btn {
+  padding: 7px 14px;
+  border: 1px solid #888780;
+  border-radius: 5px;
+  background: #f5f3ec;
+  color: #2c2c2a;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+.envio-btn:hover {
+  filter: brightness(0.95);
+}
+.envio-menu-lista {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  min-width: 220px;
+  z-index: 1000;
+}
+.envio-op {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 4px;
+  padding: 7px 14px;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  background: #fff;
+  color: #2c2c2a;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+.envio-op:last-child {
+  margin-bottom: 0;
+}
+.envio-op:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.envio-op:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Modal de nota de envío ───────────────────────────────────────────────── */
+.ne-aviso {
+  background: #fff4d5;
+  color: #854f0b;
+  border: 1px solid #e8c877;
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.ne-campos {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ne-campos .empresa-campo {
+  flex: 1;
+  min-width: 0;
+}
+.ne-campo-ancho {
+  flex: 2 !important;
+}
+.ne-numimp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ne-numimp-pref {
+  font-size: 12px;
+  color: #5f5e5a;
+  white-space: nowrap;
+}
+.ne-lineas-tit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2c2c2a;
+}
+.ne-lineas {
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+.ne-linea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+}
+.ne-linea-alt {
+  background: #faf9f5;
+}
+.ne-linea-desc {
+  flex: 1;
+  min-width: 0;
+}
+.ne-linea-cant {
+  width: 80px;
+  flex: 0 0 auto;
+}
+.ne-linea-max {
+  flex: 0 0 auto;
+  width: 46px;
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+}
+.pf-aviso-ok {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #28a745;
+  border-radius: 6px;
+  padding: 7px 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}

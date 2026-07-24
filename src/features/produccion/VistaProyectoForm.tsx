@@ -19,6 +19,8 @@ import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
 import SeccionContenido from './SeccionContenido'
 import { cargarRemitidoPorProyecto } from './remitidoApi'
+import MenuEnvio from './MenuEnvio'
+import ModalNotaEnvio from './ModalNotaEnvio'
 import { crearComponenteInicial } from './elementosApi'
 
 const BUCKET = 'proyectos-fotos'
@@ -46,6 +48,9 @@ function VistaProyectoForm({
   const [guardando, setGuardando] = useState(false)
   // Cantidad remitida por elemento (derivada de notas de envío y remitos).
   const [remitido, setRemitido] = useState<Record<number, number>>({})
+  // Modal de nota de envío: null = cerrado; el booleano indica si es externa.
+  const [notaEnvio, setNotaEnvio] = useState<{ esExterna: boolean } | null>(null)
+  const [avisoNota, setAvisoNota] = useState<string | null>(null)
 
   useEffect(() => {
     if (proyecto?.id == null) return
@@ -335,6 +340,17 @@ function VistaProyectoForm({
             : `#${proyecto!.id} — ${proyecto!.descripcion || '(sin descripción)'}`}
           {!esNuevo && form.estado ? <span className="pf-estado">{form.estado}</span> : null}
         </h2>
+
+        {!esNuevo ? (
+          <div className="pf-barra-acciones">
+            <MenuEnvio
+              onNotaEnvio={() => setNotaEnvio({ esExterna: false })}
+              onNotaExterna={() => setNotaEnvio({ esExterna: true })}
+            />
+          </div>
+        ) : null}
+
+        {avisoNota ? <div className="pf-aviso-ok">✓ {avisoNota}</div> : null}
 
         {/* En estos estados TacticaSoft ya tiene el pedido creado: si acá falta
             el número, el proyecto queda sin vincular. */}
@@ -690,6 +706,24 @@ function VistaProyectoForm({
           </button>
         </div>
       </div>
+
+      {notaEnvio && idExistente != null && form.empresaId != null ? (
+        <ModalNotaEnvio
+          proyectoId={idExistente}
+          empresaId={form.empresaId}
+          pedidoNro={form.pedidoNro ?? null}
+          contactoId={form.contactoId ?? null}
+          esExterna={notaEnvio.esExterna}
+          onCerrar={() => setNotaEnvio(null)}
+          onGuardada={(numero) => {
+            setNotaEnvio(null)
+            setAvisoNota(`Nota de envío ${numero} generada.`)
+            if (proyecto?.id != null) {
+              cargarRemitidoPorProyecto(proyecto.id).then(setRemitido).catch(() => {})
+            }
+          }}
+        />
+      ) : null}
 
       {/* Modal: elegir sub-estado al cerrar el proyecto */}
       {modalCerrado && (

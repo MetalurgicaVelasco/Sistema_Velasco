@@ -9,14 +9,22 @@ import { supabase } from '../../shared/lib/supabaseClient'
 // contó la nota (si no, se contarían dos veces).
 // -----------------------------------------------------------------------------
 
-export async function cargarRemitidoPorProyecto(
+// Detalle de lo remitido, separando qué parte vino por remito DIRECTO: un
+// elemento ya cubierto por un remito directo no puede volver a mandarse en una
+// nota de envío. `excluirNotaId` sirve al editar una nota (no se cuenta a sí
+// misma).
+export async function cargarDetalleRemitido(
   proyectoId: number,
-): Promise<Record<number, number>> {
+  excluirNotaId?: number,
+): Promise<{ total: Record<number, number>; porRemitoDirecto: Record<number, number> }> {
+  let qNotas = supabase
+    .from('notas_envio_items')
+    .select('elemento_id, cantidad, nota:notas_envio!inner ( proyecto_id )')
+    .eq('nota.proyecto_id', proyectoId)
+  if (excluirNotaId != null) qNotas = qNotas.neq('nota_envio_id', excluirNotaId)
+
   const [notas, remitos] = await Promise.all([
-    supabase
-      .from('notas_envio_items')
-      .select('elemento_id, cantidad, nota:notas_envio!inner ( proyecto_id )')
-      .eq('nota.proyecto_id', proyectoId),
+    qNotas,
     supabase
       .from('remitos_items')
       .select('elemento_id, cantidad, remito:remitos!inner ( proyecto_id )')
@@ -26,11 +34,27 @@ export async function cargarRemitidoPorProyecto(
   if (notas.error) throw new Error(notas.error.message)
   if (remitos.error) throw new Error(remitos.error.message)
 
-  const acc: Record<number, number> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const f of [...(notas.data ?? []), ...(remitos.data ?? [])] as any[]) {
-    if (f.elemento_id == null) continue
-    acc[f.elemento_id] = (acc[f.elemento_id] ?? 0) + Number(f.cantidad ?? 0)
+  const total: Record<number, number> = {}
+  const porRemitoDirecto: Record<number, number> = {}
+  const sumar = (acc: Record<number, number>, id: number, cant: number) => {
+    acc[id] = (acc[id] ?? 0) + cant
   }
-  return acc
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const f of (notas.data ?? []) as any[]) {
+    if (f.elemento_id == null) continue
+    sumar(total, f.elemento_id, Number(f.cantidad ?? 0))
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const f of (remitos.data ?? []) as any[]) {
+    if (f.elemento_id == null) continue
+    sumar(total, f.elemento_id, Number(f.cantidad ?? 0))
+    sumar(porRemitoDirecto, f.elemento_id, Number(f.cantidad ?? 0))
+  }
+  return { total, porRemitoDirecto }
+}
+
+export async function cargarRemitidoPorProyecto(
+  proyectoId: number,
+): Promise<Record<number, number>> {
+  return (await cargarDetalleRemitido(proyectoId)).total
 }
