@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type { NavFiltro } from '../../shared/types/navegacion'
 import { supabase } from '../../shared/lib/supabaseClient'
 import { contiene } from '../../shared/lib/texto'
@@ -9,6 +9,9 @@ import DireccionesEmpresa from './DireccionesEmpresa'
 import SectoresEmpresa from './SectoresEmpresa'
 import { crearSectorGeneral } from './sectoresApi'
 import LogoEmpresa from './LogoEmpresa'
+import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
+import PanelColumnas from '../../shared/components/PanelColumnas'
+import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
 
 type Empresa = {
   id: number
@@ -275,6 +278,31 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
   // Refs para navegación con teclado (foco) y auto-scroll de la fila activa.
   const listaEmpRef = useRef<HTMLDivElement>(null)
   const filaEmpSelRef = useRef<HTMLTableRowElement>(null)
+
+  // Franja 2: columnas configurables (mostrar/ocultar, ancho, posición) + orden
+  // por título, persistido por usuario.
+  const {
+    columnas: configF2,
+    setColumnas: setConfigF2,
+    orden: ordenF2,
+    setOrden: setOrdenF2,
+  } = useConfigTabla('empresas.f2.columnas', [
+    { id: 'codigo', visible: true, ancho: 100 },
+    { id: 'nombre', visible: true, ancho: 280 },
+    { id: 'cuit', visible: true, ancho: 140 },
+    { id: 'roles', visible: true, ancho: 220 },
+  ])
+  const [panelColsF2, setPanelColsF2] = useState(false)
+
+  const colsEmpresas: ColumnaDef<Empresa>[] = useMemo(
+    () => [
+      { id: 'codigo', titulo: 'Código', tipo: 'texto', valor: (e) => e.codigo },
+      { id: 'nombre', titulo: 'Nombre', tipo: 'texto', valor: (e) => e.nombre },
+      { id: 'cuit', titulo: 'CUIT', tipo: 'texto', valor: (e) => e.cuit, render: (e) => formatCuit(e.cuit) },
+      { id: 'roles', titulo: 'Roles', tipo: 'texto', valor: (e) => rolesTexto(e) },
+    ],
+    [],
+  )
   // Preview del logo dentro del modal de edición (se actualiza al pegar/quitar).
   const [logoUrlEdit, setLogoUrlEdit] = useState<string | null>(null)
   // La "fila" del detalle (franja 3) se puede seleccionar aunque sea única.
@@ -638,6 +666,7 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
             return [
               ...(emp ? [{ label: `Editar "${emp.nombre}"`, onSelect: () => abrirEdicion(emp) }] : []),
               { label: 'Nueva empresa', onSelect: abrirNuevo },
+              { label: 'Columnas…', onSelect: () => setPanelColsF2(true) },
             ]
           }}
         >
@@ -658,39 +687,23 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
             ref={listaEmpRef}
             onKeyDown={onKeyEmpresas}
           >
-          <table className="tabla">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>CUIT</th>
-                <th>Roles</th>
-              </tr>
-            </thead>
-            <tbody>
-              {empresasFiltradas.map((empresa) => (
-                <tr
-                  key={empresa.id}
-                  data-empresa-id={empresa.id}
-                  ref={empresa.id === seleccionadaId ? filaEmpSelRef : undefined}
-                  className={
-                    'tabla-fila' +
-                    (empresa.id === seleccionadaId ? ' seleccionada' : '')
-                  }
-                  onContextMenu={() => setSeleccionadaId(empresa.id)}
-                  onClick={() => {
-                    setSeleccionadaId(empresa.id)
-                    listaEmpRef.current?.focus()
-                  }}
-                >
-                  <td>{empresa.codigo ?? '—'}</td>
-                  <td>{empresa.nombre}</td>
-                  <td>{formatCuit(empresa.cuit)}</td>
-                  <td>{rolesTexto(empresa)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <TablaConfigurable<Empresa>
+            columnas={colsEmpresas}
+            config={configF2}
+            onConfig={setConfigF2}
+            filas={empresasFiltradas}
+            orden={ordenF2}
+            onOrden={setOrdenF2}
+            filaKey={(e) => e.id}
+            filaClase={(e) => (e.id === seleccionadaId ? 'seleccionada' : '')}
+            filaData={(e) => ({ 'data-empresa-id': e.id })}
+            filaRef={(e) => (e.id === seleccionadaId ? filaEmpSelRef : undefined)}
+            onFilaClick={(e) => {
+              setSeleccionadaId(e.id)
+              listaEmpRef.current?.focus()
+            }}
+            onFilaContextMenu={(e) => setSeleccionadaId(e.id)}
+          />
           </div>
         )}
         </MenuContextual>
@@ -975,6 +988,15 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {panelColsF2 && (
+        <PanelColumnas
+          columnas={colsEmpresas}
+          config={configF2}
+          onConfig={setConfigF2}
+          onCerrar={() => setPanelColsF2(false)}
+        />
       )}
     </div>
   )

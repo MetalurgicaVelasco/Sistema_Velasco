@@ -73,6 +73,7 @@ export default function TablaConfigurable<T>({
   onFilaDobleClick,
   accionesTitulo,
   acciones,
+  anchoAcciones = 150,
 }: {
   columnas: ColumnaDef<T>[]
   config?: ConfigTabla // si no viene, se muestran todas en orden de definición
@@ -92,6 +93,7 @@ export default function TablaConfigurable<T>({
   onFilaDobleClick?: (fila: T) => void
   accionesTitulo?: ReactNode
   acciones?: (fila: T) => ReactNode
+  anchoAcciones?: number
 }) {
   // Columnas visibles, en el orden de la config (con su ancho). Sin config, todas.
   const cols = useMemo(() => {
@@ -158,7 +160,7 @@ export default function TablaConfigurable<T>({
   }
 
   return (
-    <table className={'tabla' + (clase ? ' ' + clase : '')}>
+    <table className={'tabla tabla-fija' + (clase ? ' ' + clase : '')}>
       <thead>
         <tr>
           {cols.map(({ def, ancho }) => {
@@ -186,7 +188,15 @@ export default function TablaConfigurable<T>({
               </th>
             )
           })}
-          {acciones && <th className="th-acciones">{accionesTitulo}</th>}
+          {acciones && (
+            <th className="th-acciones" style={{ width: anchoAcciones, minWidth: anchoAcciones }}>
+              {accionesTitulo}
+            </th>
+          )}
+          {/* Relleno: única columna sin ancho fijo, siempre la última. Absorbe el
+              espacio sobrante, así al arrastrar un borde solo se mueve ESE borde
+              (nunca las columnas de la izquierda). */}
+          <th className="col-relleno" />
         </tr>
       </thead>
       <tbody>
@@ -206,6 +216,7 @@ export default function TablaConfigurable<T>({
               </td>
             ))}
             {acciones && <td className="tabla-acciones">{acciones(fila)}</td>}
+            <td className="col-relleno" />
           </tr>
         ))}
       </tbody>

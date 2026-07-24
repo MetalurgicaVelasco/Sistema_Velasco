@@ -25,8 +25,13 @@ export function useConfigTabla(clave: string, defecto: ConfigTabla) {
       if (g?.columnas?.length) {
         // Conciliar con el default: se descartan columnas que ya no existen y
         // se agregan (al final) las nuevas que aún no estaban guardadas.
-        const idsDefecto = new Set(defecto.map((c) => c.id))
-        const guardadas = g.columnas.filter((c) => idsDefecto.has(c.id))
+        const porDefecto = new Map(defecto.map((c) => [c.id, c] as const))
+        // Si lo guardado no trae ancho (configs viejas), se toma el del default:
+        // con el layout fijo TODAS las columnas necesitan un ancho, salvo la de
+        // relleno, que es la que absorbe el sobrante.
+        const guardadas = g.columnas
+          .filter((c) => porDefecto.has(c.id))
+          .map((c) => (c.ancho == null ? { ...c, ancho: porDefecto.get(c.id)?.ancho } : c))
         const idsGuardadas = new Set(guardadas.map((c) => c.id))
         const faltantes = defecto.filter((c) => !idsGuardadas.has(c.id))
         setColumnas([...guardadas, ...faltantes])

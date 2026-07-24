@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
+import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
+import PanelColumnas from '../../shared/components/PanelColumnas'
+import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
 import ModalNuevaDireccion from './ModalNuevaDireccion'
 import {
   CamposDireccion,
@@ -15,6 +18,30 @@ import type { Direccion, DireccionForm } from './direccionForm'
 
 function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
   const [direcciones, setDirecciones] = useState<Direccion[]>([])
+  const {
+    columnas: configCols,
+    setColumnas: setConfigCols,
+    orden,
+    setOrden,
+  } = useConfigTabla('empresas.direcciones.columnas', [
+    { id: 'tipo', visible: true, ancho: 120 },
+    { id: 'calle', visible: true, ancho: 220 },
+    { id: 'numero', visible: true, ancho: 80 },
+    { id: 'localidad', visible: true, ancho: 220 },
+    { id: 'cp', visible: true, ancho: 90 },
+  ])
+  const [panelCols, setPanelCols] = useState(false)
+
+  const colsDirecciones: ColumnaDef<Direccion>[] = useMemo(
+    () => [
+      { id: 'tipo', titulo: 'Tipo', tipo: 'texto', valor: (d) => d.tipo },
+      { id: 'calle', titulo: 'Calle', tipo: 'texto', valor: (d) => d.calle },
+      { id: 'numero', titulo: 'Nº', tipo: 'texto', valor: (d) => d.numero },
+      { id: 'localidad', titulo: 'Localidad', tipo: 'texto', valor: (d) => ubicacionTexto(d) },
+      { id: 'cp', titulo: 'CP', tipo: 'texto', valor: (d) => d.localidades?.codigo_postal ?? '' },
+    ],
+    [],
+  )
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -104,7 +131,10 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
   return (
     <div className="subtabla">
       <MenuContextual
-        items={[{ label: 'Nueva dirección', onSelect: () => setMostrarNuevo(true) }]}
+        items={[
+          { label: 'Nueva dirección', onSelect: () => setMostrarNuevo(true) },
+          { label: 'Columnas…', onSelect: () => setPanelCols(true) },
+        ]}
       >
       {cargando ? (
         <div className="empresas-estado">Cargando direcciones…</div>
@@ -115,48 +145,32 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
           Esta empresa no tiene direcciones cargadas.
         </p>
       ) : (
-        <table className="tabla">
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>Calle</th>
-              <th>Nº</th>
-              <th>Localidad</th>
-              <th>CP</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {direcciones.map((d) => (
-              <tr key={d.id} className="tabla-fila">
-                <td>{d.tipo ?? '—'}</td>
-                <td>{d.calle ?? '—'}</td>
-                <td>{d.numero ?? '—'}</td>
-                <td>{ubicacionTexto(d)}</td>
-                <td>{d.localidades?.codigo_postal ?? '—'}</td>
-                <td className="tabla-acciones">
-                  <button
-                    type="button"
-                    className="empresas-editar"
-                    onClick={() => abrirEdicion(d)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="empresas-borrar"
-                    onClick={() => {
-                      setDireccionBorrando(d)
-                      setErrorBorrar(null)
-                    }}
-                  >
-                    Borrar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <TablaConfigurable<Direccion>
+          columnas={colsDirecciones}
+          config={configCols}
+          onConfig={setConfigCols}
+          filas={direcciones}
+          orden={orden}
+          onOrden={setOrden}
+          filaKey={(d) => d.id}
+          acciones={(d) => (
+            <>
+              <button type="button" className="empresas-editar" onClick={() => abrirEdicion(d)}>
+                Editar
+              </button>
+              <button
+                type="button"
+                className="empresas-borrar"
+                onClick={() => {
+                  setDireccionBorrando(d)
+                  setErrorBorrar(null)
+                }}
+              >
+                Borrar
+              </button>
+            </>
+          )}
+        />
       )}
       </MenuContextual>
 
@@ -230,6 +244,15 @@ function DireccionesEmpresa({ empresaId }: { empresaId: number }) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {panelCols && (
+        <PanelColumnas
+          columnas={colsDirecciones}
+          config={configCols}
+          onConfig={setConfigCols}
+          onCerrar={() => setPanelCols(false)}
+        />
       )}
     </div>
   )

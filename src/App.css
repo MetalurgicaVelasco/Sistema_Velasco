@@ -3976,3 +3976,79 @@ body.resizeando-col {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ====== Filas de solapas como divisor de franjas (Empresas) ====== */
+/* La fila de pestañas ES la franja negra que separa las zonas: no se agrega
+   ninguna barra vacía aparte, así no se pierde alto. La solapa activa va en
+   navy para que se distinga a simple vista. */
+.enlazados-tabs {
+  flex: 0 0 auto;
+  gap: 0;
+  padding: 0;
+  background: #1a1a1a;
+}
+.enlazados-tab {
+  height: 20px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c9c9c9;
+  background: transparent;
+  border: none;
+  border-bottom: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.enlazados-tab:hover {
+  color: #fff;
+  background: #333;
+}
+.enlazados-tab.activa {
+  color: #fff;
+  background: #0c447c;
+  border-bottom: none;
+}
+
+
+/* La columna de relleno es la ÚNICA sin ancho fijo y va siempre última: absorbe
+   el espacio sobrante. Gracias a eso, al arrastrar el borde de una columna se
+   mueve solo ESE borde y nunca las columnas de la izquierda. */
+.tabla-fija .col-relleno {
+  width: auto;
+  min-width: 0;
+  padding: 0;
+}
+/* El ancho de la columna de acciones lo fija el componente (estilo inline). */
+.tabla-fija .th-acciones,
+.tabla-fija .tabla-acciones {
+  min-width: 0;
+}
+
+/* Tablas dentro de las solapas del detalle: si las columnas superan el ancho
+   disponible, la zona scrollea en horizontal en vez de deformarse. */
+.subtabla {
+  overflow-x: auto;
+}
+
+/* ── Recuadro de Roles (filtros de Empresas) ────────────────────────────────
+   Se comprime y se estira hasta el alto de las columnas de filtros, para que su
+   borde inferior coincida con el del último campo (Razón social). */
+.filtro-roles-caja {
+  gap: 1px;
+  padding: 3px 8px;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+.filtro-roles-tit {
+  font-size: 11px;
+  margin-bottom: 0;
+}
+.filtro-roles-caja .filtro-check {
+  font-size: 12px;
+}
+
+/* El contenido de las solapas arranca en el mismo borde izquierdo que la lista
+   de la franja 2: sin sangría. El espaciado interno lo pone cada tabla. */
+.enlazados-contenido {
+  padding: 0;
+}

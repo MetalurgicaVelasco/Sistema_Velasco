@@ -112,13 +112,13 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     orden: ordenF2,
     setOrden: setOrdenF2,
   } = useConfigTabla('proyectos.f2.columnas', [
-    { id: 'id', visible: true },
-    { id: 'cliente', visible: true },
-    { id: 'descripcion', visible: true },
-    { id: 'estado', visible: true },
-    { id: 'urgencia', visible: true },
-    { id: 'pedido', visible: true },
-    { id: 'plazo', visible: true },
+    { id: 'id', visible: true, ancho: 60 },
+    { id: 'cliente', visible: true, ancho: 220 },
+    { id: 'descripcion', visible: true, ancho: 320 },
+    { id: 'estado', visible: true, ancho: 120 },
+    { id: 'urgencia', visible: true, ancho: 110 },
+    { id: 'pedido', visible: true, ancho: 110 },
+    { id: 'plazo', visible: true, ancho: 110 },
   ])
   const [panelColsF2, setPanelColsF2] = useState(false)
 
@@ -785,7 +785,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                     columnas={colsElementos}
                     config={configF3}
                     onConfig={setConfigF3}
-                    clase="tabla-fija"
+                    anchoAcciones={96}
                     filas={filasArbol}
                     filaKey={(f) => f.el.id}
                     filaClase={(f) => (f.el.id === elementoSeleccionadoId ? 'seleccionada' : '')}

@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
+import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
+import PanelColumnas from '../../shared/components/PanelColumnas'
+import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
 import SelectorConAlta from '../../shared/components/SelectorConAlta'
 import type { Opcion } from '../../shared/components/SelectorConAlta'
 import ModalNuevaDireccion from './ModalNuevaDireccion'
@@ -221,6 +224,24 @@ function CamposContacto({
 
 function ContactosEmpresa({ empresaId }: { empresaId: number }) {
   const [contactos, setContactos] = useState<Contacto[]>([])
+  const {
+    columnas: configCols,
+    setColumnas: setConfigCols,
+    orden,
+    setOrden,
+  } = useConfigTabla('empresas.contactos.columnas', [
+    { id: 'nombre', visible: true, ancho: 130 },
+    { id: 'apellido', visible: true, ancho: 130 },
+    { id: 'puesto', visible: true, ancho: 130 },
+    { id: 'area', visible: true, ancho: 120 },
+    { id: 'sector', visible: true, ancho: 120 },
+    { id: 'direccion', visible: true, ancho: 190 },
+    { id: 'tipoDireccion', visible: true, ancho: 130 },
+    { id: 'email', visible: true, ancho: 190 },
+    { id: 'telefono', visible: true, ancho: 120 },
+    { id: 'celular', visible: true, ancho: 120 },
+  ])
+  const [panelCols, setPanelCols] = useState(false)
   const [direcciones, setDirecciones] = useState<Direccion[]>([])
   const [areas, setAreas] = useState<Opcion[]>([])
   const [sectores, setSectores] = useState<Opcion[]>([])
@@ -423,10 +444,47 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
     onAgregarSector,
   }
 
+  const colsContactos: ColumnaDef<Contacto>[] = useMemo(() => {
+    const dirDe = (c: Contacto) => direcciones.find((d) => d.id === c.direccion_id)
+    return [
+      { id: 'nombre', titulo: 'Nombre', tipo: 'texto', valor: (c) => c.nombre },
+      { id: 'apellido', titulo: 'Apellido', tipo: 'texto', valor: (c) => c.apellido },
+      { id: 'puesto', titulo: 'Puesto', tipo: 'texto', valor: (c) => c.puesto },
+      {
+        id: 'area',
+        titulo: 'Área',
+        tipo: 'texto',
+        valor: (c) => areas.find((a) => a.id === c.area_id)?.nombre ?? '',
+      },
+      {
+        id: 'sector',
+        titulo: 'Sector',
+        tipo: 'texto',
+        valor: (c) => sectores.find((x) => x.id === c.sector_id)?.nombre ?? '',
+      },
+      {
+        id: 'direccion',
+        titulo: 'Dirección',
+        tipo: 'texto',
+        valor: (c) => {
+          const d = dirDe(c)
+          return d ? etiquetaDireccionSinTipo(d) : ''
+        },
+      },
+      { id: 'tipoDireccion', titulo: 'Tipo de dirección', tipo: 'texto', valor: (c) => dirDe(c)?.tipo ?? '' },
+      { id: 'email', titulo: 'Email', tipo: 'texto', valor: (c) => c.email },
+      { id: 'telefono', titulo: 'Teléfono', tipo: 'texto', valor: (c) => c.telefono },
+      { id: 'celular', titulo: 'Celular', tipo: 'texto', valor: (c) => c.celular },
+    ]
+  }, [direcciones, areas, sectores])
+
   return (
     <div className="subtabla">
       <MenuContextual
-        items={[{ label: 'Nuevo contacto', onSelect: abrirNuevo }]}
+        items={[
+          { label: 'Nuevo contacto', onSelect: abrirNuevo },
+          { label: 'Columnas…', onSelect: () => setPanelCols(true) },
+        ]}
       >
       {cargando ? (
         <div className="empresas-estado">Cargando contactos…</div>
@@ -435,63 +493,32 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
       ) : contactos.length === 0 ? (
         <p className="empresas-vacio">Esta empresa no tiene contactos cargados.</p>
       ) : (
-        <table className="tabla">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Apellido</th>
-              <th>Puesto</th>
-              <th>Área</th>
-              <th>Sector</th>
-              <th>Dirección</th>
-              <th>Tipo de dirección</th>
-              <th>Email</th>
-              <th>Teléfono</th>
-              <th>Celular</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {contactos.map((c) => {
-              const dir = direcciones.find((d) => d.id === c.direccion_id)
-              const area = areas.find((a) => a.id === c.area_id)
-              const sector = sectores.find((s) => s.id === c.sector_id)
-              return (
-                <tr key={c.id} className="tabla-fila">
-                  <td>{c.nombre}</td>
-                  <td>{c.apellido ?? '—'}</td>
-                  <td>{c.puesto ?? '—'}</td>
-                  <td>{area?.nombre ?? '—'}</td>
-                  <td>{sector?.nombre ?? '—'}</td>
-                  <td>{dir ? etiquetaDireccionSinTipo(dir) : '—'}</td>
-                  <td>{dir?.tipo ?? '—'}</td>
-                  <td>{c.email ?? '—'}</td>
-                  <td>{c.telefono ?? '—'}</td>
-                  <td>{c.celular ?? '—'}</td>
-                  <td className="tabla-acciones">
-                    <button
-                      type="button"
-                      className="empresas-editar"
-                      onClick={() => abrirEdicion(c)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="empresas-borrar"
-                      onClick={() => {
-                        setContactoBorrando(c)
-                        setErrorBorrar(null)
-                      }}
-                    >
-                      Borrar
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <TablaConfigurable<Contacto>
+          columnas={colsContactos}
+          config={configCols}
+          onConfig={setConfigCols}
+          filas={contactos}
+          orden={orden}
+          onOrden={setOrden}
+          filaKey={(c) => c.id}
+          acciones={(c) => (
+            <>
+              <button type="button" className="empresas-editar" onClick={() => abrirEdicion(c)}>
+                Editar
+              </button>
+              <button
+                type="button"
+                className="empresas-borrar"
+                onClick={() => {
+                  setContactoBorrando(c)
+                  setErrorBorrar(null)
+                }}
+              >
+                Borrar
+              </button>
+            </>
+          )}
+        />
       )}
       </MenuContextual>
 
@@ -596,6 +623,15 @@ function ContactosEmpresa({ empresaId }: { empresaId: number }) {
           empresaId={empresaId}
           onCerrar={() => setMostrarNuevaDireccion(false)}
           onCreada={onDireccionCreada}
+        />
+      )}
+
+      {panelCols && (
+        <PanelColumnas
+          columnas={colsContactos}
+          config={configCols}
+          onConfig={setConfigCols}
+          onCerrar={() => setPanelCols(false)}
         />
       )}
     </div>
