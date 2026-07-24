@@ -22,6 +22,8 @@ import { cargarRemitidoPorProyecto } from './remitidoApi'
 import MenuEnvio from './MenuEnvio'
 import ModalNotaEnvio from './ModalNotaEnvio'
 import ModalRemito from './ModalRemito'
+import ModalRemitosFaltantes from './ModalRemitosFaltantes'
+import { itemsConRemitoIncompleto, type ItemIncompleto } from './cierreProyecto'
 import { crearComponenteInicial } from './elementosApi'
 
 const BUCKET = 'proyectos-fotos'
@@ -70,6 +72,8 @@ function VistaProyectoForm({
   }, [proyecto?.id])
   const [error, setError] = useState<string | null>(null)
   const [modalCerrado, setModalCerrado] = useState(false)
+  // Aviso de ítems sin remitir del todo, al intentar cerrar el proyecto.
+  const [remitosFaltantes, setRemitosFaltantes] = useState<ItemIncompleto[] | null>(null)
 
   // Id del proyecto una vez creado en el alta: habilita el Contenido sin cerrar
   // el form y hace que los guardados siguientes actualicen en vez de insertar.
@@ -175,10 +179,27 @@ function VistaProyectoForm({
   // sub-estado; el estado real se aplica recién al confirmar el modal.
   function cambiarEstado(nuevo: string) {
     if (nuevo === 'Cerrado') {
-      setModalCerrado(true)
+      iniciarCierre()
       return
     }
     setForm(aplicarEstado(form, nuevo))
+  }
+
+  // Antes de abrir el modal de sub-estado, avisar si quedan ítems sin remitir del
+  // todo. Es un aviso, no un bloqueo: desde el modal se puede cerrar igual.
+  async function iniciarCierre() {
+    if (idExistente != null) {
+      try {
+        const faltantes = await itemsConRemitoIncompleto(idExistente)
+        if (faltantes.length) {
+          setRemitosFaltantes(faltantes)
+          return
+        }
+      } catch {
+        /* si el chequeo falla, no bloqueamos el cierre */
+      }
+    }
+    setModalCerrado(true)
   }
 
   function confirmarCerrado(sub: string) {
@@ -742,6 +763,17 @@ function VistaProyectoForm({
           }}
         />
       ) : null}
+
+      {remitosFaltantes && (
+        <ModalRemitosFaltantes
+          items={remitosFaltantes}
+          onCancelar={() => setRemitosFaltantes(null)}
+          onCerrarIgual={() => {
+            setRemitosFaltantes(null)
+            setModalCerrado(true)
+          }}
+        />
+      )}
 
       {/* Modal: elegir sub-estado al cerrar el proyecto */}
       {modalCerrado && (
