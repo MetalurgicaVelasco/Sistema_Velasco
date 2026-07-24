@@ -3917,3 +3917,62 @@ body.resizeando-col {
   white-space: nowrap;
   vertical-align: middle;
 }
+
+/* ====== Modal "Faltan procesos anteriores" (predecesores pendientes) ====== */
+.pred-intro {
+  font-size: 13px;
+  color: #2c2c2a;
+  margin: 0 0 10px;
+}
+.pred-lista {
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.pred-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+}
+.pred-item-alt {
+  background: #faf9f5;
+}
+.pred-txt {
+  flex: 1;
+  min-width: 0;
+}
+.pred-proc {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2c2c2a;
+}
+.pred-el {
+  font-size: 11px;
+  color: #888;
+}
+.pred-btn-hecho {
+  flex: 0 0 auto;
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #155724;
+  background: #d4edda;
+  border: 1px solid #28a745;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.pred-btn-hecho:hover:not(:disabled) {
+  background: #c3e6cb;
+}
+.pred-btn-hecho:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pred-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

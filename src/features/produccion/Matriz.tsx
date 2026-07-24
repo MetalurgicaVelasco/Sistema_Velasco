@@ -82,6 +82,17 @@ function Matriz() {
       if (resetArbol) {
         setComposicion({})
         setAbiertos(new Set()) // al recargar tras una edición, todo colapsado
+      } else {
+        // Se conserva el árbol desplegado, pero se vuelven a pedir los hijos ya
+        // cargados: si se editó la composición adentro del detalle, la caché
+        // quedaría vieja.
+        const ids = Object.keys(composicion).map(Number)
+        if (ids.length) {
+          const pares = await Promise.all(
+            ids.map(async (id) => [id, await cargarComposicion(id)] as const),
+          )
+          setComposicion(Object.fromEntries(pares))
+        }
       }
       setError(null)
     } catch (e) {
@@ -287,7 +298,9 @@ function Matriz() {
         elemento={elementoAbierto}
         onCerrar={() => {
           setElementoAbierto(null)
-          recargar()
+          // Al volver del detalle NO se colapsa el árbol: se vuelve al mismo
+          // lugar donde estabas (los datos sí se refrescan).
+          recargar(false)
         }}
       />
     )

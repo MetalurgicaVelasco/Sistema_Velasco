@@ -376,3 +376,77 @@ export async function deshacerHechoProyecto(
     .eq('id', id)
   return error ? { error: error.message } : {}
 }
+
+// ── Predecesores pendientes ─────────────────────────────────────────────────
+// Antes de marcar un proceso como hecho hay que verificar que sus anteriores lo
+// estén. Se sube por las correlatividades (que pueden cruzar elementos) juntando
+// los que todavía no están cerrados. Si un predecesor YA está hecho, no bloquea
+// y no se sigue subiendo por esa rama.
+
+export type ProcesoPendiente = {
+  id: number
+  nombre: string // tipo de proceso (o el texto libre)
+  elemento: string // descripción del elemento al que pertenece
+}
+
+export async function predecesoresPendientes(procesoId: number): Promise<ProcesoPendiente[]> {
+  const niveles: ProcesoPendiente[][] = []
+  const visitados = new Set<number>([procesoId])
+  let frontera: number[] = [procesoId]
+
+  while (frontera.length) {
+    const { data: corr, error } = await supabase
+      .from('correlatividades')
+      .select('predecesor_id')
+      .in('sucesor_id', frontera)
+    if (error) throw new Error(error.message)
+
+    const ids = [...new Set((corr ?? []).map((c) => c.predecesor_id as number))].filter(
+      (id) => !visitados.has(id),
+    )
+    if (!ids.length) break
+    for (const id of ids) visitados.add(id)
+
+    const { data: procs, error: e2 } = await supabase
+      .from('procesos')
+      .select(
+        'id, estado, proceso_otro, tipo:tipos_proceso!tipo_proceso_id ( nombre ), elemento:elementos!elemento_id ( descripcion )',
+      )
+      .in('id', ids)
+    if (e2) throw new Error(e2.message)
+
+    const pendientes: ProcesoPendiente[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const r of (procs ?? []) as any[]) {
+      if (r.estado === 'hecho') continue
+      // Supabase tipa las relaciones to-one como array; en runtime viene objeto.
+      const tipo = Array.isArray(r.tipo) ? r.tipo[0] : r.tipo
+      const el = Array.isArray(r.elemento) ? r.elemento[0] : r.elemento
+      pendientes.push({
+        id: r.id,
+        nombre: tipo?.nombre ?? r.proceso_otro ?? '(sin nombre)',
+        elemento: el?.descripcion ?? '(sin elemento)',
+      })
+    }
+    if (!pendientes.length) break
+    niveles.push(pendientes)
+    frontera = pendientes.map((p) => p.id)
+  }
+
+  // Los más lejanos primero: ese es el orden en que hay que cerrarlos.
+  return niveles.reverse().flat()
+}
+
+// Marca varios procesos como hechos de una (para "Marcar todo como Hecho").
+export async function marcarHechosProyecto(ids: number[]): Promise<{ error?: string }> {
+  if (!ids.length) return {}
+  const ahora = new Date()
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  const fecha = `${ahora.getFullYear()}-${p2(ahora.getMonth() + 1)}-${p2(ahora.getDate())}`
+  const hora = `${p2(ahora.getHours())}:${p2(ahora.getMinutes())}:00`
+  const { error } = await supabase
+    .from('procesos')
+    .update({ estado: 'hecho', real_fecha_fin: fecha, real_hora_fin: hora })
+    .in('id', ids)
+  return error ? { error: error.message } : {}
+}

@@ -13,10 +13,14 @@ import {
   quitarCorrelatividad,
   cargarEstadosProcesos,
   marcarHechoProyecto,
+  marcarHechosProyecto,
   deshacerHechoProyecto,
+  predecesoresPendientes,
   type EstadoProcesoInfo,
+  type ProcesoPendiente,
 } from './procesosApi'
 import { esContenedor, tipoLabel, cargarAncestros, SELECT_ELEMENTO } from './elementosApi'
+import ModalPredecesores from '../../shared/components/ModalPredecesores'
 import { useEditorElemento } from './useEditorElemento'
 import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
@@ -46,6 +50,11 @@ function VistaElemento({
   const [correlatividades, setCorrelatividades] = useState<Correlatividad[]>([])
   const [estadosProc, setEstadosProc] = useState<Map<number, EstadoProcesoInfo>>(new Map())
   const [recursos, setRecursos] = useState<RecursosData | null>(null)
+  // Aviso de procesos anteriores sin cerrar al intentar marcar uno como hecho.
+  const [predPend, setPredPend] = useState<{ destino: Proceso; lista: ProcesoPendiente[] } | null>(
+    null,
+  )
+  const [predTrabajando, setPredTrabajando] = useState(false)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<{ proceso: Proceso | null } | null>(null)
@@ -217,13 +226,71 @@ function VistaElemento({
   async function onToggleHecho(p: Proceso) {
     const info = estadosProc.get(p.id)
     const estaHecho = info?.estado === 'hecho'
-    const { error: err } = estaHecho
-      ? await deshacerHechoProyecto(p.id, info?.planFecha != null)
-      : await marcarHechoProyecto(p.id)
+    if (estaHecho) {
+      const { error: err } = await deshacerHechoProyecto(p.id, info?.planFecha != null)
+      if (err) {
+        window.alert(err)
+        return
+      }
+      recargar(actual)
+      return
+    }
+    // No se puede cerrar un proceso si quedan anteriores sin cerrar: se avisa y
+    // se ofrece cerrarlos desde el modal.
+    try {
+      const pend = await predecesoresPendientes(p.id)
+      if (pend.length) {
+        setPredPend({ destino: p, lista: pend })
+        return
+      }
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e))
+      return
+    }
+    const { error: err } = await marcarHechoProyecto(p.id)
     if (err) {
       window.alert(err)
       return
     }
+    recargar(actual)
+  }
+
+  // Cierra UN pendiente. Si con eso ya no queda ninguno, marca también el
+  // proceso original (que es lo que se quería hacer) y cierra el modal.
+  async function marcarPendiente(id: number) {
+    if (!predPend) return
+    setPredTrabajando(true)
+    try {
+      const { error: err } = await marcarHechoProyecto(id)
+      if (err) throw new Error(err)
+      const pend = await predecesoresPendientes(predPend.destino.id)
+      if (pend.length) {
+        setPredPend({ destino: predPend.destino, lista: pend })
+        return
+      }
+      const r = await marcarHechoProyecto(predPend.destino.id)
+      if (r.error) throw new Error(r.error)
+      setPredPend(null)
+      recargar(actual)
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPredTrabajando(false)
+    }
+  }
+
+  // Cierra todos los pendientes y el proceso original de una.
+  async function marcarTodosPendientes() {
+    if (!predPend) return
+    setPredTrabajando(true)
+    const ids = [...predPend.lista.map((x) => x.id), predPend.destino.id]
+    const { error: err } = await marcarHechosProyecto(ids)
+    setPredTrabajando(false)
+    if (err) {
+      window.alert(err)
+      return
+    }
+    setPredPend(null)
     recargar(actual)
   }
   async function onQuitarPred(c: Correlatividad) {
@@ -566,6 +633,17 @@ function VistaElemento({
           personal={recursos.personal.filter((p) => p.activo)}
           onGuardado={onGuardado}
           onCancelar={() => setModal(null)}
+        />
+      )}
+
+      {predPend && (
+        <ModalPredecesores
+          destino={nombreProceso(predPend.destino)}
+          pendientes={predPend.lista}
+          trabajando={predTrabajando}
+          onMarcarUno={marcarPendiente}
+          onMarcarTodo={marcarTodosPendientes}
+          onCerrar={() => setPredPend(null)}
         />
       )}
 

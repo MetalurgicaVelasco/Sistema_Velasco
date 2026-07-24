@@ -27,6 +27,8 @@ import { armarPlan, aplicarPlan, actualizarUrgencia, quitarDelTablero, cambiarEs
 import type { BloqueVisual } from './datos/bloquesVisuales'
 import type { Divergencia } from './motor/divergencias'
 import type { ModoProceso } from '../produccion/procesoTipos'
+import { predecesoresPendientes, type ProcesoPendiente } from '../produccion/procesosApi'
+import ModalPredecesores from '../../shared/components/ModalPredecesores'
 import type { PersonalTablero, MaquinaTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, sumarHabiles, type FechaISO } from '../../shared/lib/fechas'
 import { jornada } from '../../shared/lib/jornada'
@@ -67,6 +69,13 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
   // Fecha que ancla la ventana de días visible. Se corre por semanas con los
   // botones ◀ / Hoy / ▶. Arranca en hoy.
   const [fechaBase, setFechaBase] = useState<FechaISO>(hoyISO())
+  // Aviso de procesos anteriores sin cerrar al marcar una actividad como hecha.
+  const [predPend, setPredPend] = useState<{
+    procesoId: number
+    nombre: string
+    lista: ProcesoPendiente[]
+  } | null>(null)
+  const [predTrabajando, setPredTrabajando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tip, setTip] = useState<{ b: BloqueVisual; x: number; y: number } | null>(null)
   const [dragActivo, setDragActivo] = useState<BloqueVisual | null>(null)
@@ -199,11 +208,58 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
   async function cambiarEstadoActividad(procesoId: number, estado: 'planificado' | 'hecho') {
     setModalActividad(null)
     try {
+      // No se cierra una actividad si quedan anteriores sin cerrar: se avisa y
+      // se ofrece cerrarlas desde el modal.
+      if (estado === 'hecho') {
+        const pend = await predecesoresPendientes(procesoId)
+        if (pend.length) {
+          const bl = datos?.bloques.find((x) => x.procesoId === procesoId)
+          setPredPend({ procesoId, nombre: bl?.descripcion ?? 'esta actividad', lista: pend })
+          return
+        }
+      }
       await cambiarEstadoProceso(procesoId, estado)
       const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
     } catch (e) {
       window.alert('No se pudo cambiar el estado: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  // Cierra UN pendiente; si con eso no queda ninguno, cierra también la
+  // actividad original y sale del modal.
+  async function marcarPendienteTab(id: number) {
+    if (!predPend) return
+    setPredTrabajando(true)
+    try {
+      await cambiarEstadoProceso(id, 'hecho')
+      const pend = await predecesoresPendientes(predPend.procesoId)
+      if (pend.length) {
+        setPredPend({ ...predPend, lista: pend })
+        return
+      }
+      await cambiarEstadoProceso(predPend.procesoId, 'hecho')
+      setPredPend(null)
+      setDatos(await cargarTablero(fechaBase))
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPredTrabajando(false)
+    }
+  }
+
+  async function marcarTodosPendientesTab() {
+    if (!predPend) return
+    setPredTrabajando(true)
+    try {
+      for (const x of predPend.lista) await cambiarEstadoProceso(x.id, 'hecho')
+      await cambiarEstadoProceso(predPend.procesoId, 'hecho')
+      setPredPend(null)
+      setDatos(await cargarTablero(fechaBase))
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPredTrabajando(false)
     }
   }
 
@@ -684,6 +740,16 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
         ) : null}
         {errorUndo ? <div className="tab-undo-error">No se pudo deshacer: {errorUndo}</div> : null}
       </div>
+      {predPend ? (
+        <ModalPredecesores
+          destino={predPend.nombre}
+          pendientes={predPend.lista}
+          trabajando={predTrabajando}
+          onMarcarUno={marcarPendienteTab}
+          onMarcarTodo={marcarTodosPendientesTab}
+          onCerrar={() => setPredPend(null)}
+        />
+      ) : null}
       {modalOrden ? (
         <OrdenModal personal={personal} onCerrar={() => setModalOrden(false)} onGuardar={guardarOrden} />
       ) : null}
