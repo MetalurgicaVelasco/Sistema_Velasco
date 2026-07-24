@@ -1,4 +1,5 @@
 import { useMemo, type Key, type ReactNode, type Ref } from 'react'
+import type React from 'react'
 
 // -----------------------------------------------------------------------------
 // Tabla reutilizable para las franjas (2/3/4).
@@ -25,6 +26,9 @@ export type ColumnaDef<T> = {
 export type OrdenTabla = { colId: string; dir: 'asc' | 'desc' } | null
 
 // Config de columnas: lista ORDENADA de columnas con su visibilidad y ancho.
+// Ancho mínimo de una columna al redimensionar (px).
+const ANCHO_MIN = 40
+
 export type ConfigColumna = { id: string; visible: boolean; ancho?: number }
 export type ConfigTabla = ConfigColumna[]
 
@@ -55,6 +59,7 @@ function comparar(a: V, b: V, tipo: TipoColumna): number {
 export default function TablaConfigurable<T>({
   columnas,
   config,
+  onConfig,
   filas,
   orden,
   onOrden,
@@ -70,6 +75,7 @@ export default function TablaConfigurable<T>({
 }: {
   columnas: ColumnaDef<T>[]
   config?: ConfigTabla // si no viene, se muestran todas en orden de definición
+  onConfig?: (c: ConfigTabla) => void // habilita el resize de columnas
   filas: T[]
   orden: OrdenTabla
   onOrden: (o: OrdenTabla) => void
@@ -101,6 +107,38 @@ export default function TablaConfigurable<T>({
     return [...filas].sort((a, b) => factor * comparar(col.valor(a), col.valor(b), col.tipo))
   }, [filas, orden, columnas])
 
+  // Resize: arrastrar el borde derecho del encabezado cambia el ancho de esa
+  // columna. Se escucha en window para que el arrastre siga aunque el puntero
+  // se salga del th. Sin config/onConfig no hay resize (la tabla queda fija).
+  function empezarResize(e: React.PointerEvent, colId: string) {
+    if (!config || !onConfig) return
+    e.preventDefault()
+    e.stopPropagation() // que no dispare el orden
+    const th = (e.currentTarget as HTMLElement).closest('th') as HTMLElement | null
+    const anchoInicial = th?.getBoundingClientRect().width ?? 100
+    const xInicial = e.clientX
+
+    const mover = (ev: PointerEvent) => {
+      const nuevo = Math.max(ANCHO_MIN, Math.round(anchoInicial + (ev.clientX - xInicial)))
+      onConfig(config.map((c) => (c.id === colId ? { ...c, ancho: nuevo } : c)))
+    }
+    const soltar = () => {
+      window.removeEventListener('pointermove', mover)
+      window.removeEventListener('pointerup', soltar)
+      document.body.classList.remove('resizeando-col')
+    }
+    window.addEventListener('pointermove', mover)
+    window.addEventListener('pointerup', soltar)
+    document.body.classList.add('resizeando-col')
+  }
+
+  // Doble clic en el handle: vuelve la columna a ancho automático.
+  function resetAncho(e: React.MouseEvent, colId: string) {
+    if (!config || !onConfig) return
+    e.stopPropagation()
+    onConfig(config.map((c) => (c.id === colId ? { ...c, ancho: undefined } : c)))
+  }
+
   return (
     <table className="tabla">
       <thead>
@@ -118,6 +156,15 @@ export default function TablaConfigurable<T>({
               >
                 {def.titulo}
                 {flecha}
+                {config && onConfig && (
+                  <span
+                    className="th-resize"
+                    title="Arrastrar para cambiar el ancho (doble clic: automático)"
+                    onPointerDown={(e) => empezarResize(e, def.id)}
+                    onDoubleClick={(e) => resetAncho(e, def.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
               </th>
             )
           })}

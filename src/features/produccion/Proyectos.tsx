@@ -5,8 +5,9 @@ import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
 import VistaElemento from './VistaElemento'
 import ModalImportarMatriz from './ModalImportarMatriz'
-import TablaConfigurable, { type ColumnaDef, type OrdenTabla, type ConfigTabla } from '../../shared/components/TablaConfigurable'
+import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
 import PanelColumnas from '../../shared/components/PanelColumnas'
+import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
 import { fechaCorta } from './proyectoTipos'
 import type { Proyecto, Empresa } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
@@ -105,8 +106,12 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   // Elemento cuya vista dedicada (procesos) está abierta. Ocupa todo el módulo.
   const [elementoVista, setElementoVista] = useState<Elemento | null>(null)
   const [importarAbierto, setImportarAbierto] = useState(false)
-  const [ordenF2, setOrdenF2] = useState<OrdenTabla>(null)
-  const [configF2, setConfigF2] = useState<ConfigTabla>(() => [
+  const {
+    columnas: configF2,
+    setColumnas: setConfigF2,
+    orden: ordenF2,
+    setOrden: setOrdenF2,
+  } = useConfigTabla('proyectos.f2.columnas', [
     { id: 'id', visible: true },
     { id: 'cliente', visible: true },
     { id: 'descripcion', visible: true },
@@ -560,6 +565,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
               <TablaConfigurable<Proyecto>
                 columnas={colsProyectos}
                 config={configF2}
+                onConfig={setConfigF2}
                 filas={proyectos}
                 orden={ordenF2}
                 onOrden={setOrdenF2}

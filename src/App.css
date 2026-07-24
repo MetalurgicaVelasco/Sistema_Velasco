@@ -3855,3 +3855,25 @@ textarea.ef-i {
   flex: 1;
   color: #2c2c2a;
 }
+
+/* ====== Resize de columnas (TablaConfigurable) ====== */
+/* Ojo: .tabla thead th ya es position:sticky (encabezado fijo al scrollear), y
+   eso alcanza como ancla para el handle. No lo pisamos con relative. */
+.th-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+.th-resize:hover {
+  background: #4a90d9;
+}
+/* Mientras se arrastra: cursor de resize en toda la pantalla y sin selección. */
+body.resizeando-col {
+  cursor: col-resize;
+  user-select: none;
+}
