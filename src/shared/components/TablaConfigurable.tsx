@@ -27,7 +27,7 @@ export type OrdenTabla = { colId: string; dir: 'asc' | 'desc' } | null
 
 // Config de columnas: lista ORDENADA de columnas con su visibilidad y ancho.
 // Ancho mínimo de una columna al redimensionar (px).
-const ANCHO_MIN = 40
+const ANCHO_MIN = 13
 
 export type ConfigColumna = { id: string; visible: boolean; ancho?: number }
 export type ConfigTabla = ConfigColumna[]
@@ -60,6 +60,7 @@ export default function TablaConfigurable<T>({
   columnas,
   config,
   onConfig,
+  clase,
   filas,
   orden,
   onOrden,
@@ -76,9 +77,12 @@ export default function TablaConfigurable<T>({
   columnas: ColumnaDef<T>[]
   config?: ConfigTabla // si no viene, se muestran todas en orden de definición
   onConfig?: (c: ConfigTabla) => void // habilita el resize de columnas
+  clase?: string // clase extra para la <table> (ej. 'tabla-fija')
   filas: T[]
-  orden: OrdenTabla
-  onOrden: (o: OrdenTabla) => void
+  // Orden de filas. Si no viene `onOrden`, la tabla NO ordena y los encabezados
+  // no son clickeables (ej. franja 3: su orden es el de los documentos).
+  orden?: OrdenTabla
+  onOrden?: (o: OrdenTabla) => void
   filaKey: (fila: T) => Key
   filaClase?: (fila: T) => string
   filaData?: (fila: T) => Record<string, string | number>
@@ -100,12 +104,12 @@ export default function TablaConfigurable<T>({
   }, [columnas, config])
 
   const filasOrdenadas = useMemo(() => {
-    if (!orden) return filas
+    if (!orden || !onOrden) return filas
     const col = columnas.find((c) => c.id === orden.colId)
     if (!col) return filas
     const factor = orden.dir === 'asc' ? 1 : -1
     return [...filas].sort((a, b) => factor * comparar(col.valor(a), col.valor(b), col.tipo))
-  }, [filas, orden, columnas])
+  }, [filas, orden, onOrden, columnas])
 
   // Resize: arrastrar el borde derecho del encabezado cambia el ancho de esa
   // columna. Se escucha en window para que el arrastre siga aunque el puntero
@@ -115,12 +119,26 @@ export default function TablaConfigurable<T>({
     e.preventDefault()
     e.stopPropagation() // que no dispare el orden
     const th = (e.currentTarget as HTMLElement).closest('th') as HTMLElement | null
-    const anchoInicial = th?.getBoundingClientRect().width ?? 100
+    const filaEnc = th?.parentElement
+
+    // Se fija el ancho ACTUAL de todas las columnas visibles antes de arrastrar.
+    // Si no, el espacio que libera la columna tomada lo absorbe alguna columna
+    // sin ancho fijo (ej. Descripción): si está a la izquierda, el borde que se
+    // arrastra no sigue al cursor y la columna anterior se agranda.
+    const medidos = new Map<string, number>()
+    const celdas = filaEnc ? (Array.from(filaEnc.children) as HTMLElement[]) : []
+    cols.forEach((c, i) => {
+      const celda = celdas[i]
+      if (celda) medidos.set(c.def.id, Math.round(celda.getBoundingClientRect().width))
+    })
+    const base = config.map((c) => (medidos.has(c.id) ? { ...c, ancho: medidos.get(c.id) } : c))
+
+    const anchoInicial = medidos.get(colId) ?? 100
     const xInicial = e.clientX
 
     const mover = (ev: PointerEvent) => {
       const nuevo = Math.max(ANCHO_MIN, Math.round(anchoInicial + (ev.clientX - xInicial)))
-      onConfig(config.map((c) => (c.id === colId ? { ...c, ancho: nuevo } : c)))
+      onConfig(base.map((c) => (c.id === colId ? { ...c, ancho: nuevo } : c)))
     }
     const soltar = () => {
       window.removeEventListener('pointermove', mover)
@@ -140,11 +158,11 @@ export default function TablaConfigurable<T>({
   }
 
   return (
-    <table className="tabla">
+    <table className={'tabla' + (clase ? ' ' + clase : '')}>
       <thead>
         <tr>
           {cols.map(({ def, ancho }) => {
-            const ordenable = def.ordenable !== false
+            const ordenable = !!onOrden && def.ordenable !== false
             const activa = orden?.colId === def.id
             const flecha = activa ? (orden!.dir === 'asc' ? ' ↑' : ' ↓') : ''
             return (
@@ -152,7 +170,7 @@ export default function TablaConfigurable<T>({
                 key={def.id}
                 className={ordenable ? 'th-ordenable' : undefined}
                 style={ancho ? { width: ancho, minWidth: ancho } : undefined}
-                onClick={ordenable ? () => onOrden(proximoOrden(orden, def.id)) : undefined}
+                onClick={ordenable ? () => onOrden(proximoOrden(orden ?? null, def.id)) : undefined}
               >
                 {def.titulo}
                 {flecha}
@@ -168,7 +186,7 @@ export default function TablaConfigurable<T>({
               </th>
             )
           })}
-          {acciones && <th>{accionesTitulo}</th>}
+          {acciones && <th className="th-acciones">{accionesTitulo}</th>}
         </tr>
       </thead>
       <tbody>

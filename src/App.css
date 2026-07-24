@@ -3877,3 +3877,43 @@ body.resizeando-col {
   cursor: col-resize;
   user-select: none;
 }
+
+/* ====== Tabla de ancho fijo (franja 3) ====== */
+/* `table-layout: fixed` hace que la tabla respete los anchos configurados en
+   vez de medir el contenido: así expandir/colapsar filas anidadas no mueve las
+   columnas. El texto que no entra se corta con "…" (el ancho se ajusta
+   arrastrando el borde del encabezado). */
+.tabla-fija {
+  table-layout: fixed;
+  width: 100%;
+}
+.tabla-fija th,
+.tabla-fija td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Las celdas miden el ancho INCLUYENDO el padding: así el valor que se guarda
+   al arrastrar es el mismo que el navegador aplica (si no, se infla en cada
+   arrastre). */
+.tabla-fija th,
+.tabla-fija td {
+  box-sizing: border-box;
+}
+/* La columna de acciones queda sin ancho fijo: es la última, así que absorbe el
+   espacio sobrante. De ese modo, al redimensionar cualquier columna el ajuste
+   ocurre siempre a la DERECHA y el borde arrastrado sigue al cursor. */
+.tabla-fija .th-acciones,
+.tabla-fija .tabla-acciones {
+  width: auto;
+  min-width: 90px;
+}
+/* La descripción del árbol no debe empujar: se recorta dentro de su celda. */
+.tabla-fija .arbol-desc {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}

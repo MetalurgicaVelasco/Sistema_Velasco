@@ -121,6 +121,21 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     { id: 'plazo', visible: true },
   ])
   const [panelColsF2, setPanelColsF2] = useState(false)
+
+  // Franja 3: ancho/posición/visibilidad de columnas (sin ordenamiento). Los
+  // anchos por defecto dejan a Descripción con el espacio sobrante.
+  const { columnas: configF3, setColumnas: setConfigF3 } = useConfigTabla(
+    'proyectos.f3.columnas',
+    [
+      { id: 'numero', visible: true, ancho: 60 },
+      { id: 'tipo', visible: true, ancho: 120 },
+      { id: 'descripcion', visible: true },
+      { id: 'cantidad', visible: true, ancho: 70 },
+      { id: 'estado', visible: true, ancho: 130 },
+      { id: 'procesos', visible: true, ancho: 125 },
+    ],
+  )
+  const [panelColsF3, setPanelColsF3] = useState(false)
   // Proyecto a mostrar en la vista de elemento cuando lo pasa el form (ej. un
   // proyecto recién creado que todavía no está en la lista).
   const [proyectoVista, setProyectoVista] = useState<Proyecto | null>(null)
@@ -280,6 +295,52 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       },
     ],
     [onNavegar],
+  )
+
+  // Columnas de Franja 3 (árbol de elementos). NO se ordenan por título: el
+  // orden mostrado es el que sale en los documentos, así que es siempre el mismo.
+  const colsElementos: ColumnaDef<FilaArbol>[] = useMemo(
+    () => [
+      { id: 'numero', titulo: 'Nº', tipo: 'numero', valor: (f) => f.numero },
+      { id: 'tipo', titulo: 'Tipo', tipo: 'texto', valor: (f) => f.el.tipo },
+      {
+        id: 'descripcion',
+        titulo: 'Descripción',
+        tipo: 'texto',
+        valor: (f) => f.el.descripcion,
+        render: (f) => (
+          <span className="arbol-desc" style={{ paddingLeft: f.nivel * 18 }}>
+            {f.tieneHijos ? (
+              <button
+                type="button"
+                className="arbol-chevron"
+                title={colapsados.has(f.el.id) ? 'Expandir' : 'Colapsar'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleColapso(f.el.id)
+                }}
+                onDoubleClick={(e) => e.stopPropagation()}
+              >
+                {colapsados.has(f.el.id) ? '▸' : '▾'}
+              </button>
+            ) : (
+              <span className="arbol-chevron-espacio" />
+            )}
+            {f.el.descripcion}
+          </span>
+        ),
+      },
+      { id: 'cantidad', titulo: 'Cant.', tipo: 'numero', valor: (f) => f.el.cantidad ?? 1 },
+      { id: 'estado', titulo: 'Estado', tipo: 'texto', valor: (f) => f.el.estado },
+      {
+        id: 'procesos',
+        titulo: 'Procesos',
+        tipo: 'numero',
+        valor: (f) => contarProc[f.el.id] ?? 0,
+        render: (f) => `${contarProc[f.el.id] ?? 0} proceso(s)`,
+      },
+    ],
+    [colapsados, contarProc],
   )
 
   const fotoElementoUrl = elementoSeleccionado ? fotoPublica(elementoSeleccionado.foto_url) : null
@@ -681,6 +742,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                         },
                       ]
                     : []),
+                  { label: 'Columnas…', onSelect: () => setPanelColsF3(true) },
                 ]
               }}
             >
@@ -719,86 +781,35 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
                   ref={listaElementoRef}
                   onKeyDown={onKeyElementos}
                 >
-                  <table className="tabla">
-                    <thead>
-                      <tr>
-                        <th>Nº</th>
-                        <th>Tipo</th>
-                        <th>Descripción</th>
-                        <th>Cant.</th>
-                        <th>Estado</th>
-                        <th>Procesos</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filasArbol.map((fila) => (
-                        <tr
-                          key={fila.el.id}
-                          data-elemento-id={fila.el.id}
-                          onContextMenu={() => setElementoSeleccionadoId(fila.el.id)}
-                          ref={
-                            fila.el.id === elementoSeleccionadoId
-                              ? filaElementoSelRef
-                              : undefined
-                          }
-                          className={
-                            'tabla-fila' +
-                            (fila.el.id === elementoSeleccionadoId ? ' seleccionada' : '')
-                          }
-                          onClick={() => {
-                            setElementoSeleccionadoId(fila.el.id)
-                            listaElementoRef.current?.focus()
-                          }}
-                          onDoubleClick={() => setElementoVista(fila.el)}
-                        >
-                          <td>{fila.numero}</td>
-                          <td>{fila.el.tipo}</td>
-                          <td>
-                            <span
-                              className="arbol-desc"
-                              style={{ paddingLeft: fila.nivel * 18 }}
-                            >
-                              {fila.tieneHijos ? (
-                                <button
-                                  type="button"
-                                  className="arbol-chevron"
-                                  title={
-                                    colapsados.has(fila.el.id) ? 'Expandir' : 'Colapsar'
-                                  }
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    toggleColapso(fila.el.id)
-                                  }}
-                                  onDoubleClick={(e) => e.stopPropagation()}
-                                >
-                                  {colapsados.has(fila.el.id) ? '▸' : '▾'}
-                                </button>
-                              ) : (
-                                <span className="arbol-chevron-espacio" />
-                              )}
-                              {fila.el.descripcion}
-                            </span>
-                          </td>
-                          <td>{fila.el.cantidad ?? 1}</td>
-                          <td>{fila.el.estado}</td>
-                          <td>{contarProc[fila.el.id] ?? 0} proceso(s)</td>
-                          <td className="tabla-acciones">
-                            <button
-                              type="button"
-                              className="empresas-editar"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setElementoVista(fila.el)
-                              }}
-                            >
-                              Editar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <TablaConfigurable<FilaArbol>
+                    columnas={colsElementos}
+                    config={configF3}
+                    onConfig={setConfigF3}
+                    clase="tabla-fija"
+                    filas={filasArbol}
+                    filaKey={(f) => f.el.id}
+                    filaClase={(f) => (f.el.id === elementoSeleccionadoId ? 'seleccionada' : '')}
+                    filaData={(f) => ({ 'data-elemento-id': f.el.id })}
+                    filaRef={(f) => (f.el.id === elementoSeleccionadoId ? filaElementoSelRef : undefined)}
+                    onFilaClick={(f) => {
+                      setElementoSeleccionadoId(f.el.id)
+                      listaElementoRef.current?.focus()
+                    }}
+                    onFilaContextMenu={(f) => setElementoSeleccionadoId(f.el.id)}
+                    onFilaDobleClick={(f) => setElementoVista(f.el)}
+                    acciones={(f) => (
+                      <button
+                        type="button"
+                        className="empresas-editar"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setElementoVista(f.el)
+                        }}
+                      >
+                        Editar
+                      </button>
+                    )}
+                  />
                 </div>
               )}
             </div>
@@ -851,6 +862,14 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
         </div>
       )}
 
+      {panelColsF3 && (
+        <PanelColumnas
+          columnas={colsElementos}
+          config={configF3}
+          onConfig={setConfigF3}
+          onCerrar={() => setPanelColsF3(false)}
+        />
+      )}
       {panelColsF2 && (
         <PanelColumnas
           columnas={colsProyectos}
