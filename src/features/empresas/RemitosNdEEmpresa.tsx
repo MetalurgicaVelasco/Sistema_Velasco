@@ -11,6 +11,7 @@ import {
   type NotaParaEditar,
 } from '../produccion/notasEnvioApi'
 import ModalEditarRemito from '../produccion/ModalEditarRemito'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import { eliminarRemito } from '../produccion/remitosApi'
 
 // Solapa "Remitos y NdE" de una empresa: lista los dos tipos de documento de
@@ -42,6 +43,8 @@ function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
     { id: 'origen', visible: true, ancho: 180 },
   ])
   const [panelCols, setPanelCols] = useState(false)
+  const [confirmar, setConfirmar] = useState<{ mensaje: string; onOk: () => void } | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   const recargar = useCallback(() => {
     let vivo = true
@@ -72,7 +75,7 @@ function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
 
   async function editarNota(d: DocumentoEnvio) {
     if (d.estado.startsWith('Cerrada')) {
-      window.alert('Esta nota ya fue cerrada por un remito. Para cambiarla, primero borrá el remito.')
+      setAviso('Esta nota ya fue cerrada por un remito. Para cambiarla, primero borrá el remito.')
       return
     }
     try {
@@ -80,22 +83,24 @@ function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
       const nota = await cargarNotaParaEditar(idDeDoc(d))
       setNotaEditando(nota)
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'No se pudo abrir la nota.')
+      setAviso(e instanceof Error ? e.message : 'No se pudo abrir la nota.')
     } finally {
       setProcesando(false)
     }
   }
 
-  async function borrarNota(d: DocumentoEnvio) {
-    if (!window.confirm(`¿Borrar la nota de envío ${d.numero}? No se puede deshacer.`)) return
-    setProcesando(true)
-    const { error: err } = await eliminarNotaEnvio(idDeDoc(d))
-    setProcesando(false)
-    if (err) {
-      window.alert(err)
-      return
-    }
-    recargar()
+  function borrarNota(d: DocumentoEnvio) {
+    setConfirmar({
+      mensaje: `¿Borrar la nota de envío ${d.numero}? No se puede deshacer.`,
+      onOk: async () => {
+        setProcesando(true)
+        const { error: err } = await eliminarNotaEnvio(idDeDoc(d))
+        setProcesando(false)
+        setConfirmar(null)
+        if (err) setAviso(err)
+        else recargar()
+      },
+    })
   }
 
   function editarRemito(d: DocumentoEnvio) {
@@ -106,21 +111,18 @@ function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
     })
   }
 
-  async function borrarRemito(d: DocumentoEnvio) {
-    if (
-      !window.confirm(
-        `¿Borrar el remito ${d.numero}? Si cerraba notas de envío, esas notas vuelven a quedar abiertas. No se puede deshacer.`,
-      )
-    )
-      return
-    setProcesando(true)
-    const { error: err } = await eliminarRemito(idDeDoc(d))
-    setProcesando(false)
-    if (err) {
-      window.alert(err)
-      return
-    }
-    recargar()
+  function borrarRemito(d: DocumentoEnvio) {
+    setConfirmar({
+      mensaje: `¿Borrar el remito ${d.numero}? Si cerraba notas de envío, esas notas vuelven a quedar abiertas. No se puede deshacer.`,
+      onOk: async () => {
+        setProcesando(true)
+        const { error: err } = await eliminarRemito(idDeDoc(d))
+        setProcesando(false)
+        setConfirmar(null)
+        if (err) setAviso(err)
+        else recargar()
+      },
+    })
   }
 
   const cols: ColumnaDef<DocumentoEnvio>[] = useMemo(
@@ -199,6 +201,29 @@ function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
             setNotaEditando(null)
             recargar()
           }}
+        />
+      )}
+
+      {confirmar && (
+        <ModalConfirmar
+          titulo="Confirmar borrado"
+          mensaje={confirmar.mensaje}
+          textoConfirmar="Borrar"
+          peligroso
+          procesando={procesando}
+          onConfirmar={confirmar.onOk}
+          onCancelar={() => setConfirmar(null)}
+        />
+      )}
+
+      {aviso && (
+        <ModalConfirmar
+          titulo="Aviso"
+          mensaje={aviso}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAviso(null)}
+          onCancelar={() => setAviso(null)}
         />
       )}
 

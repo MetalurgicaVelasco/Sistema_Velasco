@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Modal from '../../shared/components/Modal'
 import MenuContextual from '../../shared/components/MenuContextual'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import {
   cargarSectores,
   crearSector,
@@ -35,6 +36,11 @@ function SectoresEmpresa({ empresaId }: { empresaId: number }) {
   const [nombre, setNombre] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [errorModal, setErrorModal] = useState<string | null>(null)
+  const [confirmar, setConfirmar] = useState<
+    { titulo: string; mensaje: string; onOk: () => void } | null
+  >(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [procesandoConfirm, setProcesandoConfirm] = useState(false)
 
   async function recargar() {
     setCargando(true)
@@ -90,24 +96,34 @@ function SectoresEmpresa({ empresaId }: { empresaId: number }) {
     }
   }
 
-  async function eliminarSector(s: Sector) {
-    if (!window.confirm(`¿Borrar el sector "${s.nombre}"?`)) return
-    const { error } = await borrarSector(s)
-    if (error) {
-      window.alert(error)
-      return
-    }
-    recargar()
+  function eliminarSector(s: Sector) {
+    setConfirmar({
+      titulo: 'Borrar sector',
+      mensaje: `¿Borrar el sector "${s.nombre}"? No se puede deshacer.`,
+      onOk: async () => {
+        setProcesandoConfirm(true)
+        const { error } = await borrarSector(s)
+        setProcesandoConfirm(false)
+        setConfirmar(null)
+        if (error) setAviso(error)
+        else recargar()
+      },
+    })
   }
 
-  async function eliminarEquipo(e: Equipo) {
-    if (!window.confirm(`¿Borrar el equipo "${e.nombre}"?`)) return
-    const { error } = await borrarEquipo(e)
-    if (error) {
-      window.alert(error)
-      return
-    }
-    recargar()
+  function eliminarEquipo(e: Equipo) {
+    setConfirmar({
+      titulo: 'Borrar equipo',
+      mensaje: `¿Borrar el equipo "${e.nombre}"? No se puede deshacer.`,
+      onOk: async () => {
+        setProcesandoConfirm(true)
+        const { error } = await borrarEquipo(e)
+        setProcesandoConfirm(false)
+        setConfirmar(null)
+        if (error) setAviso(error)
+        else recargar()
+      },
+    })
   }
 
   const tituloModal =
@@ -291,6 +307,29 @@ function SectoresEmpresa({ empresaId }: { empresaId: number }) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {confirmar && (
+        <ModalConfirmar
+          titulo={confirmar.titulo}
+          mensaje={confirmar.mensaje}
+          textoConfirmar="Borrar"
+          peligroso
+          procesando={procesandoConfirm}
+          onConfirmar={confirmar.onOk}
+          onCancelar={() => setConfirmar(null)}
+        />
+      )}
+
+      {aviso && (
+        <ModalConfirmar
+          titulo="No se pudo borrar"
+          mensaje={aviso}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAviso(null)}
+          onCancelar={() => setAviso(null)}
+        />
       )}
     </div>
   )

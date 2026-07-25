@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Modal from '../../shared/components/Modal'
 import ChecklistColumnas from '../../shared/components/ChecklistColumnas'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { TipoProceso, Maquina, Personal } from '../../shared/types/recursos'
 import {
@@ -43,6 +44,7 @@ function ModalProceso({
   )
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [confirmarEliminar, setConfirmarEliminar] = useState(false)
 
   function toggleSuplente(id: number) {
     setSuplenteIds((prev) =>
@@ -89,17 +91,17 @@ function ModalProceso({
     onGuardado()
   }
 
-  async function eliminar() {
+  function eliminar() {
     if (!tipoProceso) return
-    const ok = window.confirm(
-      `¿Eliminar el proceso "${tipoProceso.nombre}"? Los procesos ya cargados ` +
-        `en la matriz y en los proyectos no se ven afectados, pero no vas a ` +
-        `poder elegirlo para nuevos.`,
-    )
-    if (!ok) return
+    setConfirmarEliminar(true)
+  }
+
+  async function hacerEliminar() {
+    if (!tipoProceso) return
     setGuardando(true)
     const { error: err } = await eliminarTipoProceso(tipoProceso.id)
     setGuardando(false)
+    setConfirmarEliminar(false)
     if (err) {
       setError(err)
       return
@@ -224,6 +226,18 @@ function ModalProceso({
             {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
+
+      {confirmarEliminar && (
+        <ModalConfirmar
+          titulo="Eliminar proceso"
+          mensaje={`¿Eliminar el proceso "${tipoProceso?.nombre}"? Los procesos ya cargados en la matriz y en los proyectos no se ven afectados, pero no vas a poder elegirlo para nuevos.`}
+          textoConfirmar="Eliminar"
+          peligroso
+          procesando={guardando}
+          onConfirmar={hacerEliminar}
+          onCancelar={() => setConfirmarEliminar(false)}
+        />
+      )}
     </Modal>
   )
 }

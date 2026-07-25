@@ -5,6 +5,7 @@ import { DOMINIO_PROYECTO, type DominioElemento } from './dominioElemento'
 import { elementoDraftVacio, elementoRowADraft, crearMaterial, tiposHijoPermitidos } from './elementoTipos'
 import type { Elemento, ElementoDraft, Material } from './elementoTipos'
 import ModalItem from './ModalItem'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 
 // Editor de elementos reutilizable. Encapsula el modal (ModalItem), la carga de
 // materiales y el guardar (crear o actualizar). Lo comparten los tres lugares que
@@ -26,6 +27,7 @@ export function useEditorElemento(
     parentId: number | null
     tipoPadre: string | null
   } | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   // Materiales para el selector del modal (una sola vez).
   useEffect(() => {
@@ -51,7 +53,7 @@ export function useEditorElemento(
       draft.tipo === 'componente' &&
       (await tieneHijos(draft.dbId, dom))
     ) {
-      window.alert(
+      setAviso(
         'Este elemento tiene elementos adentro; no puede pasar a Componente. ' +
           'Primero vaciá o mové su contenido.',
       )
@@ -76,16 +78,30 @@ export function useEditorElemento(
     return m
   }
 
-  const modal = modalElem ? (
-    <ModalItem
-      draft={modalElem.draft}
-      materiales={materiales}
-      tiposPermitidos={tiposHijoPermitidos(modalElem.tipoPadre)}
-      onAgregarMaterial={onAgregarMaterial}
-      onGuardar={guardar}
-      onCancelar={() => setModalElem(null)}
-    />
-  ) : null
+  const modal = (
+    <>
+      {modalElem && (
+        <ModalItem
+          draft={modalElem.draft}
+          materiales={materiales}
+          tiposPermitidos={tiposHijoPermitidos(modalElem.tipoPadre)}
+          onAgregarMaterial={onAgregarMaterial}
+          onGuardar={guardar}
+          onCancelar={() => setModalElem(null)}
+        />
+      )}
+      {aviso && (
+        <ModalConfirmar
+          titulo="No se puede"
+          mensaje={aviso}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAviso(null)}
+          onCancelar={() => setAviso(null)}
+        />
+      )}
+    </>
+  )
 
   return { abrirNuevo, abrirEditar, modal }
 }

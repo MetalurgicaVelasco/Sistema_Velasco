@@ -21,6 +21,7 @@ import {
 } from './procesosApi'
 import { esContenedor, tipoLabel, cargarAncestros, SELECT_ELEMENTO } from './elementosApi'
 import ModalPredecesores from '../../shared/components/ModalPredecesores'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import { useEditorElemento } from './useEditorElemento'
 import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
@@ -81,6 +82,8 @@ function VistaElemento({
   // Editor de posición: id del proceso cuyo "N/Total" está en modo edición.
   const [editandoPosId, setEditandoPosId] = useState<number | null>(null)
   const [posInput, setPosInput] = useState('')
+  const [confirmar, setConfirmar] = useState<{ mensaje: string; onOk: () => void } | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   // Recursos (tipos de proceso, máquinas, personal): se cargan una sola vez.
   useEffect(() => {
@@ -185,10 +188,15 @@ function VistaElemento({
     setModal(null)
     recargar(actual)
   }
-  async function onEliminar(p: Proceso) {
-    if (!window.confirm(`¿Eliminar el proceso "${nombreProceso(p)}"?`)) return
-    await eliminarProceso(p.id)
-    recargar(actual)
+  function onEliminar(p: Proceso) {
+    setConfirmar({
+      mensaje: `¿Eliminar el proceso "${nombreProceso(p)}"?`,
+      onOk: async () => {
+        setConfirmar(null)
+        await eliminarProceso(p.id)
+        recargar(actual)
+      },
+    })
   }
   async function onMover(p: Proceso, delta: number) {
     await moverProceso(actual.id, p.id, delta)
@@ -199,29 +207,34 @@ function VistaElemento({
     setEditandoPosId(null)
     const { error: err } = await moverProcesoAPos(actual.id, p.id, n)
     if (err) {
-      window.alert(err)
+      setAviso(err)
       return
     }
     recargar(actual)
   }
-  async function onDuplicar(p: Proceso, asRetrabajo: boolean) {
+  function onDuplicar(p: Proceso, asRetrabajo: boolean) {
     const msg = asRetrabajo
       ? `¿Crear una copia de "${nombreProceso(p)}" al final, marcada como retrabajo?`
       : `¿Duplicar "${nombreProceso(p)}" al final de la lista?`
-    if (!window.confirm(msg)) return
-    await duplicarProceso(p.id, asRetrabajo)
-    recargar(actual)
+    setConfirmar({
+      mensaje: msg,
+      onOk: async () => {
+        setConfirmar(null)
+        await duplicarProceso(p.id, asRetrabajo)
+        recargar(actual)
+      },
+    })
   }
-  async function onRedefinir() {
-    if (
-      !window.confirm(
-        'Se borran las correlatividades internas del elemento y se recrean lineales ' +
-          'según el orden actual. Las que van a otros elementos no se tocan. ¿Continuar?',
-      )
-    )
-      return
-    await redefinirPredecesores(actual.id)
-    recargar(actual)
+  function onRedefinir() {
+    setConfirmar({
+      mensaje:
+        'Se borran las correlatividades internas del elemento y se recrean lineales según el orden actual. Las que van a otros elementos no se tocan. ¿Continuar?',
+      onOk: async () => {
+        setConfirmar(null)
+        await redefinirPredecesores(actual.id)
+        recargar(actual)
+      },
+    })
   }
 
   // Marca/desmarca un proceso como hecho. Sin planificar por el tablero: escribe
@@ -233,7 +246,7 @@ function VistaElemento({
     if (estaHecho) {
       const { error: err } = await deshacerHechoProyecto(p.id, info?.planFecha != null)
       if (err) {
-        window.alert(err)
+        setAviso(err)
         return
       }
       recargar(actual)
@@ -248,12 +261,12 @@ function VistaElemento({
         return
       }
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e))
+      setAviso(e instanceof Error ? e.message : String(e))
       return
     }
     const { error: err } = await marcarHechoProyecto(p.id)
     if (err) {
-      window.alert(err)
+      setAviso(err)
       return
     }
     recargar(actual)
@@ -277,7 +290,7 @@ function VistaElemento({
       setPredPend(null)
       recargar(actual)
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e))
+      setAviso(e instanceof Error ? e.message : String(e))
     } finally {
       setPredTrabajando(false)
     }
@@ -291,7 +304,7 @@ function VistaElemento({
     const { error: err } = await marcarHechosProyecto(ids)
     setPredTrabajando(false)
     if (err) {
-      window.alert(err)
+      setAviso(err)
       return
     }
     setPredPend(null)
@@ -652,6 +665,28 @@ function VistaElemento({
           onMarcarUno={marcarPendiente}
           onMarcarTodo={marcarTodosPendientes}
           onCerrar={() => setPredPend(null)}
+        />
+      )}
+
+      {confirmar && (
+        <ModalConfirmar
+          titulo="Confirmar"
+          mensaje={confirmar.mensaje}
+          textoConfirmar="Aceptar"
+          peligroso
+          onConfirmar={confirmar.onOk}
+          onCancelar={() => setConfirmar(null)}
+        />
+      )}
+
+      {aviso && (
+        <ModalConfirmar
+          titulo="Aviso"
+          mensaje={aviso}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAviso(null)}
+          onCancelar={() => setAviso(null)}
         />
       )}
 

@@ -11,6 +11,7 @@ import type { Elemento } from './elementoTipos'
 import { tiposHijoPermitidos } from './elementoTipos'
 import { useEditorElemento } from './useEditorElemento'
 import { DOMINIO_PROYECTO, type DominioElemento } from './dominioElemento'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 
 const BUCKET = 'proyectos-fotos'
 
@@ -47,6 +48,8 @@ function SeccionContenido({
   const [hijos, setHijos] = useState<Elemento[]>([])
   const [contarProc, setContarProc] = useState<Record<number, number>>({})
   const [menuAgregar, setMenuAgregar] = useState(false)
+  const [confirmar, setConfirmar] = useState<{ mensaje: string; onOk: () => void } | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   async function recargar() {
     if (deshabilitado) {
@@ -99,16 +102,19 @@ function SeccionContenido({
   function editarHijo(h: Elemento) {
     abrirEditar(h, parentId, parentTipo)
   }
-  async function borrarHijo(h: Elemento) {
-    if (!window.confirm(`¿Borrar "${h.descripcion}"?`)) return
-    if (await tieneHijos(h.id, dom)) {
-      window.alert(
-        'Este elemento tiene elementos adentro. Vaciá o mové su contenido antes de borrarlo.',
-      )
-      return
-    }
-    await eliminarElemento(h.id, dom)
-    recargar()
+  function borrarHijo(h: Elemento) {
+    setConfirmar({
+      mensaje: `¿Borrar "${h.descripcion}"?`,
+      onOk: async () => {
+        setConfirmar(null)
+        if (await tieneHijos(h.id, dom)) {
+          setAviso('Este elemento tiene elementos adentro. Vaciá o mové su contenido antes de borrarlo.')
+          return
+        }
+        await eliminarElemento(h.id, dom)
+        recargar()
+      },
+    })
   }
 
   return (
@@ -216,6 +222,28 @@ function SeccionContenido({
       )}
 
       {modal}
+
+      {confirmar && (
+        <ModalConfirmar
+          titulo="Borrar elemento"
+          mensaje={confirmar.mensaje}
+          textoConfirmar="Borrar"
+          peligroso
+          onConfirmar={confirmar.onOk}
+          onCancelar={() => setConfirmar(null)}
+        />
+      )}
+
+      {aviso && (
+        <ModalConfirmar
+          titulo="No se puede borrar"
+          mensaje={aviso}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAviso(null)}
+          onCancelar={() => setAviso(null)}
+        />
+      )}
     </div>
   )
 }

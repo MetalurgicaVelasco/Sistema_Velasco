@@ -29,6 +29,7 @@ import type { Divergencia } from './motor/divergencias'
 import type { ModoProceso } from '../produccion/procesoTipos'
 import { predecesoresPendientes, type ProcesoPendiente } from '../produccion/procesosApi'
 import ModalPredecesores from '../../shared/components/ModalPredecesores'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import type { PersonalTablero, MaquinaTablero } from './tipos'
 import { horaAMin, parseFecha, hoyISO, sumarDias, sumarHabiles, type FechaISO } from '../../shared/lib/fechas'
 import { jornada } from '../../shared/lib/jornada'
@@ -66,6 +67,7 @@ type PlanCrudo = { ok: true; cambios: CambioPlan[]; movidos: number[] } | { ok: 
 
 export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNode) => void }) {
   const [datos, setDatos] = useState<TableroCargado | null>(null)
+  const [avisoTab, setAvisoTab] = useState<string | null>(null)
   // Fecha que ancla la ventana de días visible. Se corre por semanas con los
   // botones ◀ / Hoy / ▶. Arranca en hoy.
   const [fechaBase, setFechaBase] = useState<FechaISO>(hoyISO())
@@ -183,7 +185,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
       const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
     } catch (e) {
-      window.alert('No se pudo guardar el orden: ' + (e instanceof Error ? e.message : String(e)))
+      setAvisoTab('No se pudo guardar el orden: ' + (e instanceof Error ? e.message : String(e)))
     }
   }
 
@@ -200,7 +202,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
       const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
     } catch (e) {
-      window.alert('No se pudo quitar: ' + (e instanceof Error ? e.message : String(e)))
+      setAvisoTab('No se pudo quitar: ' + (e instanceof Error ? e.message : String(e)))
     }
   }
 
@@ -222,7 +224,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
       const nuevos = await cargarTablero(fechaBase)
       setDatos(nuevos)
     } catch (e) {
-      window.alert('No se pudo cambiar el estado: ' + (e instanceof Error ? e.message : String(e)))
+      setAvisoTab('No se pudo cambiar el estado: ' + (e instanceof Error ? e.message : String(e)))
     }
   }
 
@@ -242,7 +244,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
       setPredPend(null)
       setDatos(await cargarTablero(fechaBase))
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e))
+      setAvisoTab(e instanceof Error ? e.message : String(e))
     } finally {
       setPredTrabajando(false)
     }
@@ -257,7 +259,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
       setPredPend(null)
       setDatos(await cargarTablero(fechaBase))
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e))
+      setAvisoTab(e instanceof Error ? e.message : String(e))
     } finally {
       setPredTrabajando(false)
     }
@@ -388,7 +390,7 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
       try {
         await actualizarUrgencia(cambios.proyectoId, cambios.urgencia)
       } catch (e) {
-        window.alert('No se pudo cambiar la urgencia: ' + (e instanceof Error ? e.message : String(e)))
+        setAvisoTab('No se pudo cambiar la urgencia: ' + (e instanceof Error ? e.message : String(e)))
       }
     }
     const min = horaAMin(cambios.hora)
@@ -752,6 +754,16 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
       ) : null}
       {modalOrden ? (
         <OrdenModal personal={personal} onCerrar={() => setModalOrden(false)} onGuardar={guardarOrden} />
+      ) : null}
+      {avisoTab ? (
+        <ModalConfirmar
+          titulo="Aviso"
+          mensaje={avisoTab}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAvisoTab(null)}
+          onCancelar={() => setAvisoTab(null)}
+        />
       ) : null}
       <DragOverlay>{dragActivo ? <OverlayBloque b={dragActivo} /> : null}</DragOverlay>
       {modalActividad ? (

@@ -21,6 +21,7 @@ import SeccionContenido from './SeccionContenido'
 import { cargarRemitidoPorProyecto } from './remitidoApi'
 import MenuEnvio from './MenuEnvio'
 import { duplicarProyecto } from './duplicarProyecto'
+import { copiarMailProyecto } from './copiarMailProyecto'
 import ModalNotaEnvio from './ModalNotaEnvio'
 import ModalRemito from './ModalRemito'
 import ModalRemitosFaltantes from './ModalRemitosFaltantes'
@@ -61,6 +62,7 @@ function VistaProyectoForm({
   const [duplicando, setDuplicando] = useState(false)
   const [confirmarDup, setConfirmarDup] = useState(false)
   const [errorDup, setErrorDup] = useState<string | null>(null)
+  const [avisoMail, setAvisoMail] = useState<string | null>(null)
 
   useEffect(() => {
     if (proyecto?.id == null) return
@@ -193,6 +195,13 @@ function VistaProyectoForm({
 
   // Antes de abrir el modal de sub-estado, avisar si quedan ítems sin remitir del
   // todo. Es un aviso, no un bloqueo: desde el modal se puede cerrar igual.
+
+  async function onCopiarMail() {
+    if (idExistente == null) return
+    const { ok, error: err } = await copiarMailProyecto(idExistente)
+    setAvisoMail(ok ? '✓ Mail copiado al portapapeles. Pegalo en Gmail.' : 'No se pudo copiar: ' + (err ?? ''))
+    window.setTimeout(() => setAvisoMail(null), 4000)
+  }
 
   async function onDuplicar() {
     if (idExistente == null) return
@@ -387,6 +396,9 @@ function VistaProyectoForm({
 
         {!esNuevo ? (
           <div className="pf-barra-acciones">
+            <button type="button" className="envio-btn" onClick={onCopiarMail}>
+              ✉ Copiar mail
+            </button>
             <MenuEnvio
               onNotaEnvio={() => setNotaEnvio({ esExterna: false })}
               onCargarRemito={() => setRemitoAbierto(true)}
@@ -399,6 +411,7 @@ function VistaProyectoForm({
         ) : null}
 
         {avisoNota ? <div className="pf-aviso-ok">✓ {avisoNota}</div> : null}
+        {avisoMail ? <div className="pf-aviso-ok">{avisoMail}</div> : null}
 
         {/* En estos estados TacticaSoft ya tiene el pedido creado: si acá falta
             el número, el proyecto queda sin vincular. */}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Modal from '../../shared/components/Modal'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { Personal, Maquina, TipoProceso } from '../../shared/types/recursos'
 import { guardarPersonal, inhabilitarPersonal } from '../../shared/lib/recursosApi'
@@ -85,6 +86,8 @@ function ModalPersonal({
 
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [confirmarDesplazo, setConfirmarDesplazo] = useState<string | null>(null)
+  const [confirmarInhabilitar, setConfirmarInhabilitar] = useState(false)
 
   function setRol(maqId: number, rol: RolMaq | null) {
     setRolesMaq((prev) => {
@@ -121,10 +124,6 @@ function ModalPersonal({
     const maquinasIdeal = Object.entries(rolesMaq)
       .filter(([, r]) => r === 'ideal')
       .map(([k]) => Number(k))
-    const maquinasSuplente = Object.entries(rolesMaq)
-      .filter(([, r]) => r === 'suplente')
-      .map(([k]) => Number(k))
-
     // Aviso de desplazamiento: máquinas donde esta persona pasa a ser ideal y
     // ya tenían otro ideal (ese otro va a pasar a suplente).
     const desplazados = maquinasIdeal
@@ -136,17 +135,23 @@ function ModalPersonal({
         op: nombrePorId(m.operarioIdealId as number),
       }))
     if (desplazados.length) {
-      const lista = desplazados
-        .map((d) => `• ${d.maq}: ${d.op} → suplente`)
-        .join('\n')
-      const ok = window.confirm(
-        'Estas máquinas ya tenían otro operario ideal. Si continuás, ese ' +
-          'operario pasa a suplente:\n\n' +
-          lista,
+      setConfirmarDesplazo(
+        desplazados.map((d) => `• ${d.maq}: ${d.op} → suplente`).join('\n'),
       )
-      if (!ok) return
+      return
     }
 
+    await hacerGuardar()
+  }
+
+  async function hacerGuardar() {
+    setConfirmarDesplazo(null)
+    const maquinasIdeal = Object.entries(rolesMaq)
+      .filter(([, r]) => r === 'ideal')
+      .map(([k]) => Number(k))
+    const maquinasSuplente = Object.entries(rolesMaq)
+      .filter(([, r]) => r === 'suplente')
+      .map(([k]) => Number(k))
     setGuardando(true)
     const { error: err } = await guardarPersonal({
       id: persona?.id ?? null,
@@ -170,17 +175,17 @@ function ModalPersonal({
     onGuardado()
   }
 
-  async function inhabilitar() {
+  function inhabilitar() {
     if (!persona) return
-    const ok = window.confirm(
-      `¿Inhabilitar a "${nombrePersonal(persona)}"? Queda oculta de los ` +
-        'listados y deja de estar asignada a máquinas y procesos. No borra nada ' +
-        'de su historial.',
-    )
-    if (!ok) return
+    setConfirmarInhabilitar(true)
+  }
+
+  async function hacerInhabilitar() {
+    if (!persona) return
     setGuardando(true)
     const { error: err } = await inhabilitarPersonal(persona.id)
     setGuardando(false)
+    setConfirmarInhabilitar(false)
     if (err) {
       setError(err)
       return
@@ -413,6 +418,35 @@ function ModalPersonal({
             {guardando ? 'Guardando…' : esEditar ? 'Guardar' : 'Crear'}
           </button>
         </div>
+
+      {confirmarDesplazo && (
+        <ModalConfirmar
+          titulo="Reasignar operario ideal"
+          mensaje={
+            <>
+              Estas máquinas ya tenían otro operario ideal. Si continuás, ese operario pasa a
+              suplente:
+              <div style={{ whiteSpace: 'pre-line', marginTop: 8 }}>{confirmarDesplazo}</div>
+            </>
+          }
+          textoConfirmar="Continuar"
+          procesando={guardando}
+          onConfirmar={hacerGuardar}
+          onCancelar={() => setConfirmarDesplazo(null)}
+        />
+      )}
+
+      {confirmarInhabilitar && (
+        <ModalConfirmar
+          titulo="Inhabilitar persona"
+          mensaje={`¿Inhabilitar a "${persona ? nombrePersonal(persona) : ''}"? Queda oculta de los listados y deja de estar asignada a máquinas y procesos. No borra nada de su historial.`}
+          textoConfirmar="Inhabilitar"
+          peligroso
+          procesando={guardando}
+          onConfirmar={hacerInhabilitar}
+          onCancelar={() => setConfirmarInhabilitar(false)}
+        />
+      )}
     </Modal>
   )
 }

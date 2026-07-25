@@ -12,6 +12,7 @@ import {
   redefinirPredecesores,
   quitarCorrelatividad,
 } from './procesosApi'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import { DOMINIO_PROCESO_MATRIZ } from './dominioProceso'
 import { MODO_LABEL, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
@@ -56,6 +57,8 @@ function VistaElementoMatriz({
   const [materiales, setMateriales] = useState<Map<number, string>>(new Map())
   const [editandoPosId, setEditandoPosId] = useState<number | null>(null)
   const [posInput, setPosInput] = useState('')
+  const [confirmar, setConfirmar] = useState<{ mensaje: string; onOk: () => void } | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -143,10 +146,15 @@ function VistaElementoMatriz({
     setModalProc(null)
     recargar(actual)
   }
-  async function onEliminarProc(p: Proceso) {
-    if (!window.confirm(`¿Eliminar el proceso "${nombreProceso(p)}"?`)) return
-    await eliminarProceso(p.id, DOMINIO_PROCESO_MATRIZ)
-    recargar(actual)
+  function onEliminarProc(p: Proceso) {
+    setConfirmar({
+      mensaje: `¿Eliminar el proceso "${nombreProceso(p)}"?`,
+      onOk: async () => {
+        setConfirmar(null)
+        await eliminarProceso(p.id, DOMINIO_PROCESO_MATRIZ)
+        recargar(actual)
+      },
+    })
   }
   async function onMoverProc(p: Proceso, delta: number) {
     await moverProceso(actual.id, p.id, delta, DOMINIO_PROCESO_MATRIZ)
@@ -161,7 +169,7 @@ function VistaElementoMatriz({
     const { error } = await moverProcesoAPos(actual.id, p.id, pos, DOMINIO_PROCESO_MATRIZ)
     setEditandoPosId(null)
     if (error) {
-      window.alert(error)
+      setAviso(error)
       return
     }
     recargar(actual)
@@ -170,14 +178,19 @@ function VistaElementoMatriz({
     await duplicarProceso(p.id, false, DOMINIO_PROCESO_MATRIZ)
     recargar(actual)
   }
-  async function onRedefinir() {
-    if (!window.confirm('Se van a reasignar los predecesores en orden lineal (1→2→3…). ¿Seguir?')) return
-    const { error } = await redefinirPredecesores(actual.id, DOMINIO_PROCESO_MATRIZ)
-    if (error) {
-      window.alert(error)
-      return
-    }
-    recargar(actual)
+  function onRedefinir() {
+    setConfirmar({
+      mensaje: 'Se van a reasignar los predecesores en orden lineal (1→2→3…). ¿Seguir?',
+      onOk: async () => {
+        setConfirmar(null)
+        const { error } = await redefinirPredecesores(actual.id, DOMINIO_PROCESO_MATRIZ)
+        if (error) {
+          setAviso(error)
+          return
+        }
+        recargar(actual)
+      },
+    })
   }
   async function onQuitarPred(c: Correlatividad) {
     await quitarCorrelatividad(c.id, DOMINIO_PROCESO_MATRIZ)
@@ -185,10 +198,15 @@ function VistaElementoMatriz({
   }
 
   // ---- Acciones de composición ----
-  async function onQuitarHijo(h: HijoComposicion) {
-    if (!window.confirm(`¿Sacar "${h.descripcion}" de este conjunto? La pieza sigue en el catálogo.`)) return
-    await quitarHijo(h.composicionId)
-    recargar(actual)
+  function onQuitarHijo(h: HijoComposicion) {
+    setConfirmar({
+      mensaje: `¿Sacar "${h.descripcion}" de este conjunto? La pieza sigue en el catálogo.`,
+      onOk: async () => {
+        setConfirmar(null)
+        await quitarHijo(h.composicionId)
+        recargar(actual)
+      },
+    })
   }
   async function onCambiarCantidad(h: HijoComposicion) {
     const txt = window.prompt(`Cantidad de "${h.descripcion}" en este conjunto:`, String(h.cantidad))
@@ -197,7 +215,7 @@ function VistaElementoMatriz({
       await cambiarCantidad(h.composicionId, Number(txt))
       recargar(actual)
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'No se pudo cambiar la cantidad.')
+      setAviso(e instanceof Error ? e.message : 'No se pudo cambiar la cantidad.')
     }
   }
 
@@ -515,6 +533,28 @@ function VistaElementoMatriz({
             recargar(actual)
           }}
           onCancelar={() => setModalExistente(false)}
+        />
+      )}
+
+      {confirmar && (
+        <ModalConfirmar
+          titulo="Confirmar"
+          mensaje={confirmar.mensaje}
+          textoConfirmar="Aceptar"
+          peligroso
+          onConfirmar={confirmar.onOk}
+          onCancelar={() => setConfirmar(null)}
+        />
+      )}
+
+      {aviso && (
+        <ModalConfirmar
+          titulo="Aviso"
+          mensaje={aviso}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAviso(null)}
+          onCancelar={() => setAviso(null)}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import MenuContextual from '../../shared/components/MenuContextual'
+import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import ModalElementoMatriz from './ModalElementoMatriz'
 import ModalAgregarExistente from './ModalAgregarExistente'
 import VistaElementoMatriz from './VistaElementoMatriz'
@@ -48,6 +49,8 @@ function Matriz() {
   const [clientes, setClientes] = useState<ClienteNodo[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmar, setConfirmar] = useState<{ mensaje: string; onOk: () => void } | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   // Filtros
   const [busqueda, setBusqueda] = useState(guardada?.busqueda ?? '')
@@ -182,21 +185,31 @@ function Matriz() {
     setFiltroTipo('')
   }
 
-  async function sacarDelConjunto(h: HijoComposicion, padreId: number) {
-    if (!window.confirm(`¿Sacar "${h.descripcion}" de este conjunto? La pieza sigue en el catálogo.`)) return
-    await quitarHijo(h.composicionId)
-    const hijos = await cargarComposicion(padreId)
-    setComposicion((prev) => ({ ...prev, [padreId]: hijos }))
+  function sacarDelConjunto(h: HijoComposicion, padreId: number) {
+    setConfirmar({
+      mensaje: `¿Sacar "${h.descripcion}" de este conjunto? La pieza sigue en el catálogo.`,
+      onOk: async () => {
+        setConfirmar(null)
+        await quitarHijo(h.composicionId)
+        const hijos = await cargarComposicion(padreId)
+        setComposicion((prev) => ({ ...prev, [padreId]: hijos }))
+      },
+    })
   }
 
-  async function desactivar(el: ElementoMatriz) {
-    if (!window.confirm(`¿Dar de baja "${el.descripcion}" del catálogo?`)) return
-    try {
-      await desactivarElementoMatriz(el.id)
-      recargar()
-    } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'No se pudo dar de baja.')
-    }
+  function desactivar(el: ElementoMatriz) {
+    setConfirmar({
+      mensaje: `¿Dar de baja "${el.descripcion}" del catálogo?`,
+      onOk: async () => {
+        setConfirmar(null)
+        try {
+          await desactivarElementoMatriz(el.id)
+          recargar()
+        } catch (e) {
+          setAviso(e instanceof Error ? e.message : 'No se pudo dar de baja.')
+        }
+      },
+    })
   }
 
   // Cada pieza es una tarjeta. Al expandirse, sus hijos van dentro de un recuadro
@@ -502,6 +515,28 @@ function Matriz() {
             setComposicion((prev) => ({ ...prev, [padreId]: hijos }))
           }}
           onCancelar={() => setModalExistente(null)}
+        />
+      )}
+
+      {confirmar && (
+        <ModalConfirmar
+          titulo="Confirmar"
+          mensaje={confirmar.mensaje}
+          textoConfirmar="Aceptar"
+          peligroso
+          onConfirmar={confirmar.onOk}
+          onCancelar={() => setConfirmar(null)}
+        />
+      )}
+
+      {aviso && (
+        <ModalConfirmar
+          titulo="Aviso"
+          mensaje={aviso}
+          soloAceptar
+          textoConfirmar="Entendido"
+          onConfirmar={() => setAviso(null)}
+          onCancelar={() => setAviso(null)}
         />
       )}
     </div>
