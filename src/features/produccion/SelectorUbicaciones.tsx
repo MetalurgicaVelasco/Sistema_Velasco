@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
-import Modal from '../../shared/components/Modal'
-import { cargarSectores, crearSector, crearEquipo, type Sector } from '../empresas/sectoresApi'
+import {
+  cargarSectores,
+  crearSector,
+  crearEquipo,
+  type Sector,
+} from '../empresas/sectoresApi'
 import { cargarRutas } from './matrizApi'
+import ModalPrompt from '../../shared/components/ModalPrompt'
 
 type Empresa = { id: number; nombre: string }
-
-// Valor centinela de la opción "+ Nuevo…" de los desplegables de Sector/Equipo.
-const NUEVO = '__nuevo__'
 
 // Una ubicación elegida, con los nombres resueltos para mostrarla como chip.
 export type Ubicacion = {
@@ -18,8 +20,7 @@ export type Ubicacion = {
 
 // Selector de ubicaciones del catálogo: dónde se instala una pieza.
 // Se eligen Cliente → Sector → Equipo y se agregan a una lista (puede haber
-// varias). Sector y Equipo se pueden crear al vuelo: la opción "+ Nuevo…" del
-// desplegable abre un modal chico con el nombre.
+// varias). Desde acá se pueden crear sectores y equipos nuevos.
 //
 // El CLIENTE no se elige aparte: se deriva de las ubicaciones cargadas.
 function SelectorUbicaciones({
@@ -35,33 +36,24 @@ function SelectorUbicaciones({
   const [sectorId, setSectorId] = useState<number | ''>('')
   const [equipoId, setEquipoId] = useState<number | ''>('')
   const [error, setError] = useState<string | null>(null)
+  const [prompt, setPrompt] = useState<
+    { titulo: string; etiqueta: string; onOk: (v: string) => void } | null
+  >(null)
 
-  // Modal de alta rápida de sector/equipo (null = cerrado).
-  const [alta, setAlta] = useState<'sector' | 'equipo' | null>(null)
-  const [altaNombre, setAltaNombre] = useState('')
-  const [altaError, setAltaError] = useState<string | null>(null)
-  const [altaGuardando, setAltaGuardando] = useState(false)
-
-  // Red de seguridad: si llegan ubicaciones sin nombre resuelto (clienteId 0),
-  // se completan con su ruta legible. Normalmente el modal ya las manda resueltas.
+  // Si llegan ubicaciones sin nombre resuelto (al editar una pieza), las
+  // completamos con su ruta legible "Cliente › Sector › Equipo".
   useEffect(() => {
     const sinResolver = valor.filter((u) => u.clienteId === 0)
     if (!sinResolver.length) return
-    let vivo = true
-    cargarRutas(sinResolver.map((u) => u.equipoId))
-      .then((rutas) => {
-        if (!vivo || !rutas.length) return
-        onCambiar(
-          valor.map((u) => {
-            const r = rutas.find((x) => x.equipoId === u.equipoId)
-            return r ? { equipoId: r.equipoId, clienteId: r.clienteId, texto: r.texto } : u
-          }),
-        )
-      })
-      .catch(() => {}) // si falla, no rompe el modal; quedan con el texto que tengan
-    return () => {
-      vivo = false
-    }
+    cargarRutas(sinResolver.map((u) => u.equipoId)).then((rutas) => {
+      if (!rutas.length) return
+      onCambiar(
+        valor.map((u) => {
+          const r = rutas.find((x) => x.equipoId === u.equipoId)
+          return r ? { equipoId: r.equipoId, clienteId: r.clienteId, texto: r.texto } : u
+        }),
+      )
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valor])
 
@@ -87,45 +79,45 @@ function SelectorUbicaciones({
 
   const equipos = sectorId === '' ? [] : (sectores.find((s) => s.id === sectorId)?.equipos ?? [])
 
-  async function recargarSectores(): Promise<void> {
+  async function recargarSectores() {
     if (clienteId === '') return
     setSectores(await cargarSectores(clienteId))
   }
 
-  function abrirAlta(tipo: 'sector' | 'equipo') {
-    setAltaNombre('')
-    setAltaError(null)
-    setAlta(tipo)
+  function nuevoSector() {
+    if (clienteId === '') return
+    setPrompt({
+      titulo: 'Nuevo sector',
+      etiqueta: 'Nombre del sector',
+      onOk: async (nombre) => {
+        setPrompt(null)
+        if (!nombre.trim()) return
+        try {
+          await crearSector(clienteId, nombre.trim())
+          await recargarSectores()
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'No se pudo crear el sector.')
+        }
+      },
+    })
   }
 
-  // Crea el sector o equipo desde el modal chico, lo recarga y lo deja elegido.
-  async function crearAlta() {
-    const nombre = altaNombre.trim()
-    if (!nombre) {
-      setAltaError('El nombre es obligatorio.')
-      return
-    }
-    setAltaGuardando(true)
-    try {
-      if (alta === 'sector') {
-        if (clienteId === '') return
-        const creado = await crearSector(clienteId, nombre)
-        await recargarSectores()
-        setSectorId(creado.id)
-        setEquipoId('')
-      } else if (alta === 'equipo') {
-        if (sectorId === '') return
-        const creado = await crearEquipo(sectorId, nombre)
-        await recargarSectores()
-        setEquipoId(creado.id)
-      }
-      setAlta(null)
-      setAltaNombre('')
-    } catch (e) {
-      setAltaError(e instanceof Error ? e.message : 'No se pudo crear.')
-    } finally {
-      setAltaGuardando(false)
-    }
+  function nuevoEquipo() {
+    if (sectorId === '') return
+    setPrompt({
+      titulo: 'Nuevo equipo',
+      etiqueta: 'Nombre del equipo',
+      onOk: async (nombre) => {
+        setPrompt(null)
+        if (!nombre.trim()) return
+        try {
+          await crearEquipo(sectorId, nombre.trim())
+          await recargarSectores()
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'No se pudo crear el equipo.')
+        }
+      },
+    })
   }
 
   function agregar() {
@@ -158,8 +150,6 @@ function SelectorUbicaciones({
     .map((id) => empresas.find((e) => e.id === id)?.nombre ?? '?')
     .join(', ')
 
-  const sectorNombre = sectorId === '' ? '' : (sectores.find((s) => s.id === sectorId)?.nombre ?? '')
-
   return (
     <div className="ubic-bloque">
       <div className="ubic-titulo">Ubicaciones *</div>
@@ -168,78 +158,84 @@ function SelectorUbicaciones({
         ubicación.
       </p>
 
-      {/* Cliente: en su propia fila, a lo ancho. */}
-      <label className="ubic-campo ubic-campo-cliente">
-        Cliente
-        <select
-          className="empresa-input"
-          value={clienteId}
-          onChange={(e) => {
-            setClienteId(e.target.value === '' ? '' : Number(e.target.value))
-            setSectorId('')
-            setEquipoId('')
-          }}
-        >
-          <option value="">— elegir —</option>
-          {empresas.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.nombre}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {/* Sector · Equipo · Agregar: todo en una misma fila. */}
-      <div className="ubic-fila-agregar">
+      <div className="ubic-selects">
         <label className="ubic-campo">
-          Sector
+          Cliente
           <select
             className="empresa-input"
-            value={sectorId}
-            disabled={clienteId === ''}
+            value={clienteId}
             onChange={(e) => {
-              const v = e.target.value
-              if (v === NUEVO) {
-                abrirAlta('sector')
-                return
-              }
-              setSectorId(v === '' ? '' : Number(v))
+              setClienteId(e.target.value === '' ? '' : Number(e.target.value))
+              setSectorId('')
               setEquipoId('')
             }}
           >
             <option value="">— elegir —</option>
-            {sectores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nombre}
-              </option>
-            ))}
-            <option value={NUEVO}>+ Nuevo sector…</option>
-          </select>
-        </label>
-
-        <label className="ubic-campo">
-          Equipo
-          <select
-            className="empresa-input"
-            value={equipoId}
-            disabled={sectorId === ''}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === NUEVO) {
-                abrirAlta('equipo')
-                return
-              }
-              setEquipoId(v === '' ? '' : Number(v))
-            }}
-          >
-            <option value="">— elegir —</option>
-            {equipos.map((e) => (
+            {empresas.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.nombre}
               </option>
             ))}
-            <option value={NUEVO}>+ Nuevo equipo…</option>
           </select>
+        </label>
+
+        <label className="ubic-campo">
+          Sector
+          <div className="ubic-fila">
+            <select
+              className="empresa-input"
+              value={sectorId}
+              disabled={clienteId === ''}
+              onChange={(e) => {
+                setSectorId(e.target.value === '' ? '' : Number(e.target.value))
+                setEquipoId('')
+              }}
+            >
+              <option value="">— elegir —</option>
+              {sectores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nombre}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="empresa-boton-secundario ubic-mas"
+              disabled={clienteId === ''}
+              onClick={nuevoSector}
+              title="Nuevo sector"
+            >
+              +
+            </button>
+          </div>
+        </label>
+
+        <label className="ubic-campo">
+          Equipo
+          <div className="ubic-fila">
+            <select
+              className="empresa-input"
+              value={equipoId}
+              disabled={sectorId === ''}
+              onChange={(e) => setEquipoId(e.target.value === '' ? '' : Number(e.target.value))}
+            >
+              <option value="">— elegir —</option>
+              {equipos.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="empresa-boton-secundario ubic-mas"
+              disabled={sectorId === ''}
+              onClick={nuevoEquipo}
+              title="Nuevo equipo"
+            >
+              +
+            </button>
+          </div>
         </label>
 
         <button type="button" className="empresa-boton ubic-agregar" onClick={agregar}>
@@ -270,38 +266,14 @@ function SelectorUbicaciones({
         <span className="pf-ayuda">Se determina por las ubicaciones. No se edita a mano.</span>
       </label>
 
-      {/* Alta rápida de sector/equipo: modal chico aparte, sin ensuciar la fila. */}
-      {alta && (
-        <Modal
-          titulo={alta === 'sector' ? 'Nuevo sector' : `Nuevo equipo${sectorNombre ? ` en "${sectorNombre}"` : ''}`}
-          onCerrar={() => setAlta(null)}
-          ancho={380}
-        >
-          <label className="empresa-campo">
-            Nombre *
-            <input
-              className="empresa-input"
-              value={altaNombre}
-              autoFocus
-              onChange={(e) => setAltaNombre(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  crearAlta()
-                }
-              }}
-            />
-          </label>
-          {altaError && <p className="empresa-form-error">{altaError}</p>}
-          <div className="pf-acciones">
-            <button type="button" className="empresa-boton-secundario" onClick={() => setAlta(null)}>
-              Cancelar
-            </button>
-            <button type="button" className="empresa-boton" onClick={crearAlta} disabled={altaGuardando}>
-              {altaGuardando ? 'Creando…' : 'Crear'}
-            </button>
-          </div>
-        </Modal>
+      {prompt && (
+        <ModalPrompt
+          titulo={prompt.titulo}
+          etiqueta={prompt.etiqueta}
+          textoConfirmar="Crear"
+          onConfirmar={prompt.onOk}
+          onCancelar={() => setPrompt(null)}
+        />
       )}
     </div>
   )

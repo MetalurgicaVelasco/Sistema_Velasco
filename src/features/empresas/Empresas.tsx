@@ -12,6 +12,8 @@ import LogoEmpresa from './LogoEmpresa'
 import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
 import PanelColumnas from '../../shared/components/PanelColumnas'
 import RemitosNdEEmpresa from './RemitosNdEEmpresa'
+import ProyectosEmpresa from './ProyectosEmpresa'
+import PedidosEmpresa from './PedidosEmpresa'
 import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
 
 type Empresa = {
@@ -855,6 +857,10 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
         <div className="enlazados-contenido">
           {!empresaSeleccionada ? (
             <div className="enlazados-aviso">Seleccioná una empresa.</div>
+          ) : tabEnlazados === 'proyectos' ? (
+            <ProyectosEmpresa empresaId={empresaSeleccionada.id} />
+          ) : tabEnlazados === 'pedidos' ? (
+            <PedidosEmpresa empresaId={empresaSeleccionada.id} />
           ) : tabEnlazados === 'remitos' ? (
             <RemitosNdEEmpresa empresaId={empresaSeleccionada.id} />
           ) : (

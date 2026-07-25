@@ -13,6 +13,7 @@ import {
   quitarCorrelatividad,
 } from './procesosApi'
 import ModalConfirmar from '../../shared/components/ModalConfirmar'
+import ModalPrompt from '../../shared/components/ModalPrompt'
 import { DOMINIO_PROCESO_MATRIZ } from './dominioProceso'
 import { MODO_LABEL, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
@@ -59,6 +60,9 @@ function VistaElementoMatriz({
   const [posInput, setPosInput] = useState('')
   const [confirmar, setConfirmar] = useState<{ mensaje: string; onOk: () => void } | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [promptCantidad, setPromptCantidad] = useState<
+    { titulo: string; etiqueta: string; valorInicial: string; onOk: (v: string) => void } | null
+  >(null)
 
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -208,15 +212,22 @@ function VistaElementoMatriz({
       },
     })
   }
-  async function onCambiarCantidad(h: HijoComposicion) {
-    const txt = window.prompt(`Cantidad de "${h.descripcion}" en este conjunto:`, String(h.cantidad))
-    if (!txt) return
-    try {
-      await cambiarCantidad(h.composicionId, Number(txt))
-      recargar(actual)
-    } catch (e) {
-      setAviso(e instanceof Error ? e.message : 'No se pudo cambiar la cantidad.')
-    }
+  function onCambiarCantidad(h: HijoComposicion) {
+    setPromptCantidad({
+      titulo: 'Cambiar cantidad',
+      etiqueta: `Cantidad de "${h.descripcion}" en este conjunto`,
+      valorInicial: String(h.cantidad),
+      onOk: async (txt) => {
+        setPromptCantidad(null)
+        if (!txt.trim()) return
+        try {
+          await cambiarCantidad(h.composicionId, Number(txt))
+          recargar(actual)
+        } catch (e) {
+          setAviso(e instanceof Error ? e.message : 'No se pudo cambiar la cantidad.')
+        }
+      },
+    })
   }
 
   const esContenedor = actual.tipo !== 'componente'
@@ -533,6 +544,17 @@ function VistaElementoMatriz({
             recargar(actual)
           }}
           onCancelar={() => setModalExistente(false)}
+        />
+      )}
+
+      {promptCantidad && (
+        <ModalPrompt
+          titulo={promptCantidad.titulo}
+          etiqueta={promptCantidad.etiqueta}
+          valorInicial={promptCantidad.valorInicial}
+          tipo="number"
+          onConfirmar={promptCantidad.onOk}
+          onCancelar={() => setPromptCantidad(null)}
         />
       )}
 
