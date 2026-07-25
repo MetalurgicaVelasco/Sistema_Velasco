@@ -41,7 +41,21 @@ function etiquetaProyecto(p: any): string | null {
   return `#${pr.id} — ${pr.descripcion ?? ''}`.trim()
 }
 
+// Filtro: por empresa (ficha de la empresa) o por proyecto (franja 4 de un
+// proyecto). Comparte toda la lógica de vincular notas↔remitos.
+type Filtro = { empresaId: number } | { proyectoId: number }
+
 export async function cargarDocumentosEnvio(empresaId: number): Promise<DocumentoEnvio[]> {
+  return cargarDocumentos({ empresaId })
+}
+
+export async function cargarDocumentosEnvioProyecto(proyectoId: number): Promise<DocumentoEnvio[]> {
+  return cargarDocumentos({ proyectoId })
+}
+
+async function cargarDocumentos(filtro: Filtro): Promise<DocumentoEnvio[]> {
+  const col = 'empresaId' in filtro ? 'empresa_id' : 'proyecto_id'
+  const val = 'empresaId' in filtro ? filtro.empresaId : filtro.proyectoId
   const selProyecto = 'proyecto:proyectos!proyecto_id ( id, descripcion, pedido_nro )'
 
   const [notasRes, remitosRes] = await Promise.all([
@@ -50,11 +64,11 @@ export async function cargarDocumentosEnvio(empresaId: number): Promise<Document
       .select(
         `id, numero, numero_impreso, fecha, es_externa, pedido_nro, creado_por_nombre, ${selProyecto}`,
       )
-      .eq('empresa_id', empresaId),
+      .eq(col, val),
     supabase
       .from('remitos')
       .select(`id, numero, fecha, tipo, creado_por_nombre, ${selProyecto}`)
-      .eq('empresa_id', empresaId),
+      .eq(col, val),
   ])
   if (notasRes.error) throw new Error(notasRes.error.message)
   if (remitosRes.error) throw new Error(remitosRes.error.message)

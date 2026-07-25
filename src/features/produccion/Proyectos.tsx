@@ -6,6 +6,7 @@ import VistaProyectoForm from './VistaProyectoForm'
 import VistaElemento from './VistaElemento'
 import ModalImportarMatriz from './ModalImportarMatriz'
 import NotasProyecto from './NotasProyecto'
+import RemitosNdEEmpresa from '../empresas/RemitosNdEEmpresa'
 import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
 import PanelColumnas from '../../shared/components/PanelColumnas'
 import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
@@ -897,6 +898,8 @@ function Proyectos({
             <div className="enlazados-aviso">Seleccioná un proyecto.</div>
           ) : tabEnlazadosProy === 'notas' ? (
             <NotasProyecto proyectoId={seleccionado.id} />
+          ) : tabEnlazadosProy === 'remitos' ? (
+            <RemitosNdEEmpresa proyectoId={seleccionado.id} />
           ) : (
             <div className="enlazados-aviso">Esta sección se construye más adelante.</div>
           )}

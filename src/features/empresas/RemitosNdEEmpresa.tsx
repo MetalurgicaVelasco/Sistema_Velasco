@@ -3,7 +3,12 @@ import MenuContextual from '../../shared/components/MenuContextual'
 import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
 import PanelColumnas from '../../shared/components/PanelColumnas'
 import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
-import { cargarDocumentosEnvio, fmtFecha, type DocumentoEnvio } from './remitosNdEApi'
+import {
+  cargarDocumentosEnvio,
+  cargarDocumentosEnvioProyecto,
+  fmtFecha,
+  type DocumentoEnvio,
+} from './remitosNdEApi'
 import ModalNotaEnvio from '../produccion/ModalNotaEnvio'
 import {
   cargarNotaParaEditar,
@@ -17,7 +22,15 @@ import { eliminarRemito } from '../produccion/remitosApi'
 // Solapa "Remitos y NdE" de una empresa: lista los dos tipos de documento de
 // envío. Desde acá se pueden editar y borrar (las notas en esta tanda; los
 // remitos, en la siguiente).
-function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
+// Lista de documentos de envío (remitos + notas). Se usa en la ficha de la
+// empresa (empresaId) y en la franja 4 de un proyecto (proyectoId).
+function RemitosNdEEmpresa({
+  empresaId,
+  proyectoId,
+}: {
+  empresaId?: number
+  proyectoId?: number
+}) {
   const [docs, setDocs] = useState<DocumentoEnvio[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +62,13 @@ function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
   const recargar = useCallback(() => {
     let vivo = true
     setCargando(true)
-    cargarDocumentosEnvio(empresaId)
+    const cargar =
+      empresaId != null
+        ? cargarDocumentosEnvio(empresaId)
+        : proyectoId != null
+          ? cargarDocumentosEnvioProyecto(proyectoId)
+          : Promise.resolve([])
+    cargar
       .then((d) => {
         if (vivo) {
           setDocs(d)
@@ -65,7 +84,7 @@ function RemitosNdEEmpresa({ empresaId }: { empresaId: number }) {
     return () => {
       vivo = false
     }
-  }, [empresaId])
+  }, [empresaId, proyectoId])
 
   useEffect(() => recargar(), [recargar])
 
