@@ -51,14 +51,14 @@ function App() {
     }
 
     if (seleccion.seccionId === 'empresas' && seleccion.moduloId === 'empresas') {
-      return <Empresas filtroEntrante={filtroEntrante} />
+      return <Empresas filtroEntrante={filtroEntrante} onNavegar={navegar} />
     }
 
     if (
       seleccion.seccionId === 'produccion' &&
       seleccion.moduloId === 'proyectos'
     ) {
-      return <Proyectos onNavegar={navegar} />
+      return <Proyectos onNavegar={navegar} filtroEntrante={filtroEntrante} />
     }
 
     if (

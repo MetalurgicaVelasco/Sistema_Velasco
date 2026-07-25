@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import type { NavFiltro } from '../../shared/types/navegacion'
+import type { NavFiltro, Navegar } from '../../shared/types/navegacion'
 import { supabase } from '../../shared/lib/supabaseClient'
 import { contiene } from '../../shared/lib/texto'
 import MenuContextual from '../../shared/components/MenuContextual'
@@ -269,7 +269,13 @@ function CamposEmpresa({
   )
 }
 
-function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
+function Empresas({
+  filtroEntrante,
+  onNavegar,
+}: {
+  filtroEntrante?: NavFiltro | null
+  onNavegar?: Navegar
+}) {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -353,7 +359,7 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
   // salto (aplicadoRef evita re-aplicar cuando recargan las empresas).
   const aplicadoRef = useRef<NavFiltro | null>(null)
   useEffect(() => {
-    if (!filtroEntrante || empresas.length === 0) return
+    if (!filtroEntrante || filtroEntrante.tipo !== 'empresa' || empresas.length === 0) return
     if (aplicadoRef.current === filtroEntrante) return
     aplicadoRef.current = filtroEntrante
     const emp = empresas.find((e) => e.id === filtroEntrante.empresaId)
@@ -858,9 +864,25 @@ function Empresas({ filtroEntrante }: { filtroEntrante?: NavFiltro | null }) {
           {!empresaSeleccionada ? (
             <div className="enlazados-aviso">Seleccioná una empresa.</div>
           ) : tabEnlazados === 'proyectos' ? (
-            <ProyectosEmpresa empresaId={empresaSeleccionada.id} />
+            <ProyectosEmpresa
+              empresaId={empresaSeleccionada.id}
+              onAbrirProyecto={(proyectoId) =>
+                onNavegar?.(
+                  { seccionId: 'produccion', moduloId: 'proyectos', moduloTitulo: 'Proyectos' },
+                  { tipo: 'proyecto', proyectoId },
+                )
+              }
+            />
           ) : tabEnlazados === 'pedidos' ? (
-            <PedidosEmpresa empresaId={empresaSeleccionada.id} />
+            <PedidosEmpresa
+              empresaId={empresaSeleccionada.id}
+              onAbrirProyecto={(proyectoId) =>
+                onNavegar?.(
+                  { seccionId: 'produccion', moduloId: 'proyectos', moduloTitulo: 'Proyectos' },
+                  { tipo: 'proyecto', proyectoId },
+                )
+              }
+            />
           ) : tabEnlazados === 'remitos' ? (
             <RemitosNdEEmpresa empresaId={empresaSeleccionada.id} />
           ) : (

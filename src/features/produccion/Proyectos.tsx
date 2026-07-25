@@ -5,6 +5,7 @@ import MenuContextual from '../../shared/components/MenuContextual'
 import VistaProyectoForm from './VistaProyectoForm'
 import VistaElemento from './VistaElemento'
 import ModalImportarMatriz from './ModalImportarMatriz'
+import NotasProyecto from './NotasProyecto'
 import TablaConfigurable, { type ColumnaDef } from '../../shared/components/TablaConfigurable'
 import PanelColumnas from '../../shared/components/PanelColumnas'
 import { useConfigTabla } from '../../shared/hooks/useConfigTabla'
@@ -24,10 +25,19 @@ import {
   FECHA_PRESETS,
 } from './proyectosApi'
 import type { FiltrosProyectos } from './proyectosApi'
-import type { Navegar } from '../../shared/types/navegacion'
+import type { Navegar, NavFiltro } from '../../shared/types/navegacion'
 
 // Estado de vista que se conserva al saltar a otro módulo y volver (en memoria,
 // se pierde al recargar la página).
+const TABS_ENLAZADOS_PROY = [
+  { id: 'notas', label: 'Notas del Proyecto' },
+  { id: 'presupuestos', label: 'Presupuestos' },
+  { id: 'remitos', label: 'Remitos y NdE' },
+  { id: 'ordenes-compra', label: 'Órdenes de Compra' },
+  { id: 'compras', label: 'Compras' },
+  { id: 'recepciones', label: 'Recepciones' },
+]
+
 const MODULO = 'proyectos'
 
 // Primera letra en mayúscula (para mostrar la urgencia: "Urgente", "Alta"…).
@@ -78,7 +88,13 @@ function construirFilasArbol(
   return filas
 }
 
-function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
+function Proyectos({
+  onNavegar,
+  filtroEntrante,
+}: {
+  onNavegar?: Navegar
+  filtroEntrante?: NavFiltro | null
+}) {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [cargando, setCargando] = useState(true)
@@ -189,6 +205,20 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     setAbrirTrasCargaId(null)
   }, [proyectos, abrirTrasCargaId])
 
+  // Salto entrante desde otro módulo (ej: doble clic en un proyecto desde la
+  // ficha de la empresa): se limpian los filtros para garantizar que el proyecto
+  // esté en la lista y se abre su vista cuando aparece. aplicadoNavRef evita
+  // re-aplicar el mismo salto en recargas.
+  const aplicadoNavRef = useRef<NavFiltro | null>(null)
+  useEffect(() => {
+    if (!filtroEntrante || filtroEntrante.tipo !== 'proyecto') return
+    if (aplicadoNavRef.current === filtroEntrante) return
+    aplicadoNavRef.current = filtroEntrante
+    setFiltros(FILTROS_VACIOS)
+    setSeleccionadoId(filtroEntrante.proyectoId)
+    setAbrirTrasCargaId(filtroEntrante.proyectoId)
+  }, [filtroEntrante])
+
   async function cargarEmpresas() {
     const { data } = await supabase
       .from('empresas')
@@ -235,6 +265,7 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
   }, [elementoSeleccionadoId])
 
   const seleccionado = proyectos.find((p) => p.id === seleccionadoId) ?? null
+  const [tabEnlazadosProy, setTabEnlazadosProy] = useState('notas')
   const elementoSeleccionado = elementos.find((it) => it.id === elementoSeleccionadoId) ?? null
   const filasArbol = construirFilasArbol(elementos, colapsados)
 
@@ -847,10 +878,29 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
         )}
       </div>
 
-      {/* Franja 4 — Enlazados (placeholder) */}
+      {/* Franja 4 — Enlazados (solapas por proyecto) */}
       <div className="franja franja-enlazados">
-        <div className="franja-titulo-negro">Enlazados</div>
-        <span className="franja-placeholder">Enlazados (próximamente)</span>
+        <div className="enlazados-tabs">
+          {TABS_ENLAZADOS_PROY.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={'enlazados-tab' + (tab.id === tabEnlazadosProy ? ' activa' : '')}
+              onClick={() => setTabEnlazadosProy(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="enlazados-contenido">
+          {!seleccionado ? (
+            <div className="enlazados-aviso">Seleccioná un proyecto.</div>
+          ) : tabEnlazadosProy === 'notas' ? (
+            <NotasProyecto proyectoId={seleccionado.id} />
+          ) : (
+            <div className="enlazados-aviso">Esta sección se construye más adelante.</div>
+          )}
+        </div>
       </div>
 
       {/* Modal: borrar proyecto */}
