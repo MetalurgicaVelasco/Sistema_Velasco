@@ -92,6 +92,8 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
     () => leerVista<VistaProyectos>(MODULO)?.filtros ?? FILTROS_INICIALES,
   )
   const [recargarTick, setRecargarTick] = useState(0)
+  // Tras duplicar: se recarga la lista y se abre el proyecto nuevo cuando aparece.
+  const [abrirTrasCargaId, setAbrirTrasCargaId] = useState<number | null>(null)
 
   // Elementos del proyecto seleccionado (franja 3) + conteo de procesos por elemento.
   const [elementos, setElementos] = useState<Elemento[]>([])
@@ -178,6 +180,14 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       clearTimeout(t)
     }
   }, [filtros, recargarTick])
+
+  // Cuando la lista se recarga tras duplicar, abrimos el proyecto nuevo.
+  useEffect(() => {
+    if (abrirTrasCargaId == null) return
+    const nuevo = proyectos.find((p) => p.id === abrirTrasCargaId)
+    if (nuevo) setFormActivo(nuevo)
+    setAbrirTrasCargaId(null)
+  }, [proyectos, abrirTrasCargaId])
 
   async function cargarEmpresas() {
     const { data } = await supabase
@@ -407,9 +417,14 @@ function Proyectos({ onNavegar }: { onNavegar?: Navegar }) {
       {formActivo !== null && (
         <div style={{ height: '100%', display: elementoVista ? 'none' : undefined }}>
           <VistaProyectoForm
+            key={formActivo === 'nuevo' ? 'nuevo' : formActivo.id}
             proyecto={formActivo === 'nuevo' ? null : formActivo}
             empresas={empresas}
             onCerrar={volverALista}
+            onDuplicado={(nuevoId) => {
+              setAbrirTrasCargaId(nuevoId)
+              setRecargarTick((t) => t + 1)
+            }}
             onAbrirElemento={(el, proy) => {
               setElementoVista(el)
               setProyectoVista(proy ?? null)

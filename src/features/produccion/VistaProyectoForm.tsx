@@ -20,6 +20,7 @@ import type { Elemento } from './elementoTipos'
 import SeccionContenido from './SeccionContenido'
 import { cargarRemitidoPorProyecto } from './remitidoApi'
 import MenuEnvio from './MenuEnvio'
+import { duplicarProyecto } from './duplicarProyecto'
 import ModalNotaEnvio from './ModalNotaEnvio'
 import ModalRemito from './ModalRemito'
 import ModalRemitosFaltantes from './ModalRemitosFaltantes'
@@ -33,6 +34,7 @@ const ESTADOS_EXIGEN_PEDIDO = new Set(['Pedido', 'Anulado', 'Cerrado'])
 
 function VistaProyectoForm({
   proyecto,
+  onDuplicado,
   empresas,
   onCerrar,
   onAbrirElemento,
@@ -41,6 +43,7 @@ function VistaProyectoForm({
   empresas: Empresa[]
   onCerrar: () => void // vuelve a la lista (y recarga)
   onAbrirElemento: (el: Elemento, proyecto?: Proyecto) => void
+  onDuplicado?: (nuevoId: number) => void // abrir el proyecto duplicado
 }) {
   const esNuevo = proyecto == null
 
@@ -55,6 +58,9 @@ function VistaProyectoForm({
   const [notaEnvio, setNotaEnvio] = useState<{ esExterna: boolean } | null>(null)
   const [avisoNota, setAvisoNota] = useState<string | null>(null)
   const [remitoAbierto, setRemitoAbierto] = useState(false)
+  const [duplicando, setDuplicando] = useState(false)
+  const [confirmarDup, setConfirmarDup] = useState(false)
+  const [errorDup, setErrorDup] = useState<string | null>(null)
 
   useEffect(() => {
     if (proyecto?.id == null) return
@@ -187,6 +193,21 @@ function VistaProyectoForm({
 
   // Antes de abrir el modal de sub-estado, avisar si quedan ítems sin remitir del
   // todo. Es un aviso, no un bloqueo: desde el modal se puede cerrar igual.
+
+  async function onDuplicar() {
+    if (idExistente == null) return
+    setErrorDup(null)
+    setDuplicando(true)
+    const { nuevoId, error: err } = await duplicarProyecto(idExistente)
+    setDuplicando(false)
+    if (err || nuevoId == null) {
+      setErrorDup(err ?? 'Error desconocido.')
+      return
+    }
+    setConfirmarDup(false)
+    onDuplicado?.(nuevoId)
+  }
+
   async function iniciarCierre() {
     if (idExistente != null) {
       try {
@@ -371,6 +392,9 @@ function VistaProyectoForm({
               onCargarRemito={() => setRemitoAbierto(true)}
               onNotaExterna={() => setNotaEnvio({ esExterna: true })}
             />
+            <button type="button" className="envio-btn" onClick={() => setConfirmarDup(true)}>
+              📑 Duplicar proyecto
+            </button>
           </div>
         ) : null}
 
@@ -748,6 +772,30 @@ function VistaProyectoForm({
           }}
         />
       ) : null}
+
+      {confirmarDup && (
+        <Modal titulo="Duplicar proyecto" onCerrar={() => (duplicando ? null : setConfirmarDup(false))} ancho={480}>
+          <p className="pred-intro">
+            Se copia todo el contenido (elementos, procesos y correlatividades) en un proyecto
+            nuevo, con otro número de proyecto, sin número de pedido y con el avance reseteado. El
+            proyecto original no se toca.
+          </p>
+          {errorDup && <p className="empresa-form-error">No se pudo duplicar: {errorDup}</p>}
+          <div className="pf-acciones">
+            <button
+              type="button"
+              className="empresa-boton-secundario"
+              disabled={duplicando}
+              onClick={() => setConfirmarDup(false)}
+            >
+              Cancelar
+            </button>
+            <button type="button" className="empresa-boton" disabled={duplicando} onClick={onDuplicar}>
+              {duplicando ? 'Duplicando…' : 'Duplicar'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {remitoAbierto && idExistente != null && form.empresaId != null ? (
         <ModalRemito
