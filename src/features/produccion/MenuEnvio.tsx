@@ -6,10 +6,12 @@ function MenuEnvio({
   onNotaEnvio,
   onCargarRemito,
   onNotaExterna,
+  onEtiqueta,
 }: {
   onNotaEnvio: () => void
   onCargarRemito?: () => void // sin handler = opción deshabilitada
   onNotaExterna: () => void
+  onEtiqueta?: () => void
 }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -68,6 +70,15 @@ function MenuEnvio({
             onClick={() => elegir(onNotaExterna)}
           >
             📥 Cargar NDE externa
+          </button>
+          <button
+            type="button"
+            className="envio-op"
+            title={onEtiqueta ? 'Imprimir la etiqueta de envío' : 'Todavía no está implementado'}
+            disabled={!onEtiqueta}
+            onClick={() => elegir(onEtiqueta)}
+          >
+            🏷 Etiqueta de envío
           </button>
         </div>
       )}

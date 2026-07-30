@@ -18,12 +18,14 @@ import {
 import type { Proyecto, Empresa, ContactoMin } from './proyectoTipos'
 import type { Elemento } from './elementoTipos'
 import SeccionContenido from './SeccionContenido'
+import NotasProyecto from './NotasProyecto'
 import { cargarRemitidoPorProyecto } from './remitidoApi'
 import MenuEnvio from './MenuEnvio'
 import { duplicarProyecto } from './duplicarProyecto'
 import { copiarMailProyecto } from './copiarMailProyecto'
 import ModalNotaEnvio from './ModalNotaEnvio'
 import ModalRemito from './ModalRemito'
+import ModalEtiqueta from './ModalEtiqueta'
 import ModalRemitosFaltantes from './ModalRemitosFaltantes'
 import { itemsConRemitoIncompleto, type ItemIncompleto } from './cierreProyecto'
 import { crearComponenteInicial } from './elementosApi'
@@ -59,6 +61,7 @@ function VistaProyectoForm({
   const [notaEnvio, setNotaEnvio] = useState<{ esExterna: boolean } | null>(null)
   const [avisoNota, setAvisoNota] = useState<string | null>(null)
   const [remitoAbierto, setRemitoAbierto] = useState(false)
+  const [etiquetaAbierta, setEtiquetaAbierta] = useState(false)
   const [duplicando, setDuplicando] = useState(false)
   const [confirmarDup, setConfirmarDup] = useState(false)
   const [errorDup, setErrorDup] = useState<string | null>(null)
@@ -403,6 +406,7 @@ function VistaProyectoForm({
               onNotaEnvio={() => setNotaEnvio({ esExterna: false })}
               onCargarRemito={() => setRemitoAbierto(true)}
               onNotaExterna={() => setNotaEnvio({ esExterna: true })}
+              onEtiqueta={() => setEtiquetaAbierta(true)}
             />
             <button type="button" className="envio-btn" onClick={() => setConfirmarDup(true)}>
               📑 Duplicar proyecto
@@ -726,6 +730,10 @@ function VistaProyectoForm({
           </label>
         )}
 
+        {/* Notas del proyecto: arriba de la lista de elementos, igual que en el
+            sistema viejo. Solo en proyectos ya creados. */}
+        {idExistente != null && <NotasProyecto proyectoId={idExistente} seccion />}
+
         {/* Contenido del proyecto (elementos raíz) */}
         {unSoloItem ? (
           <p className="rec-vacio">
@@ -809,6 +817,10 @@ function VistaProyectoForm({
           </div>
         </Modal>
       )}
+
+      {etiquetaAbierta && idExistente != null ? (
+        <ModalEtiqueta proyectoId={idExistente} onCerrar={() => setEtiquetaAbierta(false)} />
+      ) : null}
 
       {remitoAbierto && idExistente != null && form.empresaId != null ? (
         <ModalRemito

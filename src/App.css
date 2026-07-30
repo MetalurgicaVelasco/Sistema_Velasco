@@ -3885,6 +3885,11 @@ body.resizeando-col {
    arrastrando el borde del encabezado). */
 .tabla-fija {
   table-layout: fixed;
+  /* El ancho tiene que ser DEFINIDO para que valga table-layout:fixed (con
+     width:auto el navegador vuelve a calcular por contenido y las columnas no
+     se pueden achicar más que su texto). El componente agrega, en línea, un
+     min-width igual a la suma de las columnas: así la tabla crece y la franja
+     scrollea cuando no entran, y si sobra espacio lo absorbe el relleno. */
   width: 100%;
 }
 .tabla-fija th,
@@ -4018,10 +4023,13 @@ body.resizeando-col {
   min-width: 0;
   padding: 0;
 }
-/* El ancho de la columna de acciones lo fija el componente (estilo inline). */
+/* El ancho de la columna de acciones lo fija el componente (estilo inline).
+   Lleva una línea a la izquierda para que se vea dónde termina la última
+   columna de datos y empiezan los botones. */
 .tabla-fija .th-acciones,
 .tabla-fija .tabla-acciones {
   min-width: 0;
+  border-left: 1px solid #e4e4e7;
 }
 
 /* Tablas dentro de las solapas del detalle: si las columnas superan el ancho
@@ -4346,4 +4354,72 @@ body.resizeando-col {
   font-size: 11px;
   color: #5f5e5a;
   margin: 0 0 10px;
+}
+
+
+/* ── Notas del proyecto ───────────────────────────────────────────────────── */
+/* Bloque de la vista del proyecto: recuadro gris con título y botón, igual que
+   en el sistema viejo. En la franja 4 va solo la tabla. */
+.notas-seccion {
+  margin: 14px 0;
+  background: #f7f5ef;
+  border: 1px solid #e5e2d9;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.notas-seccion-cab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.notas-seccion-tit {
+  font-weight: 700;
+  font-size: 14px;
+  color: #2c2c2a;
+}
+/* Autor y fechas dentro del modal de la nota. */
+.nota-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: #6b6a66;
+  margin-bottom: 8px;
+}
+/* Texto completo de la nota: respeta los saltos de línea. */
+.nota-texto {
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: #2c2c2a;
+  background: #fff;
+  border: 1px solid #d9d7cf;
+  border-radius: 6px;
+  padding: 8px 10px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* ── Modal de etiqueta de envío ───────────────────────────────────────────── */
+.etq-ayuda {
+  font-size: 11px;
+  color: #5f5e5a;
+  margin: 0 0 10px;
+}
+/* Cada renglón de las listas (órdenes, remitos, notas). */
+.etq-fila {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.etq-fila .empresa-input {
+  flex: 1;
+  min-width: 0;
+}
+.etq-quitar {
+  flex: 0 0 auto;
+  width: 30px;
+  padding: 2px 0;
+  text-align: center;
 }

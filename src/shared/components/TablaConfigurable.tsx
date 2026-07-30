@@ -26,8 +26,9 @@ export type ColumnaDef<T> = {
 export type OrdenTabla = { colId: string; dir: 'asc' | 'desc' } | null
 
 // Config de columnas: lista ORDENADA de columnas con su visibilidad y ancho.
-// Ancho mínimo de una columna al redimensionar (px).
-const ANCHO_MIN = 13
+// Ancho mínimo de una columna al redimensionar (px): alcanza para unos 3
+// caracteres más el padding de la celda. El texto que no entra se corta con "…".
+const ANCHO_MIN = 44
 
 export type ConfigColumna = { id: string; visible: boolean; ancho?: number }
 export type ConfigTabla = ConfigColumna[]
@@ -113,6 +114,21 @@ export default function TablaConfigurable<T>({
     return [...filas].sort((a, b) => factor * comparar(col.valor(a), col.valor(b), col.tipo))
   }, [filas, orden, onOrden, columnas])
 
+  // Ancho total de las columnas. Va como min-width en línea: si la suma supera
+  // el ancho de la franja, la tabla crece (y la franja scrollea) en vez de
+  // comprimir las columnas; si sobra, manda el width:100% del CSS y el espacio
+  // libre lo toma la columna de relleno.
+  const minAncho = useMemo(() => {
+    if (!config) return undefined
+    let suma = 0
+    for (const c of cols) {
+      if (c.ancho == null) return undefined // alguna sin ancho: que lo calcule el navegador
+      suma += c.ancho
+    }
+    if (suma === 0) return undefined
+    return suma + (acciones ? anchoAcciones : 0)
+  }, [cols, config, acciones, anchoAcciones])
+
   // Resize: arrastrar el borde derecho del encabezado cambia el ancho de esa
   // columna. Se escucha en window para que el arrastre siga aunque el puntero
   // se salga del th. Sin config/onConfig no hay resize (la tabla queda fija).
@@ -160,7 +176,10 @@ export default function TablaConfigurable<T>({
   }
 
   return (
-    <table className={'tabla tabla-fija' + (clase ? ' ' + clase : '')}>
+    <table
+      className={'tabla tabla-fija' + (clase ? ' ' + clase : '')}
+      style={minAncho ? { minWidth: minAncho } : undefined}
+    >
       <thead>
         <tr>
           {cols.map(({ def, ancho }) => {
