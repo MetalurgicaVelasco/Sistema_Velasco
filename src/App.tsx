@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './shared/lib/supabaseClient'
 import BarraSecciones from './shared/components/BarraSecciones'
@@ -6,14 +6,18 @@ import type { Seleccion } from './shared/components/BarraSecciones'
 import type { NavFiltro } from './shared/types/navegacion'
 import Encabezado from './shared/components/Encabezado'
 import Login from './shared/components/Login'
-import Empresas from './features/empresas/Empresas'
-import Proyectos from './features/produccion/Proyectos'
-import Procesos from './features/produccion/Procesos'
-import Matriz from './features/produccion/Matriz'
-import Maquinas from './features/activos/Maquinas'
-import Personal from './features/rrhh/Personal'
-import Tablero from './features/tablero/Tablero'
 import './App.css'
+
+// Cada módulo se descarga recién cuando se entra a él (code splitting). Antes
+// todo viajaba en un solo archivo: abrir Proyectos bajaba también el Tablero, la
+// Matriz, Empresas, etc. Con esto la primera carga es mucho más liviana.
+const Empresas = lazy(() => import('./features/empresas/Empresas'))
+const Proyectos = lazy(() => import('./features/produccion/Proyectos'))
+const Procesos = lazy(() => import('./features/produccion/Procesos'))
+const Matriz = lazy(() => import('./features/produccion/Matriz'))
+const Maquinas = lazy(() => import('./features/activos/Maquinas'))
+const Personal = lazy(() => import('./features/rrhh/Personal'))
+const Tablero = lazy(() => import('./features/tablero/Tablero'))
 
 function App() {
   const [sesion, setSesion] = useState<Session | null>(null)
@@ -118,7 +122,13 @@ function App() {
           setAccionesBarra(null) // cada módulo publica las suyas al montarse
         }}
       />
-      <main className="contenido-area">{renderContenido()}</main>
+      <main className="contenido-area">
+        {/* Mientras baja el módulo elegido. Se ve solo la primera vez que se
+            entra a cada uno: después queda en la caché del navegador. */}
+        <Suspense fallback={<div className="app-cargando">Cargando módulo…</div>}>
+          {renderContenido()}
+        </Suspense>
+      </main>
     </div>
   )
 }
