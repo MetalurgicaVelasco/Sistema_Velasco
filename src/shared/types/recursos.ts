@@ -44,6 +44,10 @@ export type Personal = {
   enTablero: boolean
   colorBorde: string | null
   activo: boolean
+  // Usuario del sistema con el que entra esta persona (null = no tiene acceso).
+  usuarioId: string | null
+  // Ve y edita las actividades de todos, no solo las propias.
+  esSupervisor: boolean
 }
 
 // Lo que devuelve una carga completa de recursos.

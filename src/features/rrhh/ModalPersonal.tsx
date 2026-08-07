@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Modal from '../../shared/components/Modal'
 import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import { nombrePersonal } from '../../shared/types/recursos'
 import type { Personal, Maquina, TipoProceso } from '../../shared/types/recursos'
-import { guardarPersonal, inhabilitarPersonal } from '../../shared/lib/recursosApi'
+import { guardarPersonal, inhabilitarPersonal, listarUsuarios, type UsuarioSistema } from '../../shared/lib/recursosApi'
 
 // Paleta de colores de borde para el tablero. Al crear una persona se asigna el
 // primero que no esté en uso (después se puede cambiar con el selector).
@@ -86,6 +86,21 @@ function ModalPersonal({
 
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
+
+  // Acceso al sistema: con qué usuario entra esta persona y si ve todo.
+  const [usuarioId, setUsuarioId] = useState<string | null>(persona?.usuarioId ?? null)
+  const [esSupervisor, setEsSupervisor] = useState(persona?.esSupervisor ?? false)
+  const [usuarios, setUsuarios] = useState<UsuarioSistema[]>([])
+  useEffect(() => {
+    listarUsuarios()
+      .then(setUsuarios)
+      .catch(() => setUsuarios([]))
+  }, [])
+
+  // Usuarios ya tomados por otra persona: no se pueden elegir dos veces.
+  const tomados = new Set(
+    personal.filter((p) => p.id !== myId && p.usuarioId).map((p) => p.usuarioId as string),
+  )
   const [confirmarDesplazo, setConfirmarDesplazo] = useState<string | null>(null)
   const [confirmarInhabilitar, setConfirmarInhabilitar] = useState(false)
 
@@ -124,6 +139,7 @@ function ModalPersonal({
     const maquinasIdeal = Object.entries(rolesMaq)
       .filter(([, r]) => r === 'ideal')
       .map(([k]) => Number(k))
+
     // Aviso de desplazamiento: máquinas donde esta persona pasa a ser ideal y
     // ya tenían otro ideal (ese otro va a pasar a suplente).
     const desplazados = maquinasIdeal
@@ -163,6 +179,8 @@ function ModalPersonal({
       horarioSabadoFin: noTrabajaSab ? null : sabFin || null,
       enTablero,
       colorBorde,
+      usuarioId,
+      esSupervisor,
       maquinasIdeal,
       maquinasSuplente,
       procesosSinMaquinaSuplente: skills,
@@ -299,6 +317,40 @@ function ModalPersonal({
               <span className="pers-color-hex">{colorBorde}</span>
             </div>
           )}
+        </div>
+
+        {/* Acceso al sistema */}
+        <div className="empresa-campo">
+          <span className="pf-label">Acceso al sistema</span>
+          <select
+            className="empresa-input"
+            value={usuarioId ?? ''}
+            onChange={(e) => setUsuarioId(e.target.value || null)}
+          >
+            <option value="">— sin acceso —</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id} disabled={tomados.has(u.id)}>
+                {u.email}
+                {tomados.has(u.id) ? ' (ya asignado)' : ''}
+              </option>
+            ))}
+          </select>
+          <span className="pf-ayuda">
+            Con qué usuario entra esta persona. Sin usuario asignado no puede iniciar sesión ni ver
+            sus actividades.
+          </span>
+          <label className="filtro-check">
+            <input
+              type="checkbox"
+              checked={esSupervisor}
+              disabled={usuarioId == null}
+              onChange={(e) => setEsSupervisor(e.target.checked)}
+            />
+            Es supervisor
+          </label>
+          <span className="pf-ayuda">
+            Un supervisor ve y edita las actividades de todos; el resto, solo las propias.
+          </span>
         </div>
 
         {/* Máquinas: No / Suplente / Ideal por fila */}

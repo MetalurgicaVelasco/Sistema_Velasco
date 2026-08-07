@@ -18,6 +18,7 @@ const Matriz = lazy(() => import('./features/produccion/Matriz'))
 const Maquinas = lazy(() => import('./features/activos/Maquinas'))
 const Personal = lazy(() => import('./features/rrhh/Personal'))
 const Tablero = lazy(() => import('./features/tablero/Tablero'))
+const MisActividades = lazy(() => import('./features/actividades/MisActividades'))
 
 function App() {
   const [sesion, setSesion] = useState<Session | null>(null)
@@ -92,6 +93,13 @@ function App() {
       seleccion.moduloId === 'personal'
     ) {
       return <Personal />
+    }
+
+    if (
+      seleccion.seccionId === 'actividades' &&
+      seleccion.moduloId === 'actividades-personal'
+    ) {
+      return <MisActividades />
     }
 
     return (

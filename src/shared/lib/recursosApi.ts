@@ -82,6 +82,8 @@ export async function cargarRecursos(): Promise<RecursosData> {
     enTablero: r.en_tablero,
     colorBorde: r.color_borde,
     activo: r.activo,
+    usuarioId: r.usuario_id ?? null,
+    esSupervisor: !!r.es_supervisor,
   }))
 
   return { tiposProceso, maquinas, personal }
@@ -308,6 +310,9 @@ export type GuardarPersonalInput = {
   horarioSabadoFin: string | null
   enTablero: boolean
   colorBorde: string | null
+  // Usuario del sistema vinculado (null = la persona no entra al sistema).
+  usuarioId?: string | null
+  esSupervisor?: boolean
   // Máquinas donde la persona es ideal / suplente (edición bidireccional).
   maquinasIdeal: number[]
   maquinasSuplente: number[]
@@ -335,6 +340,8 @@ export async function guardarPersonal(
     horario_sabado_fin: input.horarioSabadoFin,
     en_tablero: input.enTablero,
     color_borde: input.colorBorde,
+    usuario_id: input.usuarioId ?? null,
+    es_supervisor: input.esSupervisor ?? false,
   }
 
   let id = input.id
@@ -430,4 +437,56 @@ export async function inhabilitarPersonal(
     .update({ activo: false })
     .eq('id', id)
   return e3.error ? { error: e3.error.message } : {}
+}
+
+
+// ---------------------------------------------------------------------------
+// Identidad: qué persona del taller es el usuario logueado.
+// Se usa para mostrarle sus actividades y para saber si ve las de todos.
+// ---------------------------------------------------------------------------
+
+// Usuarios del sistema (auth.users no se puede leer directo desde el cliente:
+// va por una función en la base).
+export type UsuarioSistema = { id: string; email: string }
+
+export async function listarUsuarios(): Promise<UsuarioSistema[]> {
+  const { data, error } = await supabase.rpc('listar_usuarios')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as UsuarioSistema[]
+}
+
+export type Identidad = {
+  personal: Personal | null // null = el usuario no está vinculado a nadie
+  esSupervisor: boolean
+}
+
+export async function cargarIdentidad(): Promise<Identidad> {
+  const { data: auth } = await supabase.auth.getUser()
+  const uid = auth.user?.id
+  if (!uid) return { personal: null, esSupervisor: false }
+
+  const { data, error } = await supabase
+    .from('personal')
+    .select('*')
+    .eq('usuario_id', uid)
+    .maybeSingle()
+  if (error || !data) return { personal: null, esSupervisor: false }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const r = data as any
+  const personal: Personal = {
+    id: r.id,
+    nombre: r.nombre,
+    apellido: r.apellido,
+    horarioEntrada: r.horario_entrada,
+    horarioSalida: r.horario_salida,
+    horarioSabadoInicio: r.horario_sabado_inicio,
+    horarioSabadoFin: r.horario_sabado_fin,
+    enTablero: r.en_tablero,
+    colorBorde: r.color_borde,
+    activo: r.activo,
+    usuarioId: r.usuario_id ?? null,
+    esSupervisor: !!r.es_supervisor,
+  }
+  return { personal, esSupervisor: personal.esSupervisor }
 }
