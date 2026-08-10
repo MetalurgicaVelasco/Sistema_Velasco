@@ -22,6 +22,7 @@ import {
 import { esContenedor, tipoLabel, cargarAncestros, SELECT_ELEMENTO } from './elementosApi'
 import ModalPredecesores from '../../shared/components/ModalPredecesores'
 import ModalConfirmar from '../../shared/components/ModalConfirmar'
+import GaleriaFotos from '../../shared/components/GaleriaFotos'
 import { useEditorElemento } from './useEditorElemento'
 import { MODO_LABEL, totalMin, fmtDuracion } from './procesoTipos'
 import type { Proceso, Correlatividad } from './procesoTipos'
@@ -31,7 +32,6 @@ import type { Elemento } from './elementoTipos'
 import ModalProcesoElemento from './ModalProcesoElemento'
 import SeccionContenido from './SeccionContenido'
 
-const BUCKET = 'proyectos-fotos'
 
 function VistaElemento({
   elemento,
@@ -121,10 +121,6 @@ function VistaElemento({
   }, [actual.id])
 
   const cantidad = Number(actual.cantidad ?? 1)
-
-  const fotoUrl = actual.foto_url
-    ? supabase.storage.from(BUCKET).getPublicUrl(actual.foto_url).data.publicUrl
-    : null
 
   // ---- Navegación ----
   function entrar(hijo: Elemento) {
@@ -376,11 +372,9 @@ function VistaElemento({
           </button>
         </div>
         <div className="vi-datos">
-          {fotoUrl ? (
-            <img src={fotoUrl} alt="" className="vi-foto" />
-          ) : (
-            <div className="vi-foto vi-foto-vacia">sin foto</div>
-          )}
+          <div className="vi-galeria">
+            <GaleriaFotos duenio={{ elementoId: actual.id }} />
+          </div>
           <div className="vi-datos-txt">
             <div>
               <b>Proyecto:</b> {proyecto?.descripcion ?? '—'}

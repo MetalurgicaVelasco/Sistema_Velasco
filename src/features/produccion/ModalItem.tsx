@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import CajaFoto from './CajaFoto'
+import GaleriaFotos from '../../shared/components/GaleriaFotos'
 import Modal from '../../shared/components/Modal'
 import SelectorConAlta from '../../shared/components/SelectorConAlta'
 import { ESTADOS_ELEMENTO } from './elementoTipos'
@@ -201,13 +202,21 @@ function ModalItem({
 
         {/* Foto del item */}
         <div className="empresa-campo">
-          <span className="pf-label">Foto del item (opcional)</span>
-          <CajaFoto
-            previewUrl={previewUrl}
-            onElegir={elegirFoto}
-            onQuitar={quitarFoto}
-          />
-          <span className="pf-ayuda">Si la dejás vacía, se usa la del proyecto.</span>
+          {/* Elemento nuevo: la foto se sube al guardar. Ya creado: galería con
+              hasta 5 fotos. */}
+          {d.dbId == null ? (
+            <>
+              <span className="pf-label">Foto del item (opcional)</span>
+              <CajaFoto
+                previewUrl={previewUrl}
+                onElegir={elegirFoto}
+                onQuitar={quitarFoto}
+              />
+              <span className="pf-ayuda">Si la dejás vacía, se usa la del proyecto.</span>
+            </>
+          ) : (
+            <GaleriaFotos duenio={{ elementoId: d.dbId }} />
+          )}
         </div>
 
         {errorMsg && <p className="empresa-form-error">{errorMsg}</p>}

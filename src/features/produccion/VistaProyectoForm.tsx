@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import BuscadorEmpresa from '../../shared/components/BuscadorEmpresa'
 import Modal from '../../shared/components/Modal'
+import GaleriaFotos from '../../shared/components/GaleriaFotos'
 import CajaFoto from './CajaFoto'
 import {
   URGENCIAS,
@@ -434,12 +435,20 @@ function VistaProyectoForm({
             Fila 2: Cliente final  | Nº de pedido   | OC del cliente */}
         <div className="pf-top2">
           <div className="pf-foto">
-            <span className="pf-label">Foto del proyecto</span>
-            <CajaFoto
-              previewUrl={previewUrl}
-              onElegir={elegirFoto}
-              onQuitar={quitarFoto}
-            />
+            {/* Proyecto nuevo: todavía no hay id, así que la foto se sube al
+                guardar por el camino de siempre. Ya guardado: galería. */}
+            {idExistente == null ? (
+              <>
+                <span className="pf-label">Foto del proyecto</span>
+                <CajaFoto
+                  previewUrl={previewUrl}
+                  onElegir={elegirFoto}
+                  onQuitar={quitarFoto}
+                />
+              </>
+            ) : (
+              <GaleriaFotos duenio={{ proyectoId: idExistente }} />
+            )}
           </div>
 
           <div className="pf-contenido">

@@ -1088,7 +1088,7 @@
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 12px 24px 24px;
+  padding: 8px 24px 24px;
 }
 
 .pf-breadcrumb {
@@ -2659,13 +2659,12 @@ textarea.ef-i {
 
 /* Barra superior con el botón "← Volver": queda fija arriba al scrollear,
    así siempre se ve. Se usa en el form de proyecto y en la vista del item. */
+/* Barra del botón "Volver". Era sticky con fondo blanco: al scrollear tapaba el
+   contenido y se veía como una franja que lo corta. Ahora acompaña al scroll y
+   el espacio de arriba se recorta para que no quede aire de más. */
 .vista-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #fff;
-  padding: 8px 0;
-  margin-bottom: 4px;
+  padding: 0 0 8px;
+  margin-bottom: 0;
 }
 
 /* Logo de empresa en modo solo lectura (detalle General): solo se ve. */
@@ -5140,4 +5139,214 @@ body.resizeando-col {
 /* Suplentes: en gris, para que resalte el planificado. */
 .carp-suplentes {
   color: #9a9a95;
+}
+
+/* ── Galería de fotos (proyecto e ítem) ───────────────────────────────────── */
+.gal {
+  outline: none;
+}
+/* La aclaración va en una línea, sin comerse alto. */
+.gal-ayuda {
+  display: block;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+/* Vista compacta: alto FIJO. Cargar fotos no puede mover ni achicar los campos
+   del formulario, así que acá solo entran la principal, el contador "+N" y el
+   botón de agregar. El resto se ve en el modal. */
+/* La miniatura arriba y, debajo, el "+N" junto al botón de agregar: en fila los
+   tres se salían del ancho de la columna y se superponían con los campos. */
+.gal-compacta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 108px;
+}
+/* Fila de abajo: "+N" y "+ Foto". */
+.gal-compacta-pie {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.gal-mini {
+  width: 108px;
+  height: 108px;
+  padding: 0;
+  border: 2px solid #0c447c;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f7f5ef;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.gal-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gal-mini-vacia {
+  border: 1px solid #d9d7cf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9a9a95;
+}
+/* Recuadro "+N": cuántas fotos más hay. */
+.gal-mas {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  background: #f7f5ef;
+  color: #0c447c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gal-mas:hover {
+  background: #eef2f7;
+}
+.gal-agregar {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  background: #fff;
+  color: #2c2c2a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gal-agregar:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.gal-agregar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.gal-error {
+  margin-top: 4px;
+}
+.gal-input {
+  display: none;
+}
+.gal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gal-item {
+  position: relative;
+  margin: 0;
+  width: 108px;
+  height: 108px;
+  border: 1px solid #d9d7cf;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f7f5ef;
+}
+.gal-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* La principal se distingue: es la que sale en el tablero y los documentos. */
+.gal-item-principal {
+  border: 2px solid #0c447c;
+}
+.gal-badge {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background: #0c447c;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 0 4px 0 0;
+}
+.gal-acciones {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  gap: 3px;
+}
+.gal-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.gal-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.75);
+}
+.gal-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.gal-btn-borrar:hover:not(:disabled) {
+  background: #a32d2d;
+}
+
+/* Caja para insertar fotos: mismo tamaño que una miniatura, se le da foco para
+   pegar con Ctrl+V (como la caja de foto de siempre). */
+.gal-insertar {
+  width: 108px;
+  height: 108px;
+  border: 1px dashed #c8c6be;
+  border-radius: 6px;
+  background: #faf9f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+}
+.gal-insertar:hover {
+  background: #f2f0e8;
+}
+.gal-insertar:focus,
+.gal-insertar:focus-visible {
+  border-color: #0c447c;
+  border-style: solid;
+  box-shadow: 0 0 0 2px rgba(12, 68, 124, 0.18);
+}
+.gal-insertar-btn {
+  padding: 7px 14px;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  background: #fff;
+  color: #2c2c2a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gal-insertar-btn:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.gal-insertar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Galería dentro de la vista del elemento: ocupa el lugar que tenía la foto
+   suelta, sin desarmar la fila de datos. */
+.vi-galeria {
+  flex: 0 0 auto;
+  max-width: 380px;
 }
