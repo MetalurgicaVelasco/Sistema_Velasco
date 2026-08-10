@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { cargarIdentidad, type Identidad } from '../../shared/lib/recursosApi'
+import { guardarVista, leerVista } from '../../shared/lib/vistaModulos'
 import VistaActividad from './VistaActividad'
 import {
   cargarActividadesDelDia,
@@ -39,24 +40,38 @@ function duracion(min: number): string {
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
 }
 
+const MODULO = 'actividades-personal'
+
+// Estado que se conserva al salir del módulo y volver: en qué día estaba, a
+// quién miraba y qué actividad tenía abierta.
+type VistaActividades = {
+  fecha: string
+  verPersonalId: number | null
+  actividadAbierta: number | null
+  carpetaAbierta: boolean
+}
+
 // Pantalla del operario: sus actividades planificadas, con navegación por día.
 // Los supervisores pueden mirar la agenda de cualquiera.
 function MisActividades() {
+  const guardada = leerVista<VistaActividades>(MODULO)
   const [ident, setIdent] = useState<Identidad | null>(null)
   const [operarios, setOperarios] = useState<OperarioOpcion[]>([])
-  const [verPersonalId, setVerPersonalId] = useState<number | null>(null)
-  const [fecha, setFecha] = useState(hoyISO())
+  const [verPersonalId, setVerPersonalId] = useState<number | null>(guardada?.verPersonalId ?? null)
+  const [fecha, setFecha] = useState(guardada?.fecha ?? hoyISO())
   const [actividades, setActividades] = useState<Actividad[]>([])
   const [atrasadas, setAtrasadas] = useState<Actividad[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [actividadAbierta, setActividadAbierta] = useState<number | null>(null)
+  const [actividadAbierta, setActividadAbierta] = useState<number | null>(guardada?.actividadAbierta ?? null)
+  const [carpetaAbierta, setCarpetaAbierta] = useState(guardada?.carpetaAbierta ?? false)
 
   useEffect(() => {
     cargarIdentidad()
       .then((i) => {
         setIdent(i)
-        setVerPersonalId(i.personal?.id ?? null)
+        // Si veníamos mirando a alguien, se respeta esa elección.
+        setVerPersonalId((actual) => actual ?? i.personal?.id ?? null)
         if (i.esSupervisor) cargarOperarios().then(setOperarios).catch(() => {})
       })
       .catch(() => setIdent({ personal: null, esSupervisor: false }))
@@ -82,6 +97,15 @@ function MisActividades() {
     recargar()
   }, [recargar])
 
+  useEffect(() => {
+    guardarVista<VistaActividades>(MODULO, {
+      fecha,
+      verPersonalId,
+      actividadAbierta,
+      carpetaAbierta,
+    })
+  }, [fecha, verPersonalId, actividadAbierta, carpetaAbierta])
+
   // Sin persona vinculada no hay agenda que mostrar.
   if (ident && !ident.personal) {
     return (
@@ -98,8 +122,11 @@ function MisActividades() {
     return (
       <VistaActividad
         procesoId={actividadAbierta}
+        carpetaAbierta={carpetaAbierta}
+        onCarpeta={setCarpetaAbierta}
         onVolver={() => {
           setActividadAbierta(null)
+          setCarpetaAbierta(false)
           recargar()
         }}
       />
@@ -179,7 +206,10 @@ function MisActividades() {
                 (a.estado === 'hecho_operario' ? ' act-card-op' : '') +
                 (a.enCurso ? ' act-card-curso' : '')
               }
-              onClick={() => setActividadAbierta(a.procesoId)}
+              onClick={() => {
+                setActividadAbierta(a.procesoId)
+                setCarpetaAbierta(false)
+              }}
             >
               <div className="act-card-hora">{a.planHora ?? '--:--'}</div>
               <div className="act-card-cuerpo">

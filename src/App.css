@@ -4610,14 +4610,18 @@ body.resizeando-col {
 
 /* ── Vista de una actividad (orden de trabajo + tiempos) ──────────────────── */
 .act-volver {
-  background: none;
-  border: none;
-  color: #0c447c;
+  padding: 9px 16px;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  background: #fff;
+  color: #2c2c2a;
   font: inherit;
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 4px 0;
-  margin-bottom: 10px;
+}
+.act-volver:hover {
+  filter: brightness(0.95);
 }
 /* Banda superior, como el encabezado de la OT impresa. */
 .ot-band {
@@ -4928,4 +4932,212 @@ body.resizeando-col {
   border-color: #0c447c;
   color: #fff;
   font-weight: 700;
+}
+
+/* ── Carpeta digital del ítem ─────────────────────────────────────────────── */
+/* Es la carpeta que hoy reciben impresa: portada con los datos del trabajo y la
+   lista de procesos, y después una orden de trabajo por proceso. Solo lectura. */
+.act-barra-sup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.act-btn-carpeta {
+  padding: 9px 16px;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  background: #f5f3ec;
+  color: #2c2c2a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.act-btn-carpeta:hover {
+  filter: brightness(0.95);
+}
+/* Cada "hoja" de la carpeta, para que se lea como el papel. */
+.carp-hoja {
+  background: #fff;
+  border: 1px solid #d9d7cf;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.carp-cab {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 2px solid #1a1a1a;
+}
+.carp-logo {
+  height: 44px;
+  width: auto;
+  padding: 6px 16px;
+  border-right: 2px solid #1a1a1a;
+}
+.carp-cab-tit {
+  flex: 1;
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.carp-info {
+  width: 100%;
+  border-collapse: collapse;
+}
+.carp-info td {
+  border: 1px solid #d9d7cf;
+  padding: 5px 10px;
+  vertical-align: middle;
+}
+.carp-shade {
+  background: #f7f5ef;
+}
+.carp-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b6a66;
+  white-space: nowrap;
+  width: 1%;
+}
+.carp-val {
+  font-size: 14px;
+  color: #2c2c2a;
+}
+.carp-val-grande {
+  font-size: 17px;
+  font-weight: 700;
+}
+.carp-val-fuerte {
+  font-size: 16px;
+  font-weight: 700;
+}
+/* Tabla de procesos de la portada. */
+.carp-procs {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: -1px;
+}
+.carp-procs th {
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  text-align: left;
+}
+.carp-procs td {
+  border: 1px solid #d9d7cf;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+.carp-procs tbody tr {
+  cursor: pointer;
+}
+.carp-procs tbody tr:hover {
+  background: #eef2f7;
+}
+.carp-num {
+  width: 36px;
+  text-align: center;
+  font-weight: 700;
+}
+.carp-centro {
+  text-align: center;
+}
+.carp-check {
+  width: 90px;
+  font-size: 18px;
+  color: #1e7a34;
+  font-weight: 700;
+}
+.carp-fila-actual {
+  background: #e7f0ff !important;
+  box-shadow: inset 3px 0 0 #0c447c;
+}
+.carp-aqui {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #0c447c;
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+.carp-aqui-band {
+  background: #fff;
+  color: #0c447c;
+}
+.carp-foto {
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid #d9d7cf;
+}
+.carp-foto img {
+  max-width: 100%;
+  max-height: 300px;
+  border: 1px solid #d9d7cf;
+  border-radius: 6px;
+}
+/* Las órdenes de trabajo dentro de la carpeta. */
+.carp-ot .ot-band {
+  border-radius: 0;
+}
+.carp-ot-actual {
+  box-shadow: 0 0 0 2px #0c447c;
+}
+.carp-ot-cuerpo {
+  padding: 12px 14px;
+}
+.carp-hecha {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #7fd48f;
+}
+.carp-cargado {
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: #f7f5ef;
+  border: 1px solid #e5e2d9;
+  border-radius: 6px;
+}
+.carp-cargado-fila {
+  font-size: 14px;
+  color: #2c2c2a;
+  margin-top: 3px;
+  white-space: pre-wrap;
+}
+
+/* La descripción de la pieza lleva su título, como el resto de los campos. */
+.ot-desc-bloque {
+  border-top: 1px solid #eceae3;
+  border-bottom: 1px solid #eceae3;
+  padding: 8px 0;
+  margin-bottom: 10px;
+}
+.ot-desc-bloque .ot-desc {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+/* Campo de la carpeta que quedó sin completar. */
+.carp-sin-dato {
+  color: #9a9a95;
+  font-style: italic;
+}
+/* Suplentes: en gris, para que resalte el planificado. */
+.carp-suplentes {
+  color: #9a9a95;
 }

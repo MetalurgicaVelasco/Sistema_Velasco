@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../shared/lib/supabaseClient'
 import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import ModalPausa from './ModalPausa'
+import VistaCarpeta from './VistaCarpeta'
 import {
   cargarDetalleActividad,
   cargarTramos,
@@ -30,7 +31,18 @@ const ETIQUETA_MOTIVO: Record<string, string> = {
 }
 
 // Pantalla de una actividad: arriba la orden de trabajo, abajo los tiempos.
-function VistaActividad({ procesoId, onVolver }: { procesoId: number; onVolver: () => void }) {
+function VistaActividad({
+  procesoId,
+  onVolver,
+  carpetaAbierta = false,
+  onCarpeta,
+}: {
+  procesoId: number
+  onVolver: () => void
+  // La carpeta la maneja el módulo para poder recordarla al salir y volver.
+  carpetaAbierta?: boolean
+  onCarpeta?: (abierta: boolean) => void
+}) {
   const [det, setDet] = useState<DetalleActividad | null>(null)
   const [tramos, setTramos] = useState<Tramo[]>([])
   const [cargando, setCargando] = useState(true)
@@ -170,11 +182,28 @@ function VistaActividad({ procesoId, onVolver }: { procesoId: number; onVolver: 
   const fotoEl = urlFoto(det.fotoElemento)
   const fotoPr = urlFoto(det.fotoProyecto)
 
+  if (carpetaAbierta) {
+    return (
+      <VistaCarpeta
+        elementoId={det.elementoId}
+        procesoActualId={det.procesoId}
+        onVolver={() => onCarpeta?.(false)}
+      />
+    )
+  }
+
   return (
     <div className="act-pantalla">
-      <button type="button" className="act-volver" onClick={onVolver}>
-        ← Volver a mis actividades
-      </button>
+      <div className="act-barra-sup">
+        <button type="button" className="act-volver" onClick={onVolver}>
+          ← Volver a mis actividades
+        </button>
+        {/* Toda la informacion de la pieza, de principio a fin: es la carpeta
+            que hoy reciben impresa. */}
+        <button type="button" className="act-btn-carpeta" onClick={() => onCarpeta?.(true)}>
+          📁 Ver carpeta completa
+        </button>
+      </div>
 
       {/* ── Sección 1: la orden de trabajo ── */}
       <div className="ot-band">
@@ -203,7 +232,10 @@ function VistaActividad({ procesoId, onVolver }: { procesoId: number; onVolver: 
           </div>
         </div>
 
-        <div className="ot-desc">{det.descripcion}</div>
+        <div className="ot-desc-bloque">
+          <span className="ot-lbl">Descripción</span>
+          <div className="ot-desc">{det.descripcion}</div>
+        </div>
 
         <div className="ot-grid">
           <div className="ot-dato">
