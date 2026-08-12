@@ -5447,3 +5447,12 @@ body.resizeando-col {
   padding: 12px;
   border-top: 1px solid #d9d7cf;
 }
+
+/* Cada módulo con memoria vive en su propio contenedor: el activo se ve y los
+   demás quedan ocultos (montados, para volver sin espera). */
+.modulo-slot {
+  height: 100%;
+}
+.modulo-slot-oculto {
+  display: none;
+}

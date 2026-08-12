@@ -20,6 +20,26 @@ const Personal = lazy(() => import('./features/rrhh/Personal'))
 const Tablero = lazy(() => import('./features/tablero/Tablero'))
 const MisActividades = lazy(() => import('./features/actividades/MisActividades'))
 
+// Módulos que quedan MONTADOS al salir de ellos: se ocultan en vez de
+// desmontarse, así al volver aparecen al instante y con todo como estaba
+// (datos, scroll, lo que se estuviera escribiendo).
+//
+// El Tablero queda afuera a propósito: es el más pesado y el que más trabajo de
+// fondo hace, así que se recarga cada vez.
+const MODULOS_CON_MEMORIA = new Set([
+  'empresas/empresas',
+  'produccion/proyectos',
+  'produccion/procesos',
+  'produccion/matriz',
+  'activos/maquinas',
+  'rrhh/personal',
+  'actividades/actividades-personal',
+])
+
+function claveDe(s: Seleccion): string {
+  return `${s.seccionId}/${s.moduloId}`
+}
+
 function App() {
   const [sesion, setSesion] = useState<Session | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -28,12 +48,22 @@ function App() {
   const [filtroEntrante, setFiltroEntrante] = useState<NavFiltro | null>(null)
   // Acciones que el módulo activo publica en la barra (a la derecha de los módulos).
   const [accionesBarra, setAccionesBarra] = useState<React.ReactNode>(null)
+  // Módulos ya visitados: se mantienen montados (ocultos) para volver sin espera.
+  const [montados, setMontados] = useState<string[]>([])
 
   // Navegación cross-módulo: cambia de módulo y deja el filtro para el destino.
   function navegar(sel: Seleccion, filtro: NavFiltro) {
     setSeleccion(sel)
     setFiltroEntrante(filtro)
   }
+
+  // Al entrar a un módulo con memoria, queda montado de acá en adelante.
+  useEffect(() => {
+    if (!seleccion) return
+    const clave = claveDe(seleccion)
+    if (!MODULOS_CON_MEMORIA.has(clave)) return
+    setMontados((prev) => (prev.includes(clave) ? prev : [...prev, clave]))
+  }, [seleccion])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -50,58 +80,37 @@ function App() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  function renderContenido() {
+  // Qué componente corresponde a cada módulo con memoria.
+  function moduloDe(clave: string) {
+    switch (clave) {
+      case 'empresas/empresas':
+        return <Empresas filtroEntrante={filtroEntrante} onNavegar={navegar} />
+      case 'produccion/proyectos':
+        return <Proyectos onNavegar={navegar} filtroEntrante={filtroEntrante} />
+      case 'produccion/procesos':
+        return <Procesos />
+      case 'produccion/matriz':
+        return <Matriz />
+      case 'activos/maquinas':
+        return <Maquinas />
+      case 'rrhh/personal':
+        return <Personal />
+      case 'actividades/actividades-personal':
+        return <MisActividades />
+      default:
+        return null
+    }
+  }
+
+  // Lo que se muestra cuando el módulo activo NO tiene memoria: el tablero, la
+  // bienvenida o el cartel de "en construcción".
+  function contenidoSinMemoria() {
     if (!seleccion) {
       return <div className="bienvenida">Elegí un módulo para empezar</div>
     }
-
-    if (seleccion.seccionId === 'empresas' && seleccion.moduloId === 'empresas') {
-      return <Empresas filtroEntrante={filtroEntrante} onNavegar={navegar} />
-    }
-
-    if (
-      seleccion.seccionId === 'produccion' &&
-      seleccion.moduloId === 'proyectos'
-    ) {
-      return <Proyectos onNavegar={navegar} filtroEntrante={filtroEntrante} />
-    }
-
-    if (
-      seleccion.seccionId === 'produccion' &&
-      seleccion.moduloId === 'procesos'
-    ) {
-      return <Procesos />
-    }
-
     if (seleccion.seccionId === 'produccion' && seleccion.moduloId === 'tablero') {
       return <Tablero onAcciones={setAccionesBarra} />
     }
-
-    if (seleccion.seccionId === 'produccion' && seleccion.moduloId === 'matriz') {
-      return <Matriz />
-    }
-
-    if (
-      seleccion.seccionId === 'activos' &&
-      seleccion.moduloId === 'maquinas'
-    ) {
-      return <Maquinas />
-    }
-
-    if (
-      seleccion.seccionId === 'rrhh' &&
-      seleccion.moduloId === 'personal'
-    ) {
-      return <Personal />
-    }
-
-    if (
-      seleccion.seccionId === 'actividades' &&
-      seleccion.moduloId === 'actividades-personal'
-    ) {
-      return <MisActividades />
-    }
-
     return (
       <div className="contenido">
         <div className="contenido-emoji">🚧</div>
@@ -134,7 +143,19 @@ function App() {
         {/* Mientras baja el módulo elegido. Se ve solo la primera vez que se
             entra a cada uno: después queda en la caché del navegador. */}
         <Suspense fallback={<div className="app-cargando">Cargando módulo…</div>}>
-          {renderContenido()}
+          {/* Los módulos ya visitados siguen montados y solo se ocultan: volver
+              a ellos es instantáneo y conservan lo que había. */}
+          {montados.map((clave) => (
+            <div
+              key={clave}
+              className={
+                'modulo-slot' + (seleccion && claveDe(seleccion) === clave ? '' : ' modulo-slot-oculto')
+              }
+            >
+              {moduloDe(clave)}
+            </div>
+          ))}
+          {(!seleccion || !MODULOS_CON_MEMORIA.has(claveDe(seleccion))) && contenidoSinMemoria()}
         </Suspense>
       </main>
     </div>

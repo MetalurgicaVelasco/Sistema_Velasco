@@ -174,18 +174,33 @@ function BarraSecciones({
 }) {
   const [seccionActivaId, setSeccionActivaId] = useState<string | null>(null)
   const [moduloActivoId, setModuloActivoId] = useState<string | null>(null)
+  // Último módulo abierto en cada sección: al volver a una sección se retoma
+  // donde se estaba, en vez de caer siempre en la pantalla de bienvenida.
+  const [ultimoModulo, setUltimoModulo] = useState<Record<string, string>>({})
 
   const seccionActiva = SECCIONES.find((s) => s.id === seccionActivaId)
 
   function elegirSeccion(id: string) {
     setSeccionActivaId(id)
+    const seccion = SECCIONES.find((s) => s.id === id)
+    const previo = seccion?.modulos.find(
+      (m) => m.id === ultimoModulo[id] && m.disponible,
+    )
+    if (previo) {
+      // Ya se había entrado a un módulo de esta sección: se vuelve a ese.
+      setModuloActivoId(previo.id)
+      onSeleccion({ seccionId: id, moduloId: previo.id, moduloTitulo: previo.titulo })
+      return
+    }
+    // Primera vez en la sección: no hay nada que retomar.
     setModuloActivoId(null)
-    onSeleccion(null) // cambiar de sección limpia el contenido -> bienvenida
+    onSeleccion(null)
   }
 
   function elegirModulo(modulo: Modulo) {
     if (!seccionActiva) return
     setModuloActivoId(modulo.id)
+    setUltimoModulo((prev) => ({ ...prev, [seccionActiva.id]: modulo.id }))
     onSeleccion({
       seccionId: seccionActiva.id,
       moduloId: modulo.id,
