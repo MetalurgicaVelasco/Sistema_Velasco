@@ -10,7 +10,7 @@
 
 import type { Proceso, ModoProceso } from '../produccion/procesoTipos'
 
-export type EstadoProceso = 'sin_planificar' | 'planificado' | 'hecho'
+export type EstadoProceso = 'sin_planificar' | 'planificado' | 'hecho_operario' | 'hecho'
 
 // Snapshot que el planificador aceptó (columna plan_aceptado, jsonb). El ancho
 // del bloque se DERIVA de esto; los cambios de Oficina Técnica generan
@@ -35,6 +35,10 @@ export type Planificacion = {
   realHoraInicio: string | null
   realFechaFin: string | null
   realHoraFin: string | null
+  // Cuándo el operario tocó "Finalizar". Queda aunque después el supervisor
+  // cierre el proceso: sirve para distinguir lo que hizo un operario de lo que
+  // se cerró a mano desde el tablero.
+  finalizadoOperarioEn: string | null
   procesoEliminado: boolean
   setupSolapable: boolean
   grupoDivisionId: string | null

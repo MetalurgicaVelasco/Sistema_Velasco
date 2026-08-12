@@ -265,10 +265,16 @@ export default function Tablero({ onAcciones }: { onAcciones?: (n: React.ReactNo
     }
   }
 
-  // IDs de procesos marcados "hecho": son anclas duras (el motor no los reacomoda).
+  // Anclas duras (el motor no las reacomoda): lo cerrado por el supervisor y
+  // también lo que un operario ya terminó — si ya se hizo, moverlo de lugar
+  // sería falsear lo que pasó.
   function idsHechos(): number[] {
     if (!datos) return []
-    return [...new Set(datos.bloques.filter((bl) => bl.hecho).map((bl) => bl.procesoId))]
+    return [
+      ...new Set(
+        datos.bloques.filter((bl) => bl.hecho || bl.hechoPorOperario).map((bl) => bl.procesoId),
+      ),
+    ]
   }
 
   function abrirSelector(operarioId: number, fecha: FechaISO) {
@@ -911,6 +917,12 @@ function Bloque({
       onMouseLeave={onLeave}
       onClick={() => onAbrir(b)}
     >
+      {/* El operario ya la terminó; falta que el supervisor la cierre. */}
+      {b.hechoPorOperario ? (
+        <span className="tab-tilde-op" title="Terminada por el operario">
+          ✓
+        </span>
+      ) : null}
       {rayarMaquina ? <div className="tab-rayado" style={{ left: `${setupPct}%` }} /> : null}
       {haySetup ? <div className="tab-sep" style={{ left: `${setupPct}%` }} /> : null}
       {cabeManual ? (

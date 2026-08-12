@@ -19,6 +19,7 @@ function proc(o: Partial<ProcesoTablero>): ProcesoTablero {
     estado: 'planificado', planFecha: '2026-07-06', planHora: '06:00:00',
     planOperarioId: 3, planMaquinaId: 5, planAceptado: null,
     realFechaInicio: null, realHoraInicio: null, realFechaFin: null, realHoraFin: null,
+    finalizadoOperarioEn: null,
     procesoEliminado: false, setupSolapable: false, grupoDivisionId: null,
     ...o,
   }

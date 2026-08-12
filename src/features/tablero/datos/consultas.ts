@@ -21,7 +21,8 @@ const COLS_PROCESO =
   'operacion_min, margen_min, maquina_id, maquina_otra, operario_id, ' +
   'detalle_trabajo, es_retrabajo, estado, plan_fecha, plan_hora, ' +
   'plan_operario_id, plan_maquina_id, plan_aceptado, real_fecha_inicio, ' +
-  'real_hora_inicio, real_fecha_fin, real_hora_fin, proceso_eliminado, ' +
+  'real_hora_inicio, real_fecha_fin, real_hora_fin, finalizado_operario_en, ' +
+  'proceso_eliminado, ' +
   'setup_solapable, grupo_division_id'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,6 +64,7 @@ function mapProcesoTablero(r: any): ProcesoTablero {
     realHoraInicio: r.real_hora_inicio,
     realFechaFin: r.real_fecha_fin,
     realHoraFin: r.real_hora_fin,
+    finalizadoOperarioEn: r.finalizado_operario_en ?? null,
     procesoEliminado: r.proceso_eliminado,
     setupSolapable: r.setup_solapable,
     grupoDivisionId: r.grupo_division_id,

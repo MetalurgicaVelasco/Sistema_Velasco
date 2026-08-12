@@ -76,6 +76,9 @@ export type BloqueVisual = {
   urgencia: string
   maquinaColor: string | null
   hecho: boolean
+  // Lo terminó un operario desde su pantalla. Sigue siendo true aunque después
+  // el supervisor lo cierre: así se distingue de lo que se marca hecho a mano.
+  hechoPorOperario: boolean
   // Flags / badges
   esRetrabajo: boolean
   hayDivergencia: boolean
@@ -154,6 +157,7 @@ export function armarBloquesVisuales(datos: DatosTablero): BloqueVisual[] {
       urgencia: proyecto?.urgencia ?? 'media',
       maquinaColor: maquina?.color ?? null,
       hecho: p.estado === 'hecho',
+      hechoPorOperario: !!p.finalizadoOperarioEn,
       esRetrabajo: p.esRetrabajo,
       hayDivergencia: divs.length > 0,
       divergencias: divs,

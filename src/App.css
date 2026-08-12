@@ -5456,3 +5456,20 @@ body.resizeando-col {
 .modulo-slot-oculto {
   display: none;
 }
+
+/* Tilde de "terminada por el operario" en el bloque del tablero: el operario ya
+   la dio por hecha, falta que el supervisor la cierre. */
+.tab-tilde-op {
+  position: absolute;
+  left: 3px;
+  bottom: 1px;
+  z-index: 2;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1e7a34;
+  text-shadow:
+    0 0 2px #fff,
+    0 0 3px #fff;
+  pointer-events: none;
+}

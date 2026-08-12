@@ -36,6 +36,7 @@ function proc(overrides: Partial<ProcesoTablero>): ProcesoTablero {
     estado: 'planificado', planFecha: null, planHora: null,
     planOperarioId: null, planMaquinaId: null, planAceptado: null,
     realFechaInicio: null, realHoraInicio: null, realFechaFin: null, realHoraFin: null,
+    finalizadoOperarioEn: null,
     procesoEliminado: false, setupSolapable: false, grupoDivisionId: null,
     ...overrides,
   }

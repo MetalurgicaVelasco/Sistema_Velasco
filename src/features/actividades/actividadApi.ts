@@ -213,7 +213,7 @@ export async function finalizar(procesoId: number): Promise<{ error?: string }> 
   if (err) return { error: err }
   const { error } = await supabase
     .from('procesos')
-    .update({ estado: 'hecho_operario' })
+    .update({ estado: 'hecho_operario', finalizado_operario_en: ahora })
     .eq('id', procesoId)
   return error ? { error: error.message } : {}
 }
@@ -222,7 +222,7 @@ export async function finalizar(procesoId: number): Promise<{ error?: string }> 
 export async function reabrir(procesoId: number): Promise<{ error?: string }> {
   const { error } = await supabase
     .from('procesos')
-    .update({ estado: 'planificado' })
+    .update({ estado: 'planificado', finalizado_operario_en: null })
     .eq('id', procesoId)
   return error ? { error: error.message } : {}
 }
