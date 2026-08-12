@@ -216,13 +216,48 @@ correlatividad entre ellos.
 ## 8. Salidas y comprobantes operativos
 
 - **Remitos:** se generan en TacticaSoft. En el sistema solo se **registra** que un item
-  ya se envió y con qué número de remito, para trazabilidad.
+  ya se envió y con qué número de remito, para trazabilidad. Emitir el remito **bloquea el
+  pedido** en Táctica: por eso, cuando todavía falta información (precio, orden de compra
+  del cliente), no se puede remitir aunque las piezas estén listas.
 - **Notas de envío:** son un documento propio del taller que TacticaSoft no contempla.
   Históricamente se hacían en Word manualmente y se guardaban en Drive; el sistema
   unificó esa generación con numeración automática y vínculo al proyecto. Existen además
   **notas de envío externas**, que son notas hechas a mano antes de tener el sistema y se
   cargan retroactivamente con su número impreso original.
 - **Facturación:** hoy se hace en TacticaSoft (futuro en `ARQUITECTURA.md`, sección 11).
+
+> **Lo remitido es una cantidad derivada, no un estado.** Se calcula sumando las notas de
+> envío y los remitos directos; un remito que cierra una nota no vuelve a sumar. El modelo
+> completo está en `ARQUITECTURA.md`, sección 15.
+
+---
+
+## 8.b Cómo registra el operario lo que hace
+
+Antes, los operarios recibían una **carpeta de papel** con la información de la pieza y
+registraban sus trabajos en un sistema aparte, sin vínculo con la planificación. El módulo
+de Actividades une las dos cosas: el operario entra con su usuario, ve **su lista del día**
+(la que sale del tablero) y dentro de cada actividad tiene la carpeta digital completa y
+los botones para registrar el tiempo.
+
+- **Iniciar / Pausar / Finalizar.** Cada tramo queda como una tarjeta con su horario. La
+  pausa exige **motivo** en el momento: cambio de planificación (con quién dio la orden),
+  problema técnico, falta de herramienta o insumo, descanso, u otro.
+- **Lo que completa el operario:** material realmente utilizado (habitualmente el diámetro
+  y largo de los tochos) y observaciones. La máquina y el material planificado los define
+  Oficina Técnica, no el operario.
+- **Corregir después:** si no llegó a marcar en el momento, puede ajustar horarios o cargar
+  un tramo a mano. El sistema guarda igual **cuándo se apretó el botón realmente**, así la
+  corrección no borra la evidencia.
+- **Dos actividades a la vez:** es normal cuando una máquina trabaja sola; el tiempo cuenta
+  en las dos.
+- **Quién cierra:** el operario marca *terminada*; el supervisor la **cierra** después
+  (ahí se aplica la regla de procesos anteriores). En el tablero, lo terminado por un
+  operario se distingue con un tilde verde.
+
+> **El plan y la realidad son dos cosas distintas.** Lo que registra el operario no mueve
+> la planificación, y el tablero no modifica lo registrado. La comparación se hace mirando
+> las dos vistas del tablero: planificado y real (`ARQUITECTURA.md` §16.4).
 
 ---
 

@@ -4,7 +4,8 @@
 > en React del sistema interno de Metalúrgica Velasco. Se actualiza a medida que se
 > definen cosas nuevas.
 >
-> Última actualización: 06/07/2026 (§14: modelo de cambio directo vs. divergencia y edición de urgencia desde el tablero)
+> Última actualización: 11/08/2026 (§6 Actividades ya desarrollado, §7 supervisor provisorio,
+> §15 documentos de envío, §16 actividades del operario, §17 fotos múltiples)
 
 ---
 
@@ -186,13 +187,15 @@ visibles** —sin desarrollar— Ventas y Compras completas, Contabilidad comple
 completa, Portal Clientes completo, Talonarios (en Configuraciones) y Propiedades (en
 Activos), entre otros.
 
-### Sobre Actividades (vista de operarios) — idea, no se desarrolla ahora
+### Sobre Actividades (vista de operarios) — desarrollado
 
-Único ámbito que ven los operarios. Objetivo: que cada operario tenga el **listado de
-tareas del día** y pueda ver las de los días siguientes. Flujo previsto: el operario llega
-al taller, abre este módulo en una tablet o PC, y ahí tiene toda la info para trabajar e ir
-**registrando lo que hace**. Los módulos internos de esta sección todavía no están
-definidos; se hilan más adelante.
+Único ámbito que ven los operarios. Cada operario tiene el **listado de tareas del día**,
+puede navegar a otros días y registra lo que hace desde una tablet o PC del taller.
+El detalle del modelo está en **§16**.
+
+Módulo en uso: **Actividades Personal**. Quedan por definir *Registro de Operarios* y
+*Logística*; *Tablero* dentro de esta sección se prevé como la vista del **tablero real**
+(§16.4).
 
 ---
 
@@ -203,6 +206,27 @@ definidos; se hilan más adelante.
 - Existe un **Rol Maestro** con acceso total, salvo la configuración del Admin Principal.
 - **Auditoría**: el sistema registra quién cambió qué y cuándo.
 - Auth mediante **Supabase Auth**.
+
+### Estado real (11/08/2026): identidad sí, roles todavía no
+
+El módulo de Roles **no está construido**. Lo que existe hoy:
+
+- **Vínculo usuario ↔ persona:** `personal.usuario_id` apunta a `auth.users`. Sin ese
+  vínculo, una persona no puede entrar ni ver sus actividades. Es la base de todo lo
+  demás.
+- **`personal.es_supervisor` (provisorio):** quien la tiene ve y edita las actividades de
+  cualquiera; el resto, solo las propias. Es un **reemplazo temporal** del sistema de
+  roles, decidido para no frenar el módulo de operarios.
+
+> ⚠ Deuda consciente: `es_supervisor` desaparece cuando exista el módulo de Roles. Se
+> eligió así porque diseñar permisos **antes** de tener usuarios reales usando el sistema
+> lleva a un modelo que después hay que rehacer.
+
+**Cumplimiento en la base:** las notas de proyecto ya tienen RLS por autor
+(`creado_por = auth.uid()` para editar y borrar). El resto de las tablas todavía usa
+"cualquier usuario autenticado hace todo": la restricción es de pantalla, no de base.
+Endurecerlo queda pendiente y es requisito antes de que los operarios usen el sistema en
+producción con datos sensibles.
 
 ---
 
@@ -401,9 +425,17 @@ sola vez** en `shared/` en lugar de duplicarse entre páginas como pasaba en el 
 
 ## 13. Decisiones pendientes
 
-- [ ] **Notas:** hasta qué niveles de la matriz soportar notas (hoy `notas` es polimórfica
-      con `parent_type` = proyecto / item / producto; falta decidir si se extiende a
-      conjunto, subconjunto, sector, equipo). Pendiente de definir.
+- [ ] **Notas:** hasta qué niveles de la matriz soportar notas. En React se arrancó con
+      `notas_proyecto` (tabla propia, **no** polimórfica) para las notas del proyecto:
+      se prefirió una tabla por concepto antes que replicar la polimorfia del viejo.
+      Falta decidir si los otros niveles (item, producto, conjunto) llevan tabla propia o
+      se unifica.
+- [ ] **RLS pareja en todas las tablas** (hoy solo `notas_proyecto` restringe por autor;
+      ver §7).
+- [ ] **Presupuestos:** existe la solapa en la franja 4 de Empresas y de Proyectos, pero
+      no el modelo. Falta definir si es un documento propio versionable o algo derivado
+      del proyecto.
+- [ ] **Compras** (Órdenes de Compra, Compras, Recepciones): solapas creadas, sin modelo.
 - [x] **Librería de drag-and-drop del tablero:** **dnd-kit** (decidido 04/07/2026; ver §14).
       Calendario / date picker siguen pendientes.
 - [ ] **Códigos hexadecimal** de los colores pastel.
@@ -467,3 +499,145 @@ residuales. (No se portó la lógica de pulmones: no se usan.)
 el de máquinas (visor de solo lectura sobre el mismo motor). En la vista por
 operarios el borde del bloque codifica la máquina; en la futura vista por máquinas,
 el operario (ver `NEGOCIO.md` §6).
+
+---
+
+## 15. Documentos de envío (notas de envío y remitos)
+
+> Implementado. Reemplaza el circuito manual de Word + Drive.
+
+### El principio: lo remitido es DERIVADO, no un estado
+
+La cantidad remitida de un elemento **no se guarda** en ninguna columna: se calcula
+sumando lo que dicen los documentos. Se leyó así del sistema viejo y se mantuvo a
+propósito: un estado guardado se desincroniza en cuanto se corrige un documento.
+
+Regla completa:
+
+- **Suman** las líneas de las notas de envío y las de los remitos **directos**.
+- **No suma** un remito que *cierra* una nota de envío: esas unidades ya las contó la
+  nota. Si sumaran las dos, se contaría doble.
+
+### Por qué existen los dos documentos
+
+El **remito** sale de TacticaSoft y es el documento válido. Pero emitirlo **bloquea el
+pedido** en Táctica: si falta ponerle precio o llegó la orden de compra del cliente, no se
+puede remitir todavía. Para poder entregar igual, el taller emite una **nota de envío**,
+que es el papel que firma quien se lleva las piezas. Cuando después se emite el remito, se
+lo vincula a esa nota y el circuito cierra.
+
+También se usan notas para enviar piezas que **no se cobran** (muestras del cliente),
+donde no hay pedido ni remito posible.
+
+### Modelo
+
+| Tabla | Qué guarda |
+|---|---|
+| `notas_envio` | número correlativo propio, número impreso (si es externa), fecha, empresa, proyecto (opcional), pedido, observaciones y **snapshot del cliente** |
+| `notas_envio_items` | línea: elemento (FK real), descripción impresa y cantidad |
+| `remitos` | número de Táctica, fecha, empresa, proyecto, y `tipo` = `nota` \| `directo` |
+| `remitos_items` | línea: elemento, cantidad y **`nota_envio_id`** (con valor = cierra esa nota y no suma) |
+
+Decisiones dentro del modelo:
+
+- **Snapshot del cliente en la nota:** nombre, razón social, CUIT, contacto y dirección se
+  copian al emitir. Si mañana el cliente cambia de dirección, el documento firmado tiene
+  que seguir diciendo lo que decía.
+- **`descripcion` se guarda además del `elemento_id`:** es el texto que quedó impreso.
+- **Numeración por secuencia de Postgres** (`siguiente_numero_nota_envio`), no leyendo y
+  actualizando un contador como hacía el viejo: es atómica y no necesita reintentos.
+- **Un conjunto entra como UNA línea**, con su cantidad. Retrabajos y dispositivos nunca
+  se entregan al cliente y quedan fuera.
+- Un elemento ya cubierto por un **remito directo** no puede ir en una nota.
+
+### Edición
+
+Una nota **cerrada por un remito** no se puede editar ni borrar (desincronizaría el
+remito). De los remitos se editan **número y fecha**; para cambiar qué cubren, se borran y
+se rehacen. Borrar un remito reabre las notas que cerraba.
+
+---
+
+## 16. Actividades del operario
+
+> Implementado. Es el único ámbito que usan los operarios (§6).
+
+### 16.1 Qué ve
+
+La **lista del día**: sus procesos planificados para una fecha (los mismos datos que el
+tablero, leídos por `plan_fecha` + `plan_operario_id`). Puede navegar a otros días y recibe
+un aviso de lo que quedó **atrasado**. Un supervisor puede mirar y editar la agenda de
+cualquiera.
+
+Dentro de cada actividad tiene la **orden de trabajo digital** (los mismos datos que la OT
+impresa) y, por separado, la **carpeta completa** del ítem: portada con los datos del
+trabajo, la lista de todos los procesos y una OT por proceso — incluido **lo que registró
+quien hizo los procesos anteriores**. Es la digitalización de la carpeta de papel: el
+contexto completo de la pieza, no solo el paso propio.
+
+### 16.2 Tiempos: tramos
+
+El registro de tiempo son **tramos** (`actividad_tramos`), un renglón por tarjeta:
+
+- `tipo` = `trabajo` \| `pausa`; la pausa lleva **motivo obligatorio** (y quién autorizó,
+  si fue un cambio de planificación).
+- `fin` en null = **está corriendo**. Así no hace falta un estado aparte para saber qué
+  está en curso.
+- **Dos pares de horarios:** `inicio`/`fin` son los que valen para el cálculo, e
+  `inicio_real`/`fin_real` guardan **cuándo se tocó el botón** y no se pisan nunca. Si se
+  corrige un horario a mano, el tramo queda marcado como `editado`.
+
+> El objetivo del par real/efectivo es que corregir no borre la evidencia: siempre se puede
+> reconstruir qué pasó de verdad.
+
+Un operario puede tener **dos actividades corriendo a la vez** (el caso de la máquina
+automática), y el tiempo cuenta en las dos.
+
+### 16.3 Estados y quién cierra
+
+Se agregó el estado **`hecho_operario`** a `procesos`: el operario terminó, pero el
+supervisor todavía no lo cerró. Al cerrarlo (`hecho`) se aplica la regla de predecesores
+que ya existía.
+
+`procesos.finalizado_operario_en` guarda **cuándo** finalizó el operario y **sobrevive** al
+cierre del supervisor: es lo que permite distinguir, en el tablero, lo que hizo un operario
+(✓ verde) de lo que se marcó hecho a mano. Se limpia si la actividad se reabre.
+
+Los procesos en `hecho_operario` son **ancla dura** del motor de cascada, igual que los
+`hecho`: si ya ocurrieron, moverlos sería falsear lo que pasó.
+
+### 16.4 Plan y realidad no se pisan
+
+Decisión de fondo, tomada el 11/08/2026:
+
+- Lo que registra el operario **nunca mueve** la planificación del tablero. Si la realidad
+  sobrescribiera el plan, se perdería justamente lo que se quiere medir: el desvío.
+- El tablero **nunca modifica** los tramos registrados. Mover un bloque de una actividad
+  cerrada sí la **reabre** (si se replanifica es porque algo hay que rehacer), pero no
+  toca lo que se registró.
+- La comparación se resuelve con **dos vistas del tablero**: el **planificado** (el actual,
+  editable) y el **real** (dibujado a partir de los tramos, solo lectura, con las pausas e
+  interrupciones a la vista). Mismo dato, dos lecturas.
+
+> Por eso se descartó marcar "divergencia" entre plan y realidad: con las dos vistas al
+> lado, un símbolo que avise del desvío es redundante.
+
+---
+
+## 17. Fotos múltiples
+
+Un proyecto admite hasta **10** fotos y un elemento hasta **5**. Viven en la tabla `fotos`
+(`proyecto_id` **o** `elemento_id`, nunca los dos: lo garantiza un `check`), con el `path`
+del bucket y la `posicion`.
+
+**La columna vieja `foto_url` se mantiene**, sincronizada con la foto **principal** (la de
+posición 1). El tablero, la carpeta impresa, el mail y la etiqueta la siguen leyendo sin
+cambios. Es deliberado: borrarla obligaba a tocar cinco lugares a la vez.
+
+La galería es un componente compartido y se usa en los tres lugares donde se cargan fotos
+(formulario de proyecto, modal de elemento y vista del elemento). Esto ataca un problema
+concreto del sistema viejo: **dos pantallas guardaban la foto por caminos distintos y
+mostraban cosas distintas**. Una sola fuente, un solo componente.
+
+En la vista compacta ocupa **alto fijo** (miniatura + contador "+N"): cargar fotos no puede
+mover ni achicar los campos del formulario.

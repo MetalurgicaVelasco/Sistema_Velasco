@@ -5473,3 +5473,61 @@ body.resizeando-col {
     0 0 3px #fff;
   pointer-events: none;
 }
+
+/* ── Corregir / agregar tramos ────────────────────────────────────────────── */
+.tie-agregar {
+  margin-left: auto;
+  padding: 7px 13px;
+  border: 1px solid #c8c6be;
+  border-radius: 6px;
+  background: #fff;
+  color: #2c2c2a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tie-agregar:hover {
+  filter: brightness(0.95);
+}
+/* Las tarjetas se pueden tocar para corregir mientras la actividad esté abierta. */
+.tie-card-editable {
+  cursor: pointer;
+}
+.tie-card-editable:hover {
+  filter: brightness(0.97);
+}
+.tie-solape {
+  background: #fff4d5;
+  border: 1px solid #e8c877;
+  color: #854f0b;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+/* Selector trabajo / pausa al agregar un tramo. */
+.tra-tipos {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tra-tipo {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tra-tipo:hover {
+  filter: brightness(0.96);
+}
+.tra-tipo-activo {
+  background: #0c447c;
+  border-color: #0c447c;
+  color: #fff;
+}

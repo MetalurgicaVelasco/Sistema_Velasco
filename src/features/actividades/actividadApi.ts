@@ -255,6 +255,40 @@ export async function corregirTramo(
   return error ? { error: error.message } : {}
 }
 
+// Cargar a mano un tramo que no se registró en el momento (se olvidó de tocar
+// los botones). Queda marcado como editado: los *_real guardan cuándo se cargó,
+// no cuándo ocurrió, así que la distinción entre lo registrado en vivo y lo
+// cargado después no se pierde.
+export async function agregarTramo(
+  procesoId: number,
+  datos: {
+    tipo: 'trabajo' | 'pausa'
+    inicio: string
+    fin: string
+    motivo?: MotivoPausa | null
+    detalle?: string | null
+    autorizadoPor?: string | null
+  },
+): Promise<{ error?: string }> {
+  const u = await usuarioActual()
+  const ahora = new Date().toISOString()
+  const { error } = await supabase.from('actividad_tramos').insert({
+    proceso_id: procesoId,
+    tipo: datos.tipo,
+    motivo: datos.tipo === 'pausa' ? (datos.motivo ?? null) : null,
+    motivo_detalle: datos.tipo === 'pausa' ? (datos.detalle ?? null) : null,
+    autorizado_por: datos.tipo === 'pausa' ? (datos.autorizadoPor ?? null) : null,
+    inicio: datos.inicio,
+    fin: datos.fin,
+    inicio_real: ahora,
+    fin_real: ahora,
+    editado: true,
+    creado_por: u.id,
+    creado_por_nombre: u.nombre,
+  })
+  return error ? { error: error.message } : {}
+}
+
 export async function borrarTramo(tramoId: number): Promise<{ error?: string }> {
   const { error } = await supabase.from('actividad_tramos').delete().eq('id', tramoId)
   return error ? { error: error.message } : {}

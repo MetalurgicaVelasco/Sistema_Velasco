@@ -3,6 +3,7 @@ import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import ModalPausa from './ModalPausa'
 import VistaCarpeta from './VistaCarpeta'
 import VisorFotos from '../../shared/components/VisorFotos'
+import ModalTramo from './ModalTramo'
 import {
   cargarDetalleActividad,
   cargarTramos,
@@ -14,7 +15,15 @@ import {
   type DetalleActividad,
   type DatosPausa,
 } from './actividadApi'
-import { totales, tramoAbierto, comoReloj, comoDuracion, horaDe, type Tramo } from './tiempos'
+import {
+  totales,
+  tramoAbierto,
+  comoReloj,
+  comoDuracion,
+  horaDe,
+  haySolape,
+  type Tramo,
+} from './tiempos'
 
 const ETIQUETA_MOTIVO: Record<string, string> = {
   cambio_planificacion: 'Cambio de planificación',
@@ -42,6 +51,7 @@ function VistaActividad({
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pausaAbierta, setPausaAbierta] = useState(false)
+  const [modalTramo, setModalTramo] = useState<{ tramo: Tramo | null } | null>(null)
   const [confirmarFin, setConfirmarFin] = useState(false)
   const [ahora, setAhora] = useState(Date.now())
 
@@ -314,6 +324,16 @@ function VistaActividad({
               <span className="ot-lbl">Interrupciones</span>
               <span className="tie-total-val tie-total-pausa">{comoDuracion(t.pausaMs)}</span>
             </div>
+            {!finalizada && (
+              <button
+                type="button"
+                className="tie-agregar"
+                title="Cargar un tramo que no se registró en el momento"
+                onClick={() => setModalTramo({ tramo: null })}
+              >
+                + Agregar tramo
+              </button>
+            )}
           </div>
 
           <div className="tie-botones">
@@ -364,6 +384,13 @@ function VistaActividad({
           </div>
         )}
 
+        {haySolape(tramos) && (
+          <div className="tie-solape">
+            ⚠ Hay tramos que se pisan entre sí. Revisá los horarios: el tiempo total puede estar
+            contando de más.
+          </div>
+        )}
+
         {tramos.length === 0 ? (
           <div className="act-vacio">Todavía no empezaste esta actividad.</div>
         ) : (
@@ -377,8 +404,11 @@ function VistaActividad({
                   className={
                     'tie-card' +
                     (tr.tipo === 'pausa' ? ' tie-card-pausa' : '') +
-                    (corriendo ? ' tie-card-corriendo' : '')
+                    (corriendo ? ' tie-card-corriendo' : '') +
+                    (finalizada ? '' : ' tie-card-editable')
                   }
+                  title={finalizada ? undefined : 'Tocar para corregir los horarios'}
+                  onClick={finalizada ? undefined : () => setModalTramo({ tramo: tr })}
                 >
                   <div className="tie-card-tit">
                     {tr.tipo === 'trabajo' ? 'Trabajo' : ETIQUETA_MOTIVO[tr.motivo ?? ''] ?? 'Pausa'}
@@ -409,6 +439,18 @@ function VistaActividad({
       {error && <p className="empresa-form-error">{error}</p>}
 
       {pausaAbierta && <ModalPausa onConfirmar={onPausar} onCancelar={() => setPausaAbierta(false)} />}
+
+      {modalTramo && (
+        <ModalTramo
+          procesoId={procesoId}
+          tramo={modalTramo.tramo}
+          onCerrar={() => setModalTramo(null)}
+          onGuardado={() => {
+            setModalTramo(null)
+            refrescarTramos()
+          }}
+        />
+      )}
 
       {confirmarFin && (
         <ModalConfirmar
