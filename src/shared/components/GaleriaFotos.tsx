@@ -135,12 +135,14 @@ function GaleriaFotos({ duenio, deshabilitado = false }: { duenio: Duenio; desha
                   +{restantes}
                 </button>
               )}
+              {/* Abre el modal (no el selector de archivos): ahí se ven todas y
+                  se puede insertar con el botón o pegando con Ctrl+V. */}
               <button
                 type="button"
                 className="gal-agregar"
                 disabled={deshabilitado || trabajando || lleno}
                 title={lleno ? `Máximo ${tope} fotos` : 'Agregar foto'}
-                onClick={() => inputRef.current?.click()}
+                onClick={() => setModalAbierto(true)}
               >
                 {trabajando ? '…' : '+ Foto'}
               </button>

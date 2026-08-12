@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { supabase } from '../../shared/lib/supabaseClient'
 import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import ModalPausa from './ModalPausa'
 import VistaCarpeta from './VistaCarpeta'
+import VisorFotos from '../../shared/components/VisorFotos'
 import {
   cargarDetalleActividad,
   cargarTramos,
@@ -15,12 +15,6 @@ import {
   type DatosPausa,
 } from './actividadApi'
 import { totales, tramoAbierto, comoReloj, comoDuracion, horaDe, type Tramo } from './tiempos'
-
-const BUCKET = 'proyectos-fotos'
-
-function urlFoto(path: string | null): string | null {
-  return path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null
-}
 
 const ETIQUETA_MOTIVO: Record<string, string> = {
   cambio_planificacion: 'Cambio de planificación',
@@ -179,13 +173,12 @@ function VistaActividad({
   const t = totales(tramos, ahora)
   const finalizada = det.estado === 'hecho_operario' || det.estado === 'hecho'
   const bloqueado = finalizada
-  const fotoEl = urlFoto(det.fotoElemento)
-  const fotoPr = urlFoto(det.fotoProyecto)
 
   if (carpetaAbierta) {
     return (
       <VistaCarpeta
         elementoId={det.elementoId}
+        proyectoId={det.proyectoId}
         procesoActualId={det.procesoId}
         onVolver={() => onCarpeta?.(false)}
       />
@@ -408,26 +401,10 @@ function VistaActividad({
         )}
       </div>
 
-      {/* Fotos al final */}
-      {(fotoEl || fotoPr) && (
-        <div className="ot-fotos">
-          <div className="ot-completar-band">Fotos</div>
-          <div className="ot-fotos-grid">
-            {fotoEl && (
-              <figure className="ot-foto">
-                <img src={fotoEl} alt="Pieza" />
-                <figcaption>Pieza</figcaption>
-              </figure>
-            )}
-            {fotoPr && (
-              <figure className="ot-foto">
-                <img src={fotoPr} alt="Proyecto" />
-                <figcaption>Proyecto</figcaption>
-              </figure>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Fotos al final: todas las de la pieza y del proyecto, de a una. */}
+      <div className="ot-fotos">
+        <VisorFotos elementoId={det.elementoId} proyectoId={det.proyectoId} />
+      </div>
 
       {error && <p className="empresa-form-error">{error}</p>}
 

@@ -5350,3 +5350,100 @@ body.resizeando-col {
   flex: 0 0 auto;
   max-width: 380px;
 }
+
+/* ── Visor de fotos (carpeta y actividad) ─────────────────────────────────── */
+/* Se recorren de a una con las flechitas: primero las de la pieza, después las
+   del proyecto. Alto fijo para que la vista no salte al cambiar de foto. */
+.vis {
+  border: 1px solid #d9d7cf;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.vis-contador {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  color: #c9c9c9;
+}
+.vis-marco {
+  position: relative;
+  height: 340px;
+  background: #f7f5ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vis-marco img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+/* Flechas grandes: se tocan con el dedo en la tablet. */
+.vis-flecha {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vis-flecha:hover {
+  background: rgba(0, 0, 0, 0.72);
+}
+.vis-flecha-izq {
+  left: 10px;
+}
+.vis-flecha-der {
+  right: 10px;
+}
+.vis-origen {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  background: #0c447c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 4px;
+}
+.vis-origen-proy {
+  background: #6b6a66;
+}
+.vis-puntos {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  background: #fff;
+}
+.vis-punto {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #d9d7cf;
+  cursor: pointer;
+}
+.vis-punto-activo {
+  background: #0c447c;
+}
+/* Contenedores del visor en cada pantalla. */
+.carp-visor {
+  padding: 12px;
+  border-top: 1px solid #d9d7cf;
+}

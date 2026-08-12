@@ -160,3 +160,25 @@ export async function marcarPrincipal(d: Duenio, fotoId: number): Promise<{ erro
   await sincronizarPrincipal(d)
   return {}
 }
+
+
+// ── Fotos para VER (carpeta y actividad) ────────────────────────────────────
+// Primero las del elemento (arrancando por la principal) y después las del
+// proyecto, marcadas como tales. Es el orden en que le sirven al operario: lo
+// suyo primero, el contexto general después.
+
+export type FotoVista = Foto & { origen: 'item' | 'proyecto' }
+
+export async function cargarFotosVista(
+  elementoId: number,
+  proyectoId: number | null,
+): Promise<FotoVista[]> {
+  const [delItem, delProyecto] = await Promise.all([
+    cargarFotos({ elementoId }),
+    proyectoId != null ? cargarFotos({ proyectoId }) : Promise.resolve([]),
+  ])
+  return [
+    ...delItem.map((f) => ({ ...f, origen: 'item' as const })),
+    ...delProyecto.map((f) => ({ ...f, origen: 'proyecto' as const })),
+  ]
+}

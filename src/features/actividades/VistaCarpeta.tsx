@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../shared/lib/supabaseClient'
+import VisorFotos from '../../shared/components/VisorFotos'
 import { cargarCarpeta, type Carpeta } from './carpetaApi'
 import { comoDuracion } from './tiempos'
-
-const BUCKET = 'proyectos-fotos'
-
-function urlFoto(path: string | null): string | null {
-  return path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null
-}
 
 function fmt(d: string | null): string {
   return d ? d.split('-').reverse().join('/') : '—'
@@ -18,10 +12,12 @@ function fmt(d: string | null): string {
 // scrolleando, como pasar las hojas.
 function VistaCarpeta({
   elementoId,
+  proyectoId = null,
   procesoActualId,
   onVolver,
 }: {
   elementoId: number
+  proyectoId?: number | null
   procesoActualId?: number
   onVolver: () => void
 }) {
@@ -50,7 +46,6 @@ function VistaCarpeta({
   if (!carpeta) return <div className="act-vacio">{error ?? 'No se encontró la carpeta.'}</div>
 
   const { portada: p, procesos } = carpeta
-  const foto = urlFoto(p.fotoItem)
 
   // Ir a la orden de trabajo de un proceso desde la tabla de la portada.
   function irAProceso(id: number) {
@@ -150,11 +145,10 @@ function VistaCarpeta({
           </tbody>
         </table>
 
-        {foto && (
-          <div className="carp-foto">
-            <img src={foto} alt="Ítem" />
-          </div>
-        )}
+        {/* Todas las fotos: primero las de la pieza, después las del proyecto. */}
+        <div className="carp-visor">
+          <VisorFotos elementoId={elementoId} proyectoId={proyectoId} />
+        </div>
       </div>
 
       {/* ── Una orden de trabajo por proceso ── */}
