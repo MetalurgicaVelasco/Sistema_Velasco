@@ -4,10 +4,11 @@ import ModalPausa from './ModalPausa'
 import VistaCarpeta from './VistaCarpeta'
 import VisorFotos from '../../shared/components/VisorFotos'
 import ModalTramo from './ModalTramo'
+import { TIPOS_OPERACION, defTipo, esProductivo, type TipoOperacion } from './tiposOperacion'
 import {
   cargarDetalleActividad,
   cargarTramos,
-  iniciarTrabajo,
+  iniciarOperacion,
   pausar,
   finalizar,
   reabrir,
@@ -51,8 +52,9 @@ function VistaActividad({
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pausaAbierta, setPausaAbierta] = useState(false)
-  const [modalTramo, setModalTramo] = useState<{ tramo: Tramo | null } | null>(null)
+  const [pendienteMotivo, setPendienteMotivo] = useState<TipoOperacion | null>(null)
   const [confirmarFin, setConfirmarFin] = useState(false)
+  const [modalTramo, setModalTramo] = useState<{ tramo: Tramo | null } | null>(null)
   const [ahora, setAhora] = useState(Date.now())
 
   // Campos del operario (se guardan solos, sin botón).
@@ -133,18 +135,48 @@ function VistaActividad({
 
   const ahoraISO = () => new Date().toISOString()
 
+  // Cierra lo que estaba abierto, salvo el automático: la máquina sigue sola.
   function cerrarUltimo(previos: Tramo[]): Tramo[] {
     const cuando = ahoraISO()
-    return previos.map((t) => (t.fin ? t : { ...t, fin: cuando }))
+    return previos.map((t) => (t.fin || t.automatico ? t : { ...t, fin: cuando }))
   }
 
-  function onIniciar() {
+  // Un toque = empezar o cambiar lo que se está haciendo. El tramo se pinta de
+  // entrada para que no haya espera, y después se confirma contra la base.
+  function onTipo(tipo: TipoOperacion) {
+    // Los no productivos piden el motivo en el momento (salvo el descanso, que
+    // ya es su propio motivo).
+    if (!esProductivo(tipo) && tipo !== 'DE') {
+      setPendienteMotivo(tipo)
+      return
+    }
+    return arrancarTipo(tipo)
+  }
+
+  function arrancarTipo(
+    tipo: TipoOperacion,
+    extra?: { motivo?: DatosPausa['motivo']; detalle?: string | null; autorizadoPor?: string | null },
+  ) {
     return accionOptimista(
       (previos) => [
         ...cerrarUltimo(previos),
-        { id: -Date.now(), tipo: 'trabajo', inicio: ahoraISO(), fin: null },
+        {
+          id: -Date.now(),
+          tipo: esProductivo(tipo) ? 'trabajo' : 'pausa',
+          tipoOperacion: tipo,
+          inicio: ahoraISO(),
+          fin: null,
+          motivo: extra?.motivo ?? null,
+          motivoDetalle: extra?.detalle ?? null,
+          autorizadoPor: extra?.autorizadoPor ?? null,
+        },
       ],
-      () => iniciarTrabajo(procesoId),
+      () =>
+        iniciarOperacion(procesoId, tipo, {
+          motivo: extra?.motivo ?? null,
+          detalle: extra?.detalle ?? null,
+          autorizadoPor: extra?.autorizadoPor ?? null,
+        }),
     )
   }
 
@@ -338,32 +370,14 @@ function VistaActividad({
 
           <div className="tie-botones">
             {!finalizada && (
-              <>
-                <button
-                  type="button"
-                  className="tie-btn tie-btn-iniciar"
-                  disabled={!!abierto && abierto.tipo === 'trabajo'}
-                  onClick={onIniciar}
-                >
-                  ▶ {tramos.length === 0 ? 'Iniciar' : 'Reanudar'}
-                </button>
-                <button
-                  type="button"
-                  className="tie-btn tie-btn-pausar"
-                  disabled={!abierto || abierto.tipo === 'pausa'}
-                  onClick={() => setPausaAbierta(true)}
-                >
-                  ⏸ Pausar
-                </button>
-                <button
-                  type="button"
-                  className="tie-btn tie-btn-finalizar"
-                  disabled={tramos.length === 0}
-                  onClick={() => setConfirmarFin(true)}
-                >
-                  ■ Finalizar
-                </button>
-              </>
+              <button
+                type="button"
+                className="tie-btn tie-btn-finalizar"
+                disabled={tramos.length === 0}
+                onClick={() => setConfirmarFin(true)}
+              >
+                ■ Finalizar
+              </button>
             )}
             {finalizada && (
               <button
@@ -381,6 +395,29 @@ function VistaActividad({
           <div className="tie-finalizada">
             {det.estado === 'hecho' ? 'Actividad cerrada.' : 'Actividad terminada.'} Los campos
             quedaron bloqueados; reabrila para modificar.
+          </div>
+        )}
+
+        {!finalizada && (
+          <div className="tie-tipos">
+            <span className="ot-lbl">¿Qué estás haciendo?</span>
+            <div className="tie-tipos-grilla">
+              {TIPOS_OPERACION.map((t) => {
+                const activo = abierto?.tipoOperacion === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={'tie-tipo tie-tipo-' + t.id + (activo ? ' tie-tipo-activo' : '')}
+                    title={t.label}
+                    onClick={() => onTipo(t.id)}
+                  >
+                    <span className="tie-tipo-cod">{t.id}</span>
+                    {t.corto}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 
@@ -411,7 +448,12 @@ function VistaActividad({
                   onClick={finalizada ? undefined : () => setModalTramo({ tramo: tr })}
                 >
                   <div className="tie-card-tit">
-                    {tr.tipo === 'trabajo' ? 'Trabajo' : ETIQUETA_MOTIVO[tr.motivo ?? ''] ?? 'Pausa'}
+                    {tr.tipoOperacion
+                      ? defTipo(tr.tipoOperacion).label
+                      : tr.tipo === 'trabajo'
+                        ? 'Trabajo'
+                        : (ETIQUETA_MOTIVO[tr.motivo ?? ''] ?? 'Pausa')}
+                    {tr.automatico && <span className="tie-auto" title="Automático">🤖</span>}
                     {tr.editado && <span className="tie-editado" title="Horario corregido a mano">editado</span>}
                   </div>
                   <div className="tie-card-horas">
@@ -439,6 +481,17 @@ function VistaActividad({
       {error && <p className="empresa-form-error">{error}</p>}
 
       {pausaAbierta && <ModalPausa onConfirmar={onPausar} onCancelar={() => setPausaAbierta(false)} />}
+
+      {pendienteMotivo && (
+        <ModalPausa
+          onConfirmar={(p) => {
+            const tipo = pendienteMotivo
+            setPendienteMotivo(null)
+            arrancarTipo(tipo, { motivo: p.motivo, detalle: p.detalle, autorizadoPor: p.autorizadoPor })
+          }}
+          onCancelar={() => setPendienteMotivo(null)}
+        />
+      )}
 
       {modalTramo && (
         <ModalTramo

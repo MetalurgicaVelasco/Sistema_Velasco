@@ -5531,3 +5531,190 @@ body.resizeando-col {
   border-color: #0c447c;
   color: #fff;
 }
+
+/* ── Barra de reparto de tiempo ───────────────────────────────────────────── */
+/* Al mover un marcador, lo que un segmento crece el vecino lo pierde: el total
+   siempre cierra. Los extremos son fijos. */
+.rep {
+  margin: 10px 0 4px;
+}
+.rep-barra {
+  position: relative;
+  display: flex;
+  height: 54px;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f7f5ef;
+  touch-action: none;
+}
+.rep-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 4px;
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.rep-seg:last-child {
+  border-right: none;
+}
+.rep-seg-tit {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2c2c2a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Colores por tipo de operación, los mismos que ya usan los operarios. */
+.rep-seg-RD { background: #d4efdf; }
+.rep-seg-PR { background: #d5f5e3; }
+.rep-seg-SE { background: #d6eaf8; }
+.rep-seg-OP { background: #fef9e7; }
+.rep-seg-MA { background: #fadbd8; }
+.rep-seg-DE { background: #f2f3f4; }
+.rep-seg-OT { background: #e8daef; }
+/* Marcador: ancho generoso para agarrarlo con el dedo. */
+.rep-marcador {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  margin-left: -11px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.rep-marcador::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 9px;
+  width: 4px;
+  border-radius: 2px;
+  background: #0c447c;
+}
+.rep-marcador-activo::before,
+.rep-marcador:hover::before {
+  background: #072d54;
+  box-shadow: 0 0 0 3px rgba(12, 68, 124, 0.18);
+}
+.rep-valores {
+  display: flex;
+  margin-top: 6px;
+}
+.rep-valor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 2px;
+}
+.rep-input {
+  width: 100%;
+  max-width: 62px;
+  padding: 3px 4px;
+  border: 1px solid #c8c6be;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: #2c2c2a;
+}
+.rep-pct {
+  font-size: 10px;
+  color: #6b6a66;
+}
+.rep-orden {
+  display: flex;
+  gap: 2px;
+}
+.rep-orden-btn {
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #d9d7cf;
+  border-radius: 4px;
+  background: #fff;
+  color: #2c2c2a;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.rep-orden-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.rep-orden-btn:hover:not(:disabled) {
+  background: #eef2f7;
+}
+
+/* ── Botonera de tipo de operación ────────────────────────────────────────── */
+/* Un toque empieza o cambia lo que se está haciendo: sin modal de por medio,
+   que es lo que hace rápida la carga. */
+.tie-tipos {
+  margin-bottom: 12px;
+}
+.tie-tipos-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(122px, 1fr));
+  gap: 6px;
+  margin-top: 5px;
+}
+.tie-tipo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 12px 11px 6px;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c2c2a;
+  cursor: pointer;
+  text-align: left;
+}
+.tie-tipo:hover {
+  filter: brightness(0.96);
+}
+.tie-tipo-cod {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 800;
+}
+/* Mismos colores que la app que ya usan los operarios. */
+.tie-tipo-RD .tie-tipo-cod { background: #d4efdf; color: #1a5276; }
+.tie-tipo-PR .tie-tipo-cod { background: #d5f5e3; color: #1e8449; }
+.tie-tipo-SE .tie-tipo-cod { background: #d6eaf8; color: #1a5276; }
+.tie-tipo-OP .tie-tipo-cod { background: #fef9e7; color: #9a7d0a; }
+.tie-tipo-MA .tie-tipo-cod { background: #fadbd8; color: #922b21; }
+.tie-tipo-DE .tie-tipo-cod { background: #f2f3f4; color: #717d7e; }
+.tie-tipo-OT .tie-tipo-cod { background: #e8daef; color: #6c3483; }
+/* El tipo en curso: el botón entero en navy, para que se vea de un vistazo
+   desde lejos qué está haciendo. */
+.tie-tipo-activo {
+  background: #0c447c;
+  border-color: #0c447c;
+  color: #fff;
+}
+.tie-tipo-activo:hover {
+  filter: brightness(1.06);
+}
+.tie-auto {
+  margin-left: 4px;
+}

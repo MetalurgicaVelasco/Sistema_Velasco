@@ -1,5 +1,6 @@
 import { supabase } from '../../shared/lib/supabaseClient'
 import type { Tramo } from './tiempos'
+import { esProductivo, type TipoOperacion } from './tiposOperacion'
 
 // -----------------------------------------------------------------------------
 // Una actividad concreta: la orden de trabajo digital y sus tramos de tiempo.
@@ -117,6 +118,30 @@ function mapTramo(r: any): Tramo {
     motivoDetalle: r.motivo_detalle ?? null,
     autorizadoPor: r.autorizado_por ?? null,
     editado: !!r.editado,
+    tipoOperacion: (r.tipo_operacion ?? undefined) as TipoOperacion | undefined,
+    automatico: !!r.automatico,
+    finMaquina: r.fin_maquina ?? null,
+    maquinaId: r.maquina_id ?? null,
+  }
+}
+
+// Datos de planificación que se usan como valores por defecto del tramo: la
+// máquina y si el proceso es automático. La idea es que planificar le ahorre
+// toques al operario.
+async function defectosDelProceso(
+  procesoId: number,
+): Promise<{ personalId: number | null; maquinaId: number | null; automatico: boolean }> {
+  const { data } = await supabase
+    .from('procesos')
+    .select('plan_operario_id, plan_maquina_id, modo')
+    .eq('id', procesoId)
+    .maybeSingle()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = data as any
+  return {
+    personalId: p?.plan_operario_id ?? null,
+    maquinaId: p?.plan_maquina_id ?? null,
+    automatico: p?.modo === 'automatica',
   }
 }
 
@@ -145,6 +170,7 @@ async function cerrarAbierto(procesoId: number, cuando: string): Promise<string 
     .select('id')
     .eq('proceso_id', procesoId)
     .is('fin', null)
+    .eq('automatico', false) // el automático sigue corriendo solo
     .limit(1)
   if (error) return error.message
   const abierto = (data ?? [])[0]
@@ -169,21 +195,57 @@ export type DatosPausa = {
   autorizadoPor?: string | null
 }
 
-// Iniciar o reanudar: cierra lo que esté abierto y abre un tramo de trabajo.
-export async function iniciarTrabajo(procesoId: number): Promise<{ error?: string }> {
+// Empezar (o cambiar el tipo de lo que se está haciendo) en UN toque: cierra el
+// tramo abierto y abre uno nuevo del tipo elegido.
+//
+// El tramo AUTOMÁTICO no se cierra al pasar a otra cosa: la máquina sigue sola y
+// su tiempo se cuenta hasta `fin_maquina`.
+export async function iniciarOperacion(
+  procesoId: number,
+  tipo: TipoOperacion,
+  opciones?: { automatico?: boolean; motivo?: MotivoPausa | null; detalle?: string | null; autorizadoPor?: string | null },
+): Promise<{ error?: string }> {
   const ahora = new Date().toISOString()
   const err = await cerrarAbierto(procesoId, ahora)
   if (err) return { error: err }
+
+  const def = await defectosDelProceso(procesoId)
   const u = await usuarioActual()
+  const automatico = opciones?.automatico ?? (tipo === 'OP' ? def.automatico : false)
   const { error } = await supabase.from('actividad_tramos').insert({
     proceso_id: procesoId,
-    tipo: 'trabajo',
+    tipo: esProductivo(tipo) ? 'trabajo' : 'pausa',
+    tipo_operacion: tipo,
+    personal_id: def.personalId,
+    maquina_id: def.maquinaId,
+    automatico,
+    motivo: opciones?.motivo ?? null,
+    motivo_detalle: opciones?.detalle ?? null,
+    autorizado_por: opciones?.autorizadoPor ?? null,
     inicio: ahora,
     inicio_real: ahora,
     creado_por: u.id,
     creado_por_nombre: u.nombre,
   })
   return error ? { error: error.message } : {}
+}
+
+// Marcar cuándo terminó la máquina de un tramo automático (puede ser al otro
+// día). Es lo que permite medir el uso de máquina aparte del tiempo del operario.
+export async function marcarFinMaquina(
+  tramoId: number,
+  finMaquina: string | null,
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('actividad_tramos')
+    .update({ fin_maquina: finMaquina })
+    .eq('id', tramoId)
+  return error ? { error: error.message } : {}
+}
+
+// Compatibilidad con la pantalla actual mientras convive con la nueva.
+export async function iniciarTrabajo(procesoId: number): Promise<{ error?: string }> {
+  return iniciarOperacion(procesoId, 'OP')
 }
 
 // Pausar: cierra el trabajo en curso y abre un tramo de pausa con su motivo.
