@@ -1,24 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ModalConfirmar from '../../shared/components/ModalConfirmar'
+import ModalPrompt from '../../shared/components/ModalPrompt'
 import ModalPausa from './ModalPausa'
+import ModalOtraActividad from './ModalOtraActividad'
 import VistaCarpeta from './VistaCarpeta'
 import VisorFotos from '../../shared/components/VisorFotos'
 import ModalTramo from './ModalTramo'
-import { TIPOS_OPERACION, defTipo, esProductivo, type TipoOperacion } from './tiposOperacion'
+import { TIPOS_GRILLA, defTipo, esProductivo, esPausa, tipoDePausa, type TipoOperacion } from './tiposOperacion'
 import {
   cargarDetalleActividad,
   cargarTramos,
+  cargarMaquinas,
+  actividadEnCurso,
   iniciarOperacion,
-  pausar,
   finalizar,
   reabrir,
   guardarCamposOperario,
+  cambiarModoOperacion,
+  cambiarMaquinaTramo,
+  marcarFinMaquina,
   type DetalleActividad,
   type DatosPausa,
+  type ActividadEnCurso,
+  type MaquinaOpcion,
 } from './actividadApi'
 import {
   totales,
   tramoAbierto,
+  abiertoManual,
+  opActual,
+  puedeCambiarModo,
+  errorFinMaquina,
+  isoALocal,
+  localAIso,
   comoReloj,
   comoDuracion,
   horaDe,
@@ -40,9 +54,12 @@ function VistaActividad({
   onVolver,
   carpetaAbierta = false,
   onCarpeta,
+  onIrAActividad,
 }: {
   procesoId: number
   onVolver: () => void
+  // Para saltar a otra actividad que quedó corriendo.
+  onIrAActividad?: (procesoId: number) => void
   // La carpeta la maneja el módulo para poder recordarla al salir y volver.
   carpetaAbierta?: boolean
   onCarpeta?: (abierta: boolean) => void
@@ -52,7 +69,14 @@ function VistaActividad({
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pausaAbierta, setPausaAbierta] = useState(false)
-  const [pendienteMotivo, setPendienteMotivo] = useState<TipoOperacion | null>(null)
+  // MA y OT piden un texto antes de arrancar.
+  const [pideTexto, setPideTexto] = useState<'MA' | 'OT' | null>(null)
+  const [otraEnCurso, setOtraEnCurso] = useState<ActividadEnCurso | null>(null)
+  const [verificando, setVerificando] = useState(false)
+  const [maquinas, setMaquinas] = useState<MaquinaOpcion[]>([])
+  const [maquinaId, setMaquinaId] = useState<number | null>(null)
+  const [finMaq, setFinMaq] = useState('')
+  const [errorFin, setErrorFin] = useState<string | null>(null)
   const [confirmarFin, setConfirmarFin] = useState(false)
   const [modalTramo, setModalTramo] = useState<{ tramo: Tramo | null } | null>(null)
   const [ahora, setAhora] = useState(Date.now())
@@ -68,6 +92,9 @@ function VistaActividad({
       const [d, t] = await Promise.all([cargarDetalleActividad(procesoId), cargarTramos(procesoId)])
       setDet(d)
       setTramos(t)
+      // Máquina por defecto: la del último tramo registrado; si no hay, la planificada.
+      const ultima = [...t].reverse().find((x) => x.maquinaId != null)
+      setMaquinaId(ultima?.maquinaId ?? d.planMaquinaId)
       setMaterial(d.materialUtilizado ?? '')
       setObservaciones(d.observacionesOperario ?? '')
       setError(null)
@@ -81,6 +108,10 @@ function VistaActividad({
   useEffect(() => {
     recargar()
   }, [recargar])
+
+  useEffect(() => {
+    cargarMaquinas().then(setMaquinas).catch(() => {})
+  }, [])
 
   // El contador corre solo mientras haya un tramo abierto.
   const abierto = tramoAbierto(tramos)
@@ -141,22 +172,50 @@ function VistaActividad({
     return previos.map((t) => (t.fin || t.automatico ? t : { ...t, fin: cuando }))
   }
 
+  // Antes de arrancar cualquier cosa: ¿el operario tiene otra actividad en
+  // marcha? Si la tiene, se avisa y no se arranca.
+  async function libreParaArrancar(): Promise<boolean> {
+    if (!det?.planOperarioId) return true
+    setVerificando(true)
+    try {
+      const otra = await actividadEnCurso(procesoId, det.planOperarioId)
+      if (otra) {
+        setOtraEnCurso(otra)
+        return false
+      }
+      return true
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo verificar si hay otra actividad en curso.')
+      return false
+    } finally {
+      setVerificando(false)
+    }
+  }
+
   // Un toque = empezar o cambiar lo que se está haciendo. El tramo se pinta de
   // entrada para que no haya espera, y después se confirma contra la base.
-  function onTipo(tipo: TipoOperacion) {
-    // Los no productivos piden el motivo en el momento (salvo el descanso, que
-    // ya es su propio motivo).
-    if (!esProductivo(tipo) && tipo !== 'DE') {
-      setPendienteMotivo(tipo)
+  async function onTipo(tipo: TipoOperacion) {
+    if (verificando || !(await libreParaArrancar())) return
+    // Mantenimiento y Otra piden en el momento qué se hizo.
+    if (tipo === 'MA' || tipo === 'OT') {
+      setPideTexto(tipo)
       return
     }
     return arrancarTipo(tipo)
+  }
+
+  async function onPausa() {
+    if (verificando || !(await libreParaArrancar())) return
+    setPausaAbierta(true)
   }
 
   function arrancarTipo(
     tipo: TipoOperacion,
     extra?: { motivo?: DatosPausa['motivo']; detalle?: string | null; autorizadoPor?: string | null },
   ) {
+    // Una operación arranca automática si el proceso está así en Producción; el
+    // operario lo cambia después con un toque.
+    const automatico = tipo === 'OP' && !!det?.modoAutomatico
     return accionOptimista(
       (previos) => [
         ...cerrarUltimo(previos),
@@ -166,6 +225,8 @@ function VistaActividad({
           tipoOperacion: tipo,
           inicio: ahoraISO(),
           fin: null,
+          automatico,
+          maquinaId,
           motivo: extra?.motivo ?? null,
           motivoDetalle: extra?.detalle ?? null,
           autorizadoPor: extra?.autorizadoPor ?? null,
@@ -173,11 +234,57 @@ function VistaActividad({
       ],
       () =>
         iniciarOperacion(procesoId, tipo, {
+          automatico,
+          maquinaId,
           motivo: extra?.motivo ?? null,
           detalle: extra?.detalle ?? null,
           autorizadoPor: extra?.autorizadoPor ?? null,
         }),
     )
+  }
+
+  // Cambia algo de un tramo en pantalla al toque y lo confirma contra la base.
+  async function cambiarTramo(
+    id: number,
+    cambio: Partial<Tramo>,
+    fn: () => Promise<{ error?: string }>,
+  ) {
+    const previos = tramos
+    setTramos(previos.map((x) => (x.id === id ? { ...x, ...cambio } : x)))
+    const { error: err } = await fn()
+    if (err) {
+      setTramos(previos)
+      setError(err)
+      return
+    }
+    setError(null)
+    await refrescarTramos()
+  }
+
+  // La máquina elegida vale para lo que se arranque de acá en más y para lo
+  // que está en curso ahora (no para un automático que ya quedó andando).
+  function onMaquina(id: number | null) {
+    setMaquinaId(id)
+    const enCurso = abiertoManual(tramos)
+    if (enCurso && enCurso.id > 0) {
+      cambiarTramo(enCurso.id, { maquinaId: id }, () => cambiarMaquinaTramo(enCurso.id, id))
+    }
+  }
+
+  function onModo(op: Tramo, automatico: boolean) {
+    if (!!op.automatico === automatico || op.id < 0) return
+    setErrorFin(null)
+    setFinMaq('')
+    cambiarTramo(op.id, { automatico, finMaquina: null }, () => cambiarModoOperacion(op.id, automatico))
+  }
+
+  async function guardarFinMaquina(op: Tramo) {
+    const iso = localAIso(finMaq)
+    const err = errorFinMaquina(iso, op.inicio)
+    setErrorFin(err)
+    if (err || !iso) return
+    setFinMaq('')
+    await cambiarTramo(op.id, { fin: iso, finMaquina: iso }, () => marcarFinMaquina(op.id, iso))
   }
 
   async function accion(fn: () => Promise<{ error?: string }>) {
@@ -190,23 +297,13 @@ function VistaActividad({
     await recargar()
   }
 
-  async function onPausar(p: DatosPausa) {
+  function onPausar(p: DatosPausa) {
     setPausaAbierta(false)
-    await accionOptimista(
-      (previos) => [
-        ...cerrarUltimo(previos),
-        {
-          id: -Date.now(),
-          tipo: 'pausa',
-          inicio: ahoraISO(),
-          fin: null,
-          motivo: p.motivo,
-          motivoDetalle: p.detalle ?? null,
-          autorizadoPor: p.autorizadoPor ?? null,
-        },
-      ],
-      () => pausar(procesoId, p),
-    )
+    return arrancarTipo(tipoDePausa(p.motivo), {
+      motivo: p.motivo,
+      detalle: p.detalle,
+      autorizadoPor: p.autorizadoPor,
+    })
   }
 
   if (cargando) return <div className="act-vacio">Cargando actividad…</div>
@@ -215,6 +312,9 @@ function VistaActividad({
   const t = totales(tramos, ahora)
   const finalizada = det.estado === 'hecho_operario' || det.estado === 'hecho'
   const bloqueado = finalizada
+  const manual = abiertoManual(tramos)
+  const op = opActual(tramos)
+  const automaticoAndando = tramos.some((x) => !x.fin && x.automatico)
 
   if (carpetaAbierta) {
     return (
@@ -372,8 +472,19 @@ function VistaActividad({
             {!finalizada && (
               <button
                 type="button"
+                className={'tie-btn tie-btn-pausar' + (esPausa(manual?.tipoOperacion) ? ' tie-btn-activo' : '')}
+                disabled={verificando}
+                onClick={onPausa}
+              >
+                ⏸ Pausa
+              </button>
+            )}
+            {!finalizada && (
+              <button
+                type="button"
                 className="tie-btn tie-btn-finalizar"
-                disabled={tramos.length === 0}
+                disabled={tramos.length === 0 || automaticoAndando}
+                title={automaticoAndando ? 'Primero cargá cuándo terminó la máquina' : undefined}
                 onClick={() => setConfirmarFin(true)}
               >
                 ■ Finalizar
@@ -398,18 +509,42 @@ function VistaActividad({
           </div>
         )}
 
+        {!finalizada && automaticoAndando && (
+          <div className="tie-aviso-auto">
+            🤖 La máquina sigue en automático: antes de finalizar, cargá cuándo terminó.
+          </div>
+        )}
+
         {!finalizada && (
           <div className="tie-tipos">
-            <span className="ot-lbl">¿Qué estás haciendo?</span>
+            <div className="tie-tipos-cab">
+              <span className="ot-lbl">¿Qué estás haciendo?</span>
+              <label className="tie-maquina">
+                Máquina
+                <select
+                  className="empresa-input"
+                  value={maquinaId ?? ''}
+                  onChange={(e) => onMaquina(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">— sin máquina —</option>
+                  {maquinas.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <div className="tie-tipos-grilla">
-              {TIPOS_OPERACION.map((t) => {
-                const activo = abierto?.tipoOperacion === t.id
+              {TIPOS_GRILLA.map((t) => {
+                const activo = manual?.tipoOperacion === t.id
                 return (
                   <button
                     key={t.id}
                     type="button"
                     className={'tie-tipo tie-tipo-' + t.id + (activo ? ' tie-tipo-activo' : '')}
                     title={t.label}
+                    disabled={verificando}
                     onClick={() => onTipo(t.id)}
                   >
                     <span className="tie-tipo-cod">{t.id}</span>
@@ -418,6 +553,71 @@ function VistaActividad({
                 )
               })}
             </div>
+
+            {/* Solo para Operando: si la máquina queda andando sola y cuándo terminó. */}
+            {op && (
+              <div className="tie-op">
+                <div className="tie-op-modo">
+                  <span className="ot-lbl">Operación</span>
+                  <div className="tie-modos">
+                    {[false, true].map((auto) => (
+                      <button
+                        key={String(auto)}
+                        type="button"
+                        className={'tie-modo' + (!!op.automatico === auto ? ' tie-modo-activo' : '')}
+                        disabled={!puedeCambiarModo(tramos, op)}
+                        title={
+                          puedeCambiarModo(tramos, op)
+                            ? undefined
+                            : 'Ya empezaste otra cosa: corregilo tocando la tarjeta del tramo'
+                        }
+                        onClick={() => onModo(op, auto)}
+                      >
+                        {auto ? '🤖 Automático' : 'Manual'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {op.automatico && (
+                  <div className="tie-finmaq">
+                    <label className="empresa-campo">
+                      Fin de máquina (desde las {horaDe(op.inicio)})
+                      <input
+                        type="datetime-local"
+                        className="empresa-input"
+                        value={finMaq}
+                        min={isoALocal(op.inicio)}
+                        max={isoALocal(new Date(ahora).toISOString())}
+                        onChange={(e) => {
+                          setFinMaq(e.target.value)
+                          setErrorFin(null)
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="empresa-boton-secundario"
+                      onClick={() => {
+                        setFinMaq(isoALocal(new Date().toISOString()))
+                        setErrorFin(null)
+                      }}
+                    >
+                      Ahora
+                    </button>
+                    <button
+                      type="button"
+                      className="empresa-boton"
+                      disabled={!finMaq}
+                      onClick={() => guardarFinMaquina(op)}
+                    >
+                      Terminó la máquina
+                    </button>
+                    {errorFin && <p className="empresa-form-error">{errorFin}</p>}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -448,11 +648,13 @@ function VistaActividad({
                   onClick={finalizada ? undefined : () => setModalTramo({ tramo: tr })}
                 >
                   <div className="tie-card-tit">
-                    {tr.tipoOperacion
-                      ? defTipo(tr.tipoOperacion).label
-                      : tr.tipo === 'trabajo'
-                        ? 'Trabajo'
-                        : (ETIQUETA_MOTIVO[tr.motivo ?? ''] ?? 'Pausa')}
+                    {tr.tipoOperacion === 'PA'
+                      ? 'Pausa — ' + (ETIQUETA_MOTIVO[tr.motivo ?? ''] ?? 'sin motivo')
+                      : tr.tipoOperacion
+                        ? defTipo(tr.tipoOperacion).label
+                        : tr.tipo === 'trabajo'
+                          ? 'Trabajo'
+                          : (ETIQUETA_MOTIVO[tr.motivo ?? ''] ?? 'Pausa')}
                     {tr.automatico && <span className="tie-auto" title="Automático">🤖</span>}
                     {tr.editado && <span className="tie-editado" title="Horario corregido a mano">editado</span>}
                   </div>
@@ -462,6 +664,9 @@ function VistaActividad({
                   <div className={'tie-card-reloj' + (corriendo ? ' tie-card-reloj-vivo' : '')}>
                     {comoReloj(Math.max(0, ms))}
                   </div>
+                  {tr.automatico && corriendo && (
+                    <div className="tie-card-detalle">⏳ La máquina sigue andando</div>
+                  )}
                   {tr.motivoDetalle && <div className="tie-card-detalle">{tr.motivoDetalle}</div>}
                   {tr.autorizadoPor && (
                     <div className="tie-card-detalle">Autorizó: {tr.autorizadoPor}</div>
@@ -482,14 +687,29 @@ function VistaActividad({
 
       {pausaAbierta && <ModalPausa onConfirmar={onPausar} onCancelar={() => setPausaAbierta(false)} />}
 
-      {pendienteMotivo && (
-        <ModalPausa
-          onConfirmar={(p) => {
-            const tipo = pendienteMotivo
-            setPendienteMotivo(null)
-            arrancarTipo(tipo, { motivo: p.motivo, detalle: p.detalle, autorizadoPor: p.autorizadoPor })
+      {pideTexto && (
+        <ModalPrompt
+          titulo={defTipo(pideTexto).label}
+          etiqueta={pideTexto === 'MA' ? 'Especificar razón del mantenimiento' : 'Especificar actividad'}
+          textoConfirmar="Empezar"
+          onConfirmar={(valor) => {
+            const tipo = pideTexto
+            setPideTexto(null)
+            arrancarTipo(tipo, { detalle: valor.trim() })
           }}
-          onCancelar={() => setPendienteMotivo(null)}
+          onCancelar={() => setPideTexto(null)}
+        />
+      )}
+
+      {otraEnCurso && (
+        <ModalOtraActividad
+          otra={otraEnCurso}
+          onCerrar={() => setOtraEnCurso(null)}
+          onIr={() => {
+            const id = otraEnCurso.procesoId
+            setOtraEnCurso(null)
+            onIrAActividad?.(id)
+          }}
         />
       )}
 
@@ -509,7 +729,7 @@ function VistaActividad({
         <ModalConfirmar
           titulo="Finalizar actividad"
           mensaje={
-            abierto
+            manual
               ? 'Se cierra el tramo en curso y la actividad queda terminada. Después podés reabrirla si necesitás corregir.'
               : 'La actividad queda terminada. Después podés reabrirla si necesitás corregir.'
           }

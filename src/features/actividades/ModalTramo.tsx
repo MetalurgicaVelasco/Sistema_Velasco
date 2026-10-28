@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Modal from '../../shared/components/Modal'
 import ModalConfirmar from '../../shared/components/ModalConfirmar'
 import { agregarTramo, corregirTramo, borrarTramo, type MotivoPausa } from './actividadApi'
-import type { Tramo } from './tiempos'
+import { isoALocal, localAIso, type Tramo } from './tiempos'
 
 const MOTIVOS: { id: MotivoPausa; label: string }[] = [
   { id: 'cambio_planificacion', label: 'Cambio de planificación' },
@@ -12,20 +12,6 @@ const MOTIVOS: { id: MotivoPausa; label: string }[] = [
   { id: 'otro', label: 'Otro' },
 ]
 const AUTORIZANTES = ['Nicolás Velasco', 'Héctor Velasco', 'Tomás Sola']
-
-// ISO → 'YYYY-MM-DDTHH:mm' (lo que espera <input type="datetime-local">).
-function isoALocal(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
-}
-function localAIso(local: string): string | null {
-  if (!local) return null
-  const d = new Date(local)
-  return Number.isNaN(d.getTime()) ? null : d.toISOString()
-}
 
 // Corregir un tramo ya cargado, o agregar uno que no se registró en el momento.
 // Los horarios reales (cuándo se tocaron los botones) no se tocan nunca: el
@@ -88,7 +74,7 @@ function ModalTramo({
 
     setGuardando(true)
     const r = editando
-      ? await corregirTramo(tramo!.id, iniIso, finIso)
+      ? await corregirTramo(tramo!.id, iniIso, finIso, !!tramo!.automatico)
       : await agregarTramo(procesoId, {
           tipo,
           inicio: iniIso,

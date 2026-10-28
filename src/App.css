@@ -5576,6 +5576,7 @@ body.resizeando-col {
 .rep-seg-MA { background: #fadbd8; }
 .rep-seg-DE { background: #f2f3f4; }
 .rep-seg-OT { background: #e8daef; }
+.rep-seg-PA { background: #fdebd0; }
 /* Marcador: ancho generoso para agarrarlo con el dedo. */
 .rep-marcador {
   position: absolute;
@@ -5705,6 +5706,7 @@ body.resizeando-col {
 .tie-tipo-MA .tie-tipo-cod { background: #fadbd8; color: #922b21; }
 .tie-tipo-DE .tie-tipo-cod { background: #f2f3f4; color: #717d7e; }
 .tie-tipo-OT .tie-tipo-cod { background: #e8daef; color: #6c3483; }
+.tie-tipo-PA .tie-tipo-cod { background: #fdebd0; color: #a04000; }
 /* El tipo en curso: el botón entero en navy, para que se vea de un vistazo
    desde lejos qué está haciendo. */
 .tie-tipo-activo {
@@ -5717,4 +5719,105 @@ body.resizeando-col {
 }
 .tie-auto {
   margin-left: 4px;
+}
+
+/* ── Máquina, Automático/Manual y fin de máquina ──────────────────────────── */
+.tie-tipos-cab {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tie-maquina {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b6a66;
+}
+.tie-maquina .empresa-input {
+  width: auto;
+  min-width: 160px;
+}
+.tie-tipo:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+/* Pausa en curso: mismo criterio que el tipo activo, el botón entero marcado. */
+.tie-btn-activo {
+  box-shadow: 0 0 0 3px rgba(163, 90, 0, 0.35);
+}
+.tie-op {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e8dfb8;
+  border-radius: 8px;
+  background: #fffdf3;
+}
+.tie-op-modo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.tie-modos {
+  display: flex;
+  gap: 6px;
+}
+.tie-modo {
+  padding: 10px 16px;
+  border: 1px solid #c8c6be;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c2c2a;
+  cursor: pointer;
+}
+.tie-modo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.tie-modo-activo {
+  background: #0c447c;
+  border-color: #0c447c;
+  color: #fff;
+}
+.tie-finmaq {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tie-finmaq .empresa-campo {
+  margin: 0;
+}
+.tie-finmaq .empresa-form-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.tie-aviso-auto {
+  background: #fffdf3;
+  border: 1px solid #e8dfb8;
+  color: #7a5c00;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+/* Aviso de otra actividad en curso. */
+.oa-texto {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.oa-detalle {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #6b6a66;
 }

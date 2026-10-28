@@ -7,6 +7,10 @@ import {
   comoDuracion,
   horaDe,
   haySolape,
+  abiertoManual,
+  opActual,
+  puedeCambiarModo,
+  errorFinMaquina,
   type Tramo,
 } from './tiempos'
 
@@ -117,5 +121,54 @@ describe('haySolape', () => {
       tramo({ id: 2, inicio: '2026-08-05T10:00:00.000Z', fin: null }),
     ]
     expect(haySolape(ts)).toBe(false)
+  })
+})
+
+describe('abiertoManual / opActual / puedeCambiarModo', () => {
+  const auto = tramo({ id: 1, tipoOperacion: 'OP', automatico: true, inicio: '2026-08-05T08:00:00.000Z' })
+  const seteo = tramo({ id: 2, tipoOperacion: 'SE', inicio: '2026-08-05T09:00:00.000Z' })
+
+  it('el abierto manual ignora el automático', () => {
+    expect(abiertoManual([auto, seteo])?.id).toBe(2)
+    expect(abiertoManual([auto])).toBeNull()
+  })
+
+  it('el OP actual es el automático aunque el operario esté en otra cosa', () => {
+    expect(opActual([auto, seteo])?.id).toBe(1)
+  })
+
+  it('el OP actual es el más reciente si hay más de uno abierto', () => {
+    const otro = tramo({ id: 3, tipoOperacion: 'OP', inicio: '2026-08-05T10:00:00.000Z' })
+    expect(opActual([auto, otro])?.id).toBe(3)
+  })
+
+  it('sin OP abierto no hay OP actual', () => {
+    const cerrado = tramo({ tipoOperacion: 'OP', fin: '2026-08-05T09:00:00.000Z' })
+    expect(opActual([cerrado, seteo])).toBeNull()
+  })
+
+  it('el modo se puede cambiar solo si el OP es lo último que se arrancó', () => {
+    expect(puedeCambiarModo([auto], auto)).toBe(true)
+    expect(puedeCambiarModo([auto, seteo], auto)).toBe(false)
+  })
+})
+
+describe('errorFinMaquina', () => {
+  const inicio = '2026-08-05T10:00:00.000Z'
+
+  it('acepta una hora entre el inicio y ahora', () => {
+    expect(errorFinMaquina('2026-08-05T11:00:00.000Z', inicio, AHORA)).toBeNull()
+  })
+
+  it('rechaza una hora futura', () => {
+    expect(errorFinMaquina('2026-08-05T13:00:00.000Z', inicio, AHORA)).toMatch(/futura/)
+  })
+
+  it('rechaza una hora anterior al inicio', () => {
+    expect(errorFinMaquina('2026-08-05T09:00:00.000Z', inicio, AHORA)).toMatch(/anterior/)
+  })
+
+  it('pide la hora si falta', () => {
+    expect(errorFinMaquina(null, inicio, AHORA)).not.toBeNull()
   })
 })

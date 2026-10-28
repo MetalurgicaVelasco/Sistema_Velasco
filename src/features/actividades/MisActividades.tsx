@@ -121,9 +121,15 @@ function MisActividades() {
   if (actividadAbierta != null) {
     return (
       <VistaActividad
+        // La key hace que al saltar a otra actividad la pantalla arranque de cero.
+        key={actividadAbierta}
         procesoId={actividadAbierta}
         carpetaAbierta={carpetaAbierta}
         onCarpeta={setCarpetaAbierta}
+        onIrAActividad={(id) => {
+          setActividadAbierta(id)
+          setCarpetaAbierta(false)
+        }}
         onVolver={() => {
           setActividadAbierta(null)
           setCarpetaAbierta(false)

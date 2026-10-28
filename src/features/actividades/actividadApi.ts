@@ -1,6 +1,6 @@
 import { supabase } from '../../shared/lib/supabaseClient'
 import type { Tramo } from './tiempos'
-import { esProductivo, type TipoOperacion } from './tiposOperacion'
+import { esProductivo, admiteAutomatico, tipoDePausa, type TipoOperacion } from './tiposOperacion'
 
 // -----------------------------------------------------------------------------
 // Una actividad concreta: la orden de trabajo digital y sus tramos de tiempo.
@@ -25,6 +25,10 @@ export type DetalleActividad = {
   presentacion: string | null
   detalleTrabajo: string | null
   maquina: string | null
+  // Lo planificado: se usa como valor por defecto al registrar los tramos.
+  planOperarioId: number | null
+  planMaquinaId: number | null
+  modoAutomatico: boolean
   minutosEstimados: number
   materialUtilizado: string | null
   observacionesOperario: string | null
@@ -43,6 +47,7 @@ export async function cargarDetalleActividad(procesoId: number): Promise<Detalle
     .select(
       `id, elemento_id, orden, proceso_otro, estado, setup_min, operacion_min, margen_min,
        detalle_trabajo, material_utilizado, observaciones_operario, maquina_otra,
+       plan_operario_id, plan_maquina_id, modo,
        tipo:tipos_proceso!tipo_proceso_id ( nombre ),
        maquina:maquinas!plan_maquina_id ( nombre ),
        elemento:elementos!elemento_id (
@@ -96,6 +101,9 @@ export async function cargarDetalleActividad(procesoId: number): Promise<Detalle
     presentacion: el?.presentacion_mat_prima ?? null,
     detalleTrabajo: r.detalle_trabajo ?? null,
     maquina: uno(r.maquina)?.nombre ?? r.maquina_otra ?? null,
+    planOperarioId: r.plan_operario_id ?? null,
+    planMaquinaId: r.plan_maquina_id ?? null,
+    modoAutomatico: r.modo === 'automatica',
     minutosEstimados:
       Number(r.setup_min ?? 0) + Number(r.operacion_min ?? 0) + Number(r.margen_min ?? 0),
     materialUtilizado: r.material_utilizado ?? null,
@@ -155,6 +163,79 @@ export async function cargarTramos(procesoId: number): Promise<Tramo[]> {
   return (data ?? []).map(mapTramo)
 }
 
+// Máquinas para el selector de la actividad.
+export type MaquinaOpcion = { id: number; nombre: string }
+
+export async function cargarMaquinas(): Promise<MaquinaOpcion[]> {
+  const { data, error } = await supabase.from('maquinas').select('id, nombre').order('nombre')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as MaquinaOpcion[]
+}
+
+// Otra actividad del mismo operario que sigue en marcha (un tramo manual abierto
+// que no es una pausa). Si la hay, no se puede arrancar esta: un operario no
+// hace dos cosas manuales a la vez. Las pausas abiertas en otras actividades no
+// cuentan: se cierran solas al arrancar (ver iniciarOperacion).
+export type ActividadEnCurso = {
+  procesoId: number
+  proceso: string
+  descripcion: string
+  tipoOperacion: TipoOperacion
+  inicio: string
+}
+
+export async function actividadEnCurso(
+  procesoId: number,
+  personalId: number,
+): Promise<ActividadEnCurso | null> {
+  const { data, error } = await supabase
+    .from('actividad_tramos')
+    .select(
+      `proceso_id, tipo_operacion, inicio,
+       proceso:procesos!proceso_id (
+         proceso_otro,
+         tipo:tipos_proceso!tipo_proceso_id ( nombre ),
+         elemento:elementos!elemento_id ( descripcion )
+       )`,
+    )
+    .eq('personal_id', personalId)
+    .is('fin', null)
+    .eq('automatico', false)
+    .neq('proceso_id', procesoId)
+    .not('tipo_operacion', 'in', '(PA,DE)')
+    .limit(1)
+  if (error) throw new Error(error.message)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const r = (data ?? [])[0] as any
+  if (!r) return null
+  const proc = uno(r.proceso)
+  return {
+    procesoId: r.proceso_id,
+    proceso: uno(proc?.tipo)?.nombre || proc?.proceso_otro || '(sin proceso)',
+    descripcion: uno(proc?.elemento)?.descripcion ?? '',
+    tipoOperacion: r.tipo_operacion,
+    inicio: r.inicio,
+  }
+}
+
+// Cierra las pausas que el operario dejó abiertas en OTRAS actividades. Es el
+// flujo natural: pausa X ("me mandaron a otra cosa"), arranca Y, y la pausa de X
+// mide justo el tiempo que estuvo parado.
+async function cerrarPausasAjenas(
+  procesoId: number,
+  personalId: number,
+  cuando: string,
+): Promise<string | null> {
+  const { error } = await supabase
+    .from('actividad_tramos')
+    .update({ fin: cuando, fin_real: cuando })
+    .eq('personal_id', personalId)
+    .is('fin', null)
+    .neq('proceso_id', procesoId)
+    .in('tipo_operacion', ['PA', 'DE'])
+  return error ? error.message : null
+}
+
 async function usuarioActual(): Promise<{ id: string | null; nombre: string | null }> {
   const { data } = await supabase.auth.getUser()
   const u = data.user
@@ -203,21 +284,32 @@ export type DatosPausa = {
 export async function iniciarOperacion(
   procesoId: number,
   tipo: TipoOperacion,
-  opciones?: { automatico?: boolean; motivo?: MotivoPausa | null; detalle?: string | null; autorizadoPor?: string | null },
+  opciones?: {
+    automatico?: boolean
+    maquinaId?: number | null
+    motivo?: MotivoPausa | null
+    detalle?: string | null
+    autorizadoPor?: string | null
+  },
 ): Promise<{ error?: string }> {
   const ahora = new Date().toISOString()
   const err = await cerrarAbierto(procesoId, ahora)
   if (err) return { error: err }
 
   const def = await defectosDelProceso(procesoId)
+  if (def.personalId == null) return { error: 'La actividad no tiene operario planificado.' }
+  const err2 = await cerrarPausasAjenas(procesoId, def.personalId, ahora)
+  if (err2) return { error: err2 }
+
   const u = await usuarioActual()
-  const automatico = opciones?.automatico ?? (tipo === 'OP' ? def.automatico : false)
+  // Solo una operación puede quedar andando sola en la máquina.
+  const automatico = admiteAutomatico(tipo) && (opciones?.automatico ?? def.automatico)
   const { error } = await supabase.from('actividad_tramos').insert({
     proceso_id: procesoId,
     tipo: esProductivo(tipo) ? 'trabajo' : 'pausa',
     tipo_operacion: tipo,
     personal_id: def.personalId,
-    maquina_id: def.maquinaId,
+    maquina_id: opciones?.maquinaId !== undefined ? opciones.maquinaId : def.maquinaId,
     automatico,
     motivo: opciones?.motivo ?? null,
     motivo_detalle: opciones?.detalle ?? null,
@@ -231,40 +323,40 @@ export async function iniciarOperacion(
 }
 
 // Marcar cuándo terminó la máquina de un tramo automático (puede ser al otro
-// día). Es lo que permite medir el uso de máquina aparte del tiempo del operario.
+// día). Ahí se cierra el tramo: su tiempo va del inicio al fin de máquina.
+// `fin_real` guarda cuándo se cargó el dato.
 export async function marcarFinMaquina(
   tramoId: number,
-  finMaquina: string | null,
+  finMaquina: string,
 ): Promise<{ error?: string }> {
   const { error } = await supabase
     .from('actividad_tramos')
-    .update({ fin_maquina: finMaquina })
+    .update({ fin_maquina: finMaquina, fin: finMaquina, fin_real: new Date().toISOString() })
     .eq('id', tramoId)
   return error ? { error: error.message } : {}
 }
 
-// Compatibilidad con la pantalla actual mientras convive con la nueva.
-export async function iniciarTrabajo(procesoId: number): Promise<{ error?: string }> {
-  return iniciarOperacion(procesoId, 'OP')
+// Pasar la operación en curso de manual a automática o al revés (un toque).
+export async function cambiarModoOperacion(
+  tramoId: number,
+  automatico: boolean,
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('actividad_tramos')
+    .update({ automatico, fin_maquina: null })
+    .eq('id', tramoId)
+  return error ? { error: error.message } : {}
 }
 
-// Pausar: cierra el trabajo en curso y abre un tramo de pausa con su motivo.
-export async function pausar(procesoId: number, p: DatosPausa): Promise<{ error?: string }> {
-  const ahora = new Date().toISOString()
-  const err = await cerrarAbierto(procesoId, ahora)
-  if (err) return { error: err }
-  const u = await usuarioActual()
-  const { error } = await supabase.from('actividad_tramos').insert({
-    proceso_id: procesoId,
-    tipo: 'pausa',
-    motivo: p.motivo,
-    motivo_detalle: p.detalle ?? null,
-    autorizado_por: p.autorizadoPor ?? null,
-    inicio: ahora,
-    inicio_real: ahora,
-    creado_por: u.id,
-    creado_por_nombre: u.nombre,
-  })
+// Cambiar la máquina del tramo en curso (si el operario usó otra que la planificada).
+export async function cambiarMaquinaTramo(
+  tramoId: number,
+  maquinaId: number | null,
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('actividad_tramos')
+    .update({ maquina_id: maquinaId })
+    .eq('id', tramoId)
   return error ? { error: error.message } : {}
 }
 
@@ -309,10 +401,15 @@ export async function corregirTramo(
   tramoId: number,
   inicio: string,
   fin: string | null,
+  automatico = false,
 ): Promise<{ error?: string }> {
+  // En un automático, el fin del tramo ES el fin de la máquina.
+  const patch = automatico
+    ? { inicio, fin, fin_maquina: fin, editado: true }
+    : { inicio, fin, editado: true }
   const { error } = await supabase
     .from('actividad_tramos')
-    .update({ inicio, fin, editado: true })
+    .update(patch)
     .eq('id', tramoId)
   return error ? { error: error.message } : {}
 }
@@ -333,10 +430,16 @@ export async function agregarTramo(
   },
 ): Promise<{ error?: string }> {
   const u = await usuarioActual()
+  const def = await defectosDelProceso(procesoId)
+  if (def.personalId == null) return { error: 'La actividad no tiene operario planificado.' }
   const ahora = new Date().toISOString()
   const { error } = await supabase.from('actividad_tramos').insert({
     proceso_id: procesoId,
     tipo: datos.tipo,
+    // Cargado a mano: trabajo cuenta como Operando y la pausa según su motivo.
+    tipo_operacion: datos.tipo === 'trabajo' ? 'OP' : tipoDePausa(datos.motivo ?? ''),
+    personal_id: def.personalId,
+    maquina_id: def.maquinaId,
     motivo: datos.tipo === 'pausa' ? (datos.motivo ?? null) : null,
     motivo_detalle: datos.tipo === 'pausa' ? (datos.detalle ?? null) : null,
     autorizado_por: datos.tipo === 'pausa' ? (datos.autorizadoPor ?? null) : null,
